@@ -20,10 +20,50 @@ export interface Venda extends RecordModel {
   produto: string
   expand?: {
     produto?: Produto
+    orcamento?: Orcamento
   }
   canal: CanalVenda
   cidade?: string
   valor: number
+  orcamento?: string
+}
+
+export type StatusOrcamento =
+  | 'Orçamentos a realizar'
+  | 'Aguardando aprovação'
+  | 'Aprovados aguardando início'
+  | 'Trabalhos iniciados'
+  | 'Concluídos'
+
+export interface ItemOrcamento {
+  produto_id?: string
+  descricao: string
+  quantidade: number
+  unidade?: string
+  valor_unitario: number
+  valor_total: number
+}
+
+export interface Orcamento extends RecordModel {
+  numero: string
+  cliente: string
+  contato?: string
+  cidade?: string
+  canal_origem: CanalVenda
+  status: StatusOrcamento
+  produto_principal?: string
+  expand?: {
+    produto_principal?: Produto
+  }
+  itens?: ItemOrcamento[] | string
+  subtotal?: number
+  desconto?: number
+  valor_total: number
+  data_inicio_prevista?: string
+  data_fim_prevista?: string
+  data_conclusao?: string
+  validade?: string
+  observacoes?: string
 }
 
 export type IndicadorTipo = 'faturamento' | 'ticket_medio' | 'quantidade'

@@ -12,6 +12,7 @@ import Index from '@/pages/Index'
 import Vendas from '@/pages/Vendas'
 import Produtos from '@/pages/Produtos'
 import Alertas from '@/pages/Alertas'
+import Orcamentos from '@/pages/Orcamentos'
 
 // Páginas de Autenticação
 import Login from '@/pages/Login'
@@ -76,6 +77,7 @@ const AppRoutes = () => {
       >
         <Route path="/" element={<Index />} />
         <Route path="/vendas" element={<Vendas />} />
+        <Route path="/orcamentos" element={<Orcamentos />} />
         <Route path="/produtos" element={<Produtos />} />
         <Route path="/alertas" element={<Alertas />} />
       </Route>

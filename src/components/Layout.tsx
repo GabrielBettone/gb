@@ -5,6 +5,7 @@ import { useFilters } from '@/contexts/FilterContext'
 import {
   LayoutDashboard,
   Receipt,
+  Calculator,
   Boxes,
   Bell,
   LogOut,
@@ -22,6 +23,7 @@ import { ImportModal } from './ImportModal'
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/vendas', label: 'Vendas', icon: Receipt },
+  { path: '/orcamentos', label: 'Orçamentos', icon: Calculator },
   { path: '/produtos', label: 'Produtos', icon: Boxes },
   { path: '/alertas', label: 'Alertas', icon: Bell },
 ]
@@ -41,6 +43,8 @@ export const Layout: React.FC = () => {
         return 'Dashboard de Vendas'
       case '/vendas':
         return 'Gestão de Vendas'
+      case '/orcamentos':
+        return 'Gestão de Orçamentos & Obras'
       case '/produtos':
         return 'Catálogo de Produtos'
       case '/alertas':
