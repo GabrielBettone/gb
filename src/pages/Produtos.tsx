@@ -314,7 +314,7 @@ export const Produtos: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
               <Boxes className="w-5 h-5 text-[#D4AF37]" />
-              {editando ? 'Editar Produto' : 'Novo Produto'}
+              {editingProduto ? 'Editar Produto' : 'Novo Produto'}
             </DialogTitle>{' '}
             <DialogDescription className="text-xs text-[#5B6470]">
               Cadastre serviços e acabamentos em gesso e drywall da Gesso Bettone

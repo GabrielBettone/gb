@@ -54,22 +54,24 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f4f4f4] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-2xl shadow-md border border-[#D4AF37]/30 mb-3">
             GB
           </div>
-          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] tracking-tight">
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
             Gesso Bettone
           </h1>
-          <p className="text-sm text-[#5B6470] mt-1">Análise de Vendas e Indicadores</p>
+          <p className="text-sm text-[#616F7D] mt-1 font-sans">Análise de Vendas e Indicadores</p>
         </div>
 
-        <Card className="border-[#E3E6EA] shadow-sm rounded-xl bg-white">
+        <Card className="border-[#DEE4EA] shadow-sm rounded-xl bg-white">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold text-[#22272A]">Recuperar senha</CardTitle>
-            <CardDescription className="text-sm text-[#5B6470]">
+            <CardTitle className="font-heading text-xl font-bold text-[#2C3E50]">
+              Recuperar senha
+            </CardTitle>
+            <CardDescription className="text-sm text-[#616F7D]">
               Informe seu e-mail cadastrado para receber o link de redefinição
             </CardDescription>
           </CardHeader>
@@ -99,7 +101,7 @@ const ForgotPassword = () => {
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-xs font-semibold text-[#22272A]">
+                  <Label htmlFor="email" className="text-xs font-semibold text-[#2C3E50]">
                     E-mail
                   </Label>
                   <Input
@@ -132,7 +134,7 @@ const ForgotPassword = () => {
                 <div className="text-center">
                   <Link
                     to="/login"
-                    className="inline-flex items-center text-xs font-semibold text-[#616F7D] hover:text-[#2C3E50]"
+                    className="inline-flex items-center text-xs font-semibold text-[#616F7D] hover:text-[#2C3E50] transition-colors"
                   >
                     <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                     Voltar para o login

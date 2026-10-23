@@ -718,7 +718,7 @@ export const Vendas: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
               <Plus className="w-5 h-5 text-[#D4AF37]" />
-              {editandoVenda ? 'Editar Venda' : 'Lançar Nova Venda'}
+              Lançar Nova Venda
             </DialogTitle>{' '}
             <DialogDescription className="text-xs text-[#5B6470]">
               Insira os dados da ordem de serviço ou pedido manual

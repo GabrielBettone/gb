@@ -52,24 +52,24 @@ const VerifyEmail = () => {
   }, [token, confirmVerification])
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f4f4f4] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-2xl shadow-md border border-[#D4AF37]/30 mb-3">
             GB
           </div>
-          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] tracking-tight">
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
             Gesso Bettone
           </h1>
-          <p className="text-sm text-[#5B6470] mt-1">Análise de Vendas e Indicadores</p>
+          <p className="text-sm text-[#616F7D] mt-1 font-sans">Análise de Vendas e Indicadores</p>
         </div>
 
-        <Card className="border-[#E3E6EA] shadow-sm rounded-xl bg-white">
+        <Card className="border-[#DEE4EA] shadow-sm rounded-xl bg-white">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl font-bold text-[#22272A]">
+            <CardTitle className="font-heading text-xl font-bold text-[#2C3E50]">
               Verificação de E-mail
             </CardTitle>
-            <CardDescription className="text-sm text-[#5B6470]">
+            <CardDescription className="text-sm text-[#616F7D]">
               Confirmação de endereço e segurança da conta
             </CardDescription>
           </CardHeader>
@@ -77,7 +77,7 @@ const VerifyEmail = () => {
             {status === 'loading' && (
               <div className="flex flex-col items-center gap-3">
                 <Loader2 className="w-10 h-10 text-[#2C3E50] animate-spin" />
-                <p className="text-sm text-[#5B6470]">Validando seu token de segurança...</p>
+                <p className="text-sm text-[#616F7D]">Validando seu token de segurança...</p>
               </div>
             )}
 
@@ -89,7 +89,7 @@ const VerifyEmail = () => {
                 <h3 className="font-semibold text-base text-[#2E7D5B]">
                   E-mail verificado com sucesso!
                 </h3>
-                <p className="text-xs text-[#5B6470] max-w-xs">
+                <p className="text-xs text-[#616F7D] max-w-xs">
                   Sua conta foi validada. Agora você pode entrar e acessar todas as análises de
                   vendas da Gesso Bettone.
                 </p>
@@ -102,7 +102,7 @@ const VerifyEmail = () => {
                   <XCircle className="w-8 h-8" />
                 </div>
                 <h3 className="font-semibold text-base text-[#C4453C]">Falha na verificação</h3>
-                <p className="text-xs text-[#5B6470] max-w-xs">
+                <p className="text-xs text-[#616F7D] max-w-xs">
                   {errorMessage || 'O link de verificação pode ter expirado ou é inválido.'}
                 </p>
               </div>

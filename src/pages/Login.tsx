@@ -72,31 +72,31 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#f4f4f4] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-2xl shadow-md border border-[#D4AF37]/30 mb-3">
             GB
           </div>
-          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] tracking-tight">
+          <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
             Gesso Bettone
           </h1>
-          <p className="text-sm text-[#616F7D] mt-1">Análise de Vendas e Indicadores</p>
+          <p className="text-sm text-[#616F7D] mt-1 font-sans">Análise de Vendas e Indicadores</p>
         </div>
 
-        <Card className="border-[#E3E6EA] shadow-sm rounded-xl bg-white">
+        <Card className="border-[#DEE4EA] shadow-sm rounded-xl bg-white">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl font-bold text-[#22272A]">
+            <CardTitle className="font-heading text-xl font-bold text-[#2C3E50]">
               Acessar análise de vendas
             </CardTitle>
-            <CardDescription className="text-sm text-[#5B6470]">
+            <CardDescription className="text-sm text-[#616F7D]">
               Informe suas credenciais para visualizar relatórios e indicadores
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-xs font-semibold text-[#22272A]">
+                <Label htmlFor="email" className="text-xs font-semibold text-[#2C3E50]">
                   E-mail institucional
                 </Label>
                 <Input
@@ -115,7 +115,7 @@ const Login = () => {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-semibold text-[#22272A]">
+                  <Label htmlFor="password" className="text-xs font-semibold text-[#2C3E50]">
                     Senha
                   </Label>
                   <Link
@@ -162,14 +162,14 @@ const Login = () => {
                   'Entrar'
                 )}
               </Button>
-              <p className="text-center text-xs text-[#5B6470]">
+              <p className="text-center text-xs text-[#616F7D]">
                 Ainda não tem acesso?{' '}
                 <Link
                   to="/register"
-                  className="font-bold text-[#2C3E50] hover:text-[#D4AF37] hover:underline"
+                  className="font-bold text-[#2C3E50] hover:text-[#D4AF37] hover:underline transition-colors"
                 >
                   Solicite seu acesso
-                </Link>{' '}
+                </Link>
               </p>
             </CardFooter>
           </form>

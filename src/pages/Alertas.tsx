@@ -439,8 +439,8 @@ export const Alertas: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
               <Plus className="w-5 h-5 text-[#D4AF37]" />
-              {editando ? 'Editar Regra' : 'Nova Regra de Alerta'}
-            </DialogTitle>{' '}
+              Nova Regra de Alerta
+            </DialogTitle>
             <DialogDescription className="text-xs text-[#5B6470]">
               Configure margens e metas de indicadores para notificações automáticas
             </DialogDescription>

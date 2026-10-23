@@ -481,10 +481,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={adicionarItem}
+                onClick={handleAddItem}
                 className="h-8 text-xs text-[#2C3E50] border-[#2C3E50]/30 hover:bg-[#E8EDF2]"
               >
-                {' '}
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Adicionar Serviço
               </Button>
