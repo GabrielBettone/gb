@@ -1,9 +1,30 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { WHATSAPP_LINK, SERVICOS, CIDADES_ATENDIDAS } from '@/data/landingData'
+import {
+  WHATSAPP_LINK,
+  SERVICOS,
+  CIDADES_ATENDIDAS,
+  WHATSAPP_DEFAULT_TEXT,
+} from '@/data/landingData'
 import { MessageCircle, MapPin, Phone, Lock, Heart } from 'lucide-react'
+import { obterConfiguracoes, SiteSettings, registrarEventoAnalytics } from '@/services/site'
 
 export const LandingFooter: React.FC = () => {
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [zapLink, setZapLink] = useState(WHATSAPP_LINK)
+
+  useEffect(() => {
+    obterConfiguracoes().then((cfg) => {
+      setSettings(cfg)
+      if (cfg.whatsapp_principal) {
+        const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
+        setZapLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+      }
+    })
+  }, [])
+
+  const cidades = settings?.cidades_atendidas || CIDADES_ATENDIDAS
+  const cnpj = settings?.cnpj || '53.242.055/0001-74'
   return (
     <footer className="bg-[#1B2631] text-[#f4f4f4] border-t border-[#2C3E50]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 lg:py-16">
@@ -37,12 +58,21 @@ export const LandingFooter: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
                 <a
-                  href={WHATSAPP_LINK}
+                  href={zapLink}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    registrarEventoAnalytics({
+                      tipo: 'click_whatsapp',
+                      metadata: { contexto: 'footer_phone_link' },
+                    })
+                  }}
                   className="hover:text-[#D4AF37] transition-colors"
                 >
-                  WhatsApp: (19) 98109-3379
+                  WhatsApp:{' '}
+                  {settings?.whatsapp_principal
+                    ? `+${settings.whatsapp_principal}`
+                    : '(19) 98109-3379'}
                 </a>
               </div>
             </div>
@@ -107,14 +137,20 @@ export const LandingFooter: React.FC = () => {
               Cidades Atendidas
             </h3>
             <p className="text-[11px] text-white/70 leading-relaxed">
-              {CIDADES_ATENDIDAS.slice(0, 7).join(' • ')} e cidades vizinhas.
+              {cidades.slice(0, 7).join(' • ')} e cidades vizinhas.
             </p>
 
             <div className="pt-3 border-t border-white/10">
               <a
-                href={WHATSAPP_LINK}
+                href={zapLink}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  registrarEventoAnalytics({
+                    tipo: 'click_whatsapp',
+                    metadata: { contexto: 'footer_whatsapp_button' },
+                  })
+                }}
                 className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-lg bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs transition-colors shadow-sm"
               >
                 <MessageCircle className="w-4 h-4 text-[#2C3E50]" />
@@ -136,9 +172,12 @@ export const LandingFooter: React.FC = () => {
 
         {/* Linha Inferior com Copyright & Informações legais */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-white/60">
-          <div>© {new Date().getFullYear()} Gesso Bettone. Todos os direitos reservados.</div>
+          <div>
+            © {new Date().getFullYear()} {settings?.nome_site || 'Gesso Bettone'}. CNPJ: {cnpj}.
+            Todos os direitos reservados.
+          </div>
           <div className="flex items-center gap-1">
-            <span>Desenvolvido com primor e precisão para São Pedro/SP</span>
+            <span>São Pedro/SP e Região</span>
             <Heart className="w-3 h-3 text-[#D4AF37] fill-current" />
           </div>
         </div>

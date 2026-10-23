@@ -1,9 +1,38 @@
-import React from 'react'
-import { CIDADES_ATENDIDAS, WHATSAPP_LINK } from '@/data/landingData'
+import React, { useState, useEffect } from 'react'
+import { CIDADES_ATENDIDAS as FALLBACK_CIDADES, WHATSAPP_LINK } from '@/data/landingData'
 import { MapPin, CheckCircle, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { obterConfiguracoes, SiteSettings, registrarEventoAnalytics } from '@/services/site'
 
 export const LandingCidades: React.FC = () => {
+  const [cidades, setCidades] = useState<string[]>(FALLBACK_CIDADES)
+  const [zapLink, setZapLink] = useState(WHATSAPP_LINK)
+
+  useEffect(() => {
+    let isMounted = true
+    async function carregar() {
+      try {
+        const cfg = await obterConfiguracoes()
+        if (!isMounted) return
+        if (cfg.cidades_atendidas && cfg.cidades_atendidas.length > 0) {
+          setCidades(cfg.cidades_atendidas)
+        }
+        if (cfg.whatsapp_principal) {
+          const text = encodeURIComponent(
+            cfg.mensagem_orcamento || 'Olá! Gostaria de um orçamento.',
+          )
+          setZapLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar cidades das configs:', err)
+      }
+    }
+    carregar()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   return (
     <section className="py-16 bg-white border-b border-[#DEE4EA]" id="regiao">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -34,7 +63,7 @@ export const LandingCidades: React.FC = () => {
                   Cidades atendidas com visita técnica e orçamento:
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {CIDADES_ATENDIDAS.map((cidade) => (
+                  {cidades.map((cidade) => (
                     <div
                       key={cidade}
                       className="flex items-center gap-2 p-2 rounded-lg bg-white/10 hover:bg-white/15 backdrop-blur transition-colors text-xs font-medium text-white"
@@ -58,8 +87,14 @@ export const LandingCidades: React.FC = () => {
               <Button
                 asChild
                 className="w-full bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-sm h-11 rounded-xl shadow-md transition-all"
+                onClick={() => {
+                  registrarEventoAnalytics({
+                    tipo: 'click_whatsapp',
+                    metadata: { contexto: 'visita_minha_cidade' },
+                  })
+                }}
               >
-                <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                <a href={zapLink} target="_blank" rel="noopener noreferrer">
                   Solicitar visita na minha cidade
                   <ArrowRight className="w-4 h-4 ml-1.5 text-[#2C3E50]" />
                 </a>

@@ -20,7 +20,43 @@ import {
 
 export const ServicoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
-  const servico = SERVICOS.find((s) => s.slug === slug)
+  const [servicoDb, setServicoDb] = React.useState<any>(null)
+  const servicoLocal = SERVICOS.find((s) => s.slug === slug)
+
+  React.useEffect(() => {
+    if (slug) {
+      import('@/services/site').then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
+        obterServicoPorSlug(slug).then((s) => {
+          if (s) {
+            setServicoDb(s)
+            registrarEventoAnalytics({
+              tipo: 'click_servico',
+              servico_slug: s.slug,
+              servico_nome: s.nome,
+              categoria_nome: s.categoria,
+            })
+          }
+        })
+      })
+    }
+  }, [slug])
+
+  const servico = servicoDb
+    ? {
+        slug: servicoDb.slug,
+        titulo: servicoDb.nome,
+        categoria: servicoDb.categoria,
+        destaque: servicoDb.destaque,
+        descricaoCurta: servicoDb.descricao_curta,
+        descricaoCompleta: servicoDb.descricao_longa,
+        beneficios: servicoDb.beneficios,
+        imagemPrincipal: servicoDb.imagem_principal,
+        galeria: servicoDb.galeria,
+        metaTitle: servicoDb.meta_title,
+        metaDescription: servicoDb.meta_description,
+        keywords: servicoDb.keywords,
+      }
+    : servicoLocal
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
 
   if (!servico) {

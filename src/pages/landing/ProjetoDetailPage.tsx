@@ -19,7 +19,41 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 export const ProjetoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
-  const projeto = PROJETOS.find((p) => p.slug === slug)
+  const [projetoDb, setProjetoDb] = React.useState<any>(null)
+  const projetoLocal = PROJETOS.find((p) => p.slug === slug)
+
+  React.useEffect(() => {
+    if (slug) {
+      import('@/services/site').then(({ obterProjetoPorSlug, registrarEventoAnalytics }) => {
+        obterProjetoPorSlug(slug).then((p) => {
+          if (p) {
+            setProjetoDb(p)
+            registrarEventoAnalytics({
+              tipo: 'view_categoria',
+              categoria_nome: p.categoria,
+              metadata: { projeto: p.titulo, slug: p.slug },
+            })
+          }
+        })
+      })
+    }
+  }, [slug])
+
+  const projeto = projetoDb
+    ? {
+        slug: projetoDb.slug,
+        titulo: projetoDb.titulo,
+        categoria: projetoDb.categoria,
+        subtitulo: projetoDb.subtitulo,
+        descricao: projetoDb.descricao,
+        detalhesTecnicos: projetoDb.detalhes_tecnicos,
+        fotosCount: projetoDb.fotos_count || projetoDb.galeria?.length || 0,
+        imagemCapa: projetoDb.imagem_capa,
+        galeria: projetoDb.galeria,
+        metaTitle: projetoDb.meta_title,
+        metaDescription: projetoDb.meta_description,
+      }
+    : projetoLocal
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [fullscreenOpen, setFullscreenOpen] = useState(false)
 

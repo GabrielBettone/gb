@@ -1,8 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { SERVICOS } from '@/data/landingData'
+import { SERVICOS as FALLBACK_SERVICOS } from '@/data/landingData'
 import { ArrowRight, Star, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import {
+  listarServicos,
+  listarCategorias,
+  SiteServico,
+  registrarEventoAnalytics,
+} from '@/services/site'
 
 interface Props {
   limit?: number
@@ -10,14 +16,70 @@ interface Props {
 }
 
 export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) => {
-  const [filter, setFilter] = useState<'Todos' | 'Residencial' | 'Fachadas'>('Todos')
+  const [filter, setFilter] = useState<string>('Todos')
+  const [servicos, setServicos] = useState<SiteServico[]>([])
+  const [categorias, setCategorias] = useState<string[]>(['Todos', 'Residencial', 'Fachadas'])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = SERVICOS.filter((s) => {
+  useEffect(() => {
+    let isMounted = true
+    async function carregar() {
+      try {
+        const [servs, cats] = await Promise.all([listarServicos(true), listarCategorias(true)])
+        if (!isMounted) return
+        if (servs.length > 0) {
+          setServicos(servs)
+        } else {
+          // fallback
+          setServicos(
+            FALLBACK_SERVICOS.map((s, idx) => ({
+              id: `fallback-${idx}`,
+              nome: s.titulo,
+              slug: s.slug,
+              categoria: s.categoria,
+              destaque: !!s.destaque,
+              ativo: true,
+              ordem: idx + 1,
+              descricao_curta: s.descricaoCurta,
+              descricao_longa: s.descricaoCompleta,
+              beneficios: s.beneficios,
+              imagem_principal: s.imagemPrincipal,
+              galeria: s.galeria,
+            })),
+          )
+        }
+
+        if (cats.length > 0) {
+          setCategorias(['Todos', ...cats.map((c) => c.nome)])
+        }
+      } catch (err) {
+        console.error('Erro ao carregar servicos do banco:', err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    carregar()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const filtered = servicos.filter((s) => {
     if (filter === 'Todos') return true
     return s.categoria === filter
   })
 
   const displayed = limit ? filtered.slice(0, limit) : filtered
+
+  const handleFilterClick = (cat: string) => {
+    setFilter(cat)
+    if (cat !== 'Todos') {
+      registrarEventoAnalytics({
+        tipo: 'view_categoria',
+        categoria_nome: cat,
+      })
+    }
+  }
 
   return (
     <section className="py-16 bg-[#f4f4f4]" id="servicos">
@@ -40,11 +102,11 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
 
           {/* Filtros ou Link Ver Todos */}
           {showFilter ? (
-            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-[#DEE4EA] self-start md:self-auto">
-              {(['Todos', 'Residencial', 'Fachadas'] as const).map((cat) => (
+            <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-lg border border-[#DEE4EA] self-start md:self-auto">
+              {categorias.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setFilter(cat)}
+                  onClick={() => handleFilterClick(cat)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     filter === cat
                       ? 'bg-[#2C3E50] text-white shadow-xs'
@@ -61,7 +123,7 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
                 to="/servicos"
                 className="inline-flex items-center text-sm font-semibold text-[#2C3E50] hover:text-[#D4AF37] group transition-colors"
               >
-                Ver todos os {SERVICOS.length} serviços
+                Ver todos os {servicos.length} serviços
                 <ArrowRight className="w-4 h-4 ml-1.5 transition-transform group-hover:translate-x-1" />
               </Link>
             )
@@ -78,8 +140,8 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
               {/* Imagem do Serviço */}
               <div className="relative aspect-[16/10] overflow-hidden bg-muted">
                 <img
-                  src={servico.imagemPrincipal}
-                  alt={servico.titulo}
+                  src={servico.imagem_principal}
+                  alt={servico.nome}
                   loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
@@ -106,22 +168,43 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
               <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
                   <h3 className="font-heading text-lg font-bold text-[#2C3E50] group-hover:text-[#2C3E50] transition-colors mb-2">
-                    <Link to={`/servicos/${servico.slug}`} className="focus:outline-hidden">
-                      {servico.titulo}
+                    <Link
+                      to={`/servicos/${servico.slug}`}
+                      className="focus:outline-hidden"
+                      onClick={() => {
+                        registrarEventoAnalytics({
+                          tipo: 'click_servico',
+                          servico_slug: servico.slug,
+                          servico_nome: servico.nome,
+                        })
+                      }}
+                    >
+                      {servico.nome}
                     </Link>
                   </h3>
                   <p className="text-xs sm:text-sm text-[#616F7D] line-clamp-3 leading-relaxed">
-                    {servico.descricaoCurta}
+                    {servico.descricao_curta}
                   </p>
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-[#DEE4EA] flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#2C3E50] group-hover:text-[#D4AF37] transition-colors flex items-center">
+                  <Link
+                    to={`/servicos/${servico.slug}`}
+                    className="text-xs font-semibold text-[#2C3E50] group-hover:text-[#D4AF37] transition-colors flex items-center"
+                    onClick={() => {
+                      registrarEventoAnalytics({
+                        tipo: 'click_servico',
+                        servico_slug: servico.slug,
+                        servico_nome: servico.nome,
+                      })
+                    }}
+                  >
                     Ver detalhes e fotos
                     <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-1" />
-                  </span>
+                  </Link>
                   <span className="text-[11px] text-[#616F7D]">
-                    {servico.galeria.length} {servico.galeria.length === 1 ? 'foto' : 'fotos'}
+                    {servico.galeria?.length || 0}{' '}
+                    {(servico.galeria?.length || 0) === 1 ? 'foto' : 'fotos'}
                   </span>
                 </div>
               </div>
@@ -136,7 +219,7 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
               to="/servicos"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white border border-[#DEE4EA] text-sm font-semibold text-[#2C3E50] hover:bg-[#E8EDF2] hover:border-[#2C3E50]/30 transition-all shadow-xs"
             >
-              Explorar catálogo completo de serviços ({SERVICOS.length})
+              Explorar catálogo completo de serviços ({servicos.length})
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </div>

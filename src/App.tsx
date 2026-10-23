@@ -16,6 +16,7 @@ import PortfolioListPage from '@/pages/landing/PortfolioListPage'
 import ProjetoDetailPage from '@/pages/landing/ProjetoDetailPage'
 import SobrePage from '@/pages/landing/SobrePage'
 import ContatoPage from '@/pages/landing/ContatoPage'
+import ParceirosPublicPage from '@/pages/landing/ParceirosPublicPage'
 
 // Páginas Autenticadas Internas
 import Index from '@/pages/Index'
@@ -23,6 +24,13 @@ import Vendas from '@/pages/Vendas'
 import Produtos from '@/pages/Produtos'
 import Alertas from '@/pages/Alertas'
 import Orcamentos from '@/pages/Orcamentos'
+import SiteDashboardPage from '@/pages/site/SiteDashboardPage'
+import SiteServicosPage from '@/pages/site/SiteServicosPage'
+import SiteCategoriasPage from '@/pages/site/SiteCategoriasPage'
+import SitePortfolioPage from '@/pages/site/SitePortfolioPage'
+import SiteDepoimentosPage from '@/pages/site/SiteDepoimentosPage'
+import SiteParceirosPage from '@/pages/site/SiteParceirosPage'
+import SiteConfiguracoesPage from '@/pages/site/SiteConfiguracoesPage'
 
 // Páginas de Autenticação
 import Login from '@/pages/Login'
@@ -57,6 +65,7 @@ const AppRoutes = () => {
         <Route path="/projetos/:slug" element={<ProjetoRedirect />} />
         <Route path="/sobre" element={<SobrePage />} />
         <Route path="/contato" element={<ContatoPage />} />
+        <Route path="/parceiros" element={<ParceirosPublicPage />} />
       </Route>
 
       {/* 2. ROTAS PÚBLICAS DE AUTENTICAÇÃO */}
@@ -104,6 +113,15 @@ const AppRoutes = () => {
         <Route path="/painel/orcamentos" element={<Orcamentos />} />
         <Route path="/painel/produtos" element={<Produtos />} />
         <Route path="/painel/alertas" element={<Alertas />} />
+
+        {/* Rotas do Grupo Site (Gerenciador do Site Público) */}
+        <Route path="/painel/site" element={<SiteDashboardPage />} />
+        <Route path="/painel/site/servicos" element={<SiteServicosPage />} />
+        <Route path="/painel/site/categorias" element={<SiteCategoriasPage />} />
+        <Route path="/painel/site/portfolio" element={<SitePortfolioPage />} />
+        <Route path="/painel/site/depoimentos" element={<SiteDepoimentosPage />} />
+        <Route path="/painel/site/parceiros" element={<SiteParceirosPage />} />
+        <Route path="/painel/site/configuracoes" element={<SiteConfiguracoesPage />} />
 
         {/* Alias de retrocompatibilidade para rotas internas antigas */}
         <Route path="/dashboard" element={<Navigate to="/painel" replace />} />

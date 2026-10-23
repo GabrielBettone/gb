@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react'
-import { WHATSAPP_LINK } from '@/data/landingData'
+import { WHATSAPP_LINK, WHATSAPP_DEFAULT_TEXT } from '@/data/landingData'
 import { MessageCircle, ArrowUp } from 'lucide-react'
+import { obterConfiguracoes, registrarEventoAnalytics } from '@/services/site'
 
 export const FloatingWhatsApp: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false)
+  const [link, setLink] = useState(WHATSAPP_LINK)
 
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400)
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
+
+    obterConfiguracoes().then((cfg) => {
+      if (cfg.whatsapp_principal) {
+        const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
+        setLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+      }
+    })
+
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleClick = () => {
+    registrarEventoAnalytics({
+      tipo: 'click_whatsapp',
+      metadata: { contexto: 'floating_whatsapp_button' },
+    })
   }
 
   return (
@@ -33,9 +50,10 @@ export const FloatingWhatsApp: React.FC = () => {
 
       {/* Botão Flutuante do WhatsApp */}
       <a
-        href={WHATSAPP_LINK}
+        href={link}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={handleClick}
         aria-label="Falar com a Gesso Bettone no WhatsApp"
         className="group flex items-center gap-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 focus:outline-hidden"
       >

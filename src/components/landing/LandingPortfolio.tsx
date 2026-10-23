@@ -1,8 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { PROJETOS } from '@/data/landingData'
+import { PROJETOS as FALLBACK_PROJETOS } from '@/data/landingData'
 import { ArrowRight, Images, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import {
+  listarPortfolio,
+  listarCategorias,
+  SitePortfolioItem,
+  registrarEventoAnalytics,
+} from '@/services/site'
 
 interface Props {
   limit?: number
@@ -10,14 +16,72 @@ interface Props {
 }
 
 export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) => {
-  const [filter, setFilter] = useState<'Todos' | 'Residencial' | 'Comercial' | 'Fachadas'>('Todos')
+  const [filter, setFilter] = useState<string>('Todos')
+  const [projetos, setProjetos] = useState<SitePortfolioItem[]>([])
+  const [categorias, setCategorias] = useState<string[]>([
+    'Todos',
+    'Residencial',
+    'Comercial',
+    'Fachadas',
+  ])
 
-  const filtered = PROJETOS.filter((p) => {
+  useEffect(() => {
+    let isMounted = true
+    async function carregar() {
+      try {
+        const [ports, cats] = await Promise.all([listarPortfolio(true), listarCategorias(true)])
+        if (!isMounted) return
+        if (ports.length > 0) {
+          setProjetos(ports)
+        } else {
+          setProjetos(
+            FALLBACK_PROJETOS.map((p, idx) => ({
+              id: `fallback-${idx}`,
+              titulo: p.titulo,
+              slug: p.slug,
+              categoria: p.categoria,
+              subtitulo: p.subtitulo,
+              cidade: 'São Pedro/SP',
+              descricao: p.descricao,
+              detalhes_tecnicos: p.detalhesTecnicos,
+              imagem_capa: p.imagemCapa,
+              galeria: p.galeria,
+              fotos_count: p.fotosCount,
+              destaque: true,
+              ativo: true,
+            })),
+          )
+        }
+
+        if (cats.length > 0) {
+          setCategorias(['Todos', ...cats.map((c) => c.nome)])
+        }
+      } catch (err) {
+        console.error('Erro ao carregar portfolio:', err)
+      }
+    }
+    carregar()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const filtered = projetos.filter((p) => {
     if (filter === 'Todos') return true
     return p.categoria === filter
   })
 
   const displayed = limit ? filtered.slice(0, limit) : filtered
+
+  const handleFilterClick = (cat: string) => {
+    setFilter(cat)
+    if (cat !== 'Todos') {
+      registrarEventoAnalytics({
+        tipo: 'view_categoria',
+        categoria_nome: cat,
+      })
+    }
+  }
 
   return (
     <section className="py-16 bg-white" id="portfolio">
@@ -41,10 +105,10 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
           {/* Filtros por Categoria */}
           {showFilter && (
             <div className="flex flex-wrap items-center gap-1.5 bg-[#f4f4f4] p-1.5 rounded-xl border border-[#DEE4EA]">
-              {(['Todos', 'Residencial', 'Comercial', 'Fachadas'] as const).map((cat) => (
+              {categorias.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setFilter(cat)}
+                  onClick={() => handleFilterClick(cat)}
                   className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
                     filter === cat
                       ? 'bg-[#2C3E50] text-white shadow-xs font-semibold'
@@ -68,7 +132,7 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
               {/* Imagem de Capa com Hover Effect */}
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <img
-                  src={proj.imagemCapa}
+                  src={proj.imagem_capa}
                   alt={proj.titulo}
                   loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -85,7 +149,7 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
                 {/* Quantidade de Fotos */}
                 <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs backdrop-blur font-medium">
                   <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>{proj.fotosCount} fotos</span>
+                  <span>{proj.fotos_count || proj.galeria?.length || 0} fotos</span>
                 </div>
               </div>
 
@@ -120,13 +184,13 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
         </div>
 
         {/* Botão Ver Todos quando limitado */}
-        {limit && PROJETOS.length > limit && (
+        {limit && projetos.length > limit && (
           <div className="mt-10 text-center">
             <Link
               to="/portfolio"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-[#f4f4f4] border border-[#DEE4EA] text-sm font-semibold text-[#2C3E50] hover:bg-[#E8EDF2] hover:border-[#2C3E50]/30 transition-all shadow-xs"
             >
-              Ver todos os {PROJETOS.length} projetos do portfólio
+              Ver todos os {projetos.length} projetos do portfólio
               <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </div>

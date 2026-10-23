@@ -1,19 +1,37 @@
-import React from 'react'
-import { WHATSAPP_LINK } from '@/data/landingData'
+import React, { useState, useEffect } from 'react'
+import { WHATSAPP_LINK, WHATSAPP_NUMBER, WHATSAPP_DEFAULT_TEXT } from '@/data/landingData'
 import { Button } from '@/components/ui/button'
 import { MessageCircle, PhoneCall, Sparkles } from 'lucide-react'
+import { obterConfiguracoes, registrarEventoAnalytics } from '@/services/site'
 
 interface Props {
   titulo?: string
   subtitulo?: string
   botaoTexto?: string
+  servicoContexto?: string
 }
 
 export const LandingCTA: React.FC<Props> = ({
   titulo = 'Vamos transformar seu ambiente?',
   subtitulo = 'Entre em contato com a Gesso Bettone para solicitar um orçamento sob medida, tirar dúvidas técnicas ou agendar uma visita na sua obra.',
   botaoTexto = 'Quero um orçamento',
+  servicoContexto,
 }) => {
+  const [zapNumber, setZapNumber] = useState(WHATSAPP_NUMBER)
+  const [defaultMsg, setDefaultMsg] = useState(WHATSAPP_DEFAULT_TEXT)
+
+  useEffect(() => {
+    obterConfiguracoes().then((cfg) => {
+      if (cfg.whatsapp_principal) setZapNumber(cfg.whatsapp_principal)
+      if (cfg.mensagem_orcamento) setDefaultMsg(cfg.mensagem_orcamento)
+    })
+  }, [])
+
+  const whatsappUrl = servicoContexto
+    ? `https://wa.me/${zapNumber}?text=${encodeURIComponent(
+        `Olá! Vim pelo site da Gesso Bettone e gostaria de solicitar um orçamento para o serviço de ${servicoContexto}.`,
+      )}`
+    : `https://wa.me/${zapNumber}?text=${encodeURIComponent(defaultMsg)}`
   return (
     <section className="py-16 bg-[#2C3E50] text-white relative overflow-hidden">
       {/* Detalhes de iluminação de fundo */}
@@ -38,14 +56,19 @@ export const LandingCTA: React.FC<Props> = ({
           <Button
             asChild
             size="lg"
-            className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-base h-12 px-8 rounded-xl shadow-xl transition-all hover:scale-[1.02]"
+            className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-sm sm:text-base h-12 px-7 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            onClick={() => {
+              registrarEventoAnalytics({
+                tipo: 'click_whatsapp',
+                metadata: { contexto: 'landing_cta', servico: servicoContexto },
+              })
+            }}
           >
-            <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="w-5 h-5 mr-2 text-[#2C3E50]" />
               {botaoTexto}
             </a>
           </Button>
-
           <Button
             asChild
             variant="outline"

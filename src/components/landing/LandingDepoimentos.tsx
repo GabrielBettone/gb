@@ -1,5 +1,4 @@
-import React, { useState } from 'react'
-import { WHATSAPP_NUMBER } from '@/data/landingData'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -12,7 +11,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Star, MessageCircle, HeartHandshake, CheckCircle2 } from 'lucide-react'
+import { Star, MessageCircle, HeartHandshake, Quote, CheckCircle2 } from 'lucide-react'
+import {
+  listarDepoimentos,
+  obterConfiguracoes,
+  criarDepoimento,
+  SiteDepoimento,
+  SiteSettings,
+  registrarEventoAnalytics,
+} from '@/services/site'
 
 export const LandingDepoimentos: React.FC = () => {
   const [nome, setNome] = useState('')
@@ -20,20 +27,74 @@ export const LandingDepoimentos: React.FC = () => {
   const [avaliacao, setAvaliacao] = useState(5)
   const [mensagem, setMensagem] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [depoimentos, setDepoimentos] = useState<SiteDepoimento[]>([])
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [enviadoSucesso, setEnviadoSucesso] = useState(false)
 
-  const handleEnviarDepoimento = (e: React.FormEvent) => {
+  useEffect(() => {
+    let isMounted = true
+    async function carregar() {
+      try {
+        const [deps, cfg] = await Promise.all([listarDepoimentos(true), obterConfiguracoes()])
+        if (!isMounted) return
+        setDepoimentos(deps)
+        setSettings(cfg)
+      } catch (err) {
+        console.error('Erro ao carregar depoimentos/configurações:', err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    carregar()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Se a configuração estiver desligada, esconde toda a seção e o botão
+  if (settings && settings.exibir_depoimentos === false) {
+    return null
+  }
+
+  const handleEnviarDepoimento = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // 1. Grava no banco de dados como pendente de aprovação
+    try {
+      await criarDepoimento({
+        nome,
+        cidade,
+        texto: mensagem,
+        nota: avaliacao,
+        aprovado: false,
+      })
+    } catch (err) {
+      console.error('Erro ao salvar depoimento no banco:', err)
+    }
+
+    registrarEventoAnalytics({
+      tipo: 'contato',
+      metadata: { acao: 'depoimento_enviado', nome, cidade, nota: avaliacao },
+    })
+
+    // 2. Encaminha também no WhatsApp
+    const zap = settings?.whatsapp_principal || '5519981093379'
     const text = `*Depoimento de Cliente - Gesso Bettone*%0A%0A*Nome:* ${encodeURIComponent(
       nome,
     )}%0A*Cidade:* ${encodeURIComponent(cidade || 'Não informada')}%0A*Avaliação:* ${'⭐'.repeat(
       avaliacao,
     )} (${avaliacao}/5)%0A*Depoimento:* ${encodeURIComponent(mensagem)}`
 
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`, '_blank')
-    setDialogOpen(false)
-    setNome('')
-    setCidade('')
-    setMensagem('')
+    window.open(`https://wa.me/${zap}?text=${text}`, '_blank')
+    setEnviadoSucesso(true)
+    setTimeout(() => {
+      setDialogOpen(false)
+      setEnviadoSucesso(false)
+      setNome('')
+      setCidade('')
+      setMensagem('')
+    }, 1500)
   }
 
   return (
@@ -59,49 +120,45 @@ export const LandingDepoimentos: React.FC = () => {
             melhor acabamento.
           </p>
 
-          {/* Destaques de Confiança */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-left">
-            <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] shadow-xs">
-              <div className="flex items-center gap-1 text-[#D4AF37] mb-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 fill-current" />
-                ))}
+          {/* Grade de Depoimentos Aprovados do Banco */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4 text-left">
+            {depoimentos.length > 0 ? (
+              depoimentos.slice(0, 6).map((dep) => (
+                <div
+                  key={dep.id}
+                  className="p-5 rounded-xl bg-white border border-[#DEE4EA] shadow-xs flex flex-col justify-between relative group hover:border-[#2C3E50]/30 transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1 text-[#D4AF37]">
+                        {Array.from({ length: dep.nota || 5 }).map((_, idx) => (
+                          <Star key={idx} className="w-3.5 h-3.5 fill-current" />
+                        ))}
+                      </div>
+                      <Quote className="w-4 h-4 text-[#DEE4EA]" />
+                    </div>
+                    <p className="text-xs sm:text-sm text-[#2C3E50] leading-relaxed italic mb-4">
+                      "{dep.texto}"
+                    </p>
+                  </div>
+                  <div className="pt-3 border-t border-[#DEE4EA] flex items-center justify-between">
+                    <div>
+                      <span className="font-heading font-bold text-xs text-[#2C3E50] block">
+                        {dep.nome}
+                      </span>
+                      {dep.cidade && (
+                        <span className="text-[11px] text-[#616F7D]">{dep.cidade}</span>
+                      )}
+                    </div>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-6 text-xs text-[#616F7D]">
+                Nenhum depoimento em exibição no momento.
               </div>
-              <h3 className="font-heading font-bold text-xs text-[#2C3E50] mb-0.5">
-                Pontualidade & Compromisso
-              </h3>
-              <p className="text-[11px] text-[#616F7D]">
-                Prazos respeitados e equipe que cuida da limpeza da sua obra.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] shadow-xs">
-              <div className="flex items-center gap-1 text-[#D4AF37] mb-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 fill-current" />
-                ))}
-              </div>
-              <h3 className="font-heading font-bold text-xs text-[#2C3E50] mb-0.5">
-                Acabamento Milimétrico
-              </h3>
-              <p className="text-[11px] text-[#616F7D]">
-                Nivelamento perfeito, quinas vivas e tabicas precisas.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] shadow-xs">
-              <div className="flex items-center gap-1 text-[#D4AF37] mb-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 fill-current" />
-                ))}
-              </div>
-              <h3 className="font-heading font-bold text-xs text-[#2C3E50] mb-0.5">
-                Atendimento do Início ao Fim
-              </h3>
-              <p className="text-[11px] text-[#616F7D]">
-                Orientação técnica na escolha do melhor gesso ou drywall.
-              </p>
-            </div>
+            )}
           </div>
 
           {/* Botão de Enviar Depoimento */}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T00:36:47.325Z",
+  "generatedAt": "2026-10-23T10:49:28.896Z",
   "collections": [
     {
       "name": "users",
@@ -469,6 +469,740 @@
         "CREATE INDEX idx_orcamentos_status ON orcamentos (status)",
         "CREATE INDEX idx_orcamentos_cliente ON orcamentos (cliente)",
         "CREATE INDEX idx_orcamentos_data_inicio ON orcamentos (data_inicio_prevista)"
+      ]
+    },
+    {
+      "name": "site_categories",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativa",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_site_categories_slug ON site_categories (slug)"]
+    },
+    {
+      "name": "site_services",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "destaque",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao_curta",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao_longa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "beneficios",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imagem_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "galeria",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meta_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meta_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "keywords",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_site_services_slug ON site_services (slug)",
+        "CREATE INDEX idx_site_services_destaque ON site_services (destaque)",
+        "CREATE INDEX idx_site_services_ativo ON site_services (ativo)"
+      ]
+    },
+    {
+      "name": "site_portfolio",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "subtitulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "detalhes_tecnicos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imagem_capa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "galeria",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destaque",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meta_title",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "meta_description",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_site_portfolio_slug ON site_portfolio (slug)",
+        "CREATE INDEX idx_site_portfolio_destaque ON site_portfolio (destaque)",
+        "CREATE INDEX idx_site_portfolio_ativo ON site_portfolio (ativo)"
+      ]
+    },
+    {
+      "name": "site_testimonials",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "texto",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nota",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "aprovado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_site_testimonials_aprovado ON site_testimonials (aprovado)"]
+    },
+    {
+      "name": "partner_categories",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ativa",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_partner_categories_slug ON partner_categories (slug)"]
+    },
+    {
+      "name": "site_partners",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "papel",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destaque",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_site_partners_destaque ON site_partners (destaque)",
+        "CREATE INDEX idx_site_partners_ativo ON site_partners (ativo)"
+      ]
+    },
+    {
+      "name": "partner_clicks",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "parceiro_id",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "parceiro_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "ano_mes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visitor_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_partner_clicks_parceiro ON partner_clicks (parceiro_id)",
+        "CREATE INDEX idx_partner_clicks_anomes ON partner_clicks (ano_mes)",
+        "CREATE INDEX idx_partner_clicks_data ON partner_clicks (data)"
+      ]
+    },
+    {
+      "name": "site_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "chave",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_site",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mensagem_orcamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instagram",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exibir_depoimentos",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidades_atendidas",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pagina_parceiros_ativa",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_site_settings_chave ON site_settings (chave)"]
+    },
+    {
+      "name": "site_analytics_events",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "pageview",
+            "click_whatsapp",
+            "contato",
+            "click_servico",
+            "view_categoria"
+          ]
+        },
+        {
+          "name": "pagina",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "servico_slug",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "servico_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "categoria_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "visitor_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_dia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "metadata",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_site_analytics_tipo ON site_analytics_events (tipo)",
+        "CREATE INDEX idx_site_analytics_dia ON site_analytics_events (data_dia)",
+        "CREATE INDEX idx_site_analytics_visitor ON site_analytics_events (visitor_id)"
       ]
     }
   ]

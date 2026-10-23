@@ -13,6 +13,7 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  Globe,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/painel/orcamentos', label: 'Orçamentos', icon: Calculator },
   { path: '/painel/produtos', label: 'Produtos', icon: Boxes },
   { path: '/painel/alertas', label: 'Alertas', icon: Bell },
+  { path: '/painel/site', label: 'Site (Gerenciador)', icon: Globe },
 ]
 
 export const Layout: React.FC = () => {
@@ -55,6 +57,20 @@ export const Layout: React.FC = () => {
       case '/painel/alertas':
       case '/alertas':
         return 'Regras e Alertas'
+      case '/painel/site':
+        return 'Site • Dashboard & Analytics'
+      case '/painel/site/servicos':
+        return 'Site • Catálogo de Serviços'
+      case '/painel/site/categorias':
+        return 'Site • Categorias'
+      case '/painel/site/portfolio':
+        return 'Site • Portfólio de Obras'
+      case '/painel/site/depoimentos':
+        return 'Site • Depoimentos & Avaliações'
+      case '/painel/site/parceiros':
+        return 'Site • Dashboard de Parceiros'
+      case '/painel/site/configuracoes':
+        return 'Site • Configurações do Site'
       default:
         return 'Análise de Vendas'
     }

@@ -1,13 +1,29 @@
 import React, { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { WHATSAPP_LINK } from '@/data/landingData'
+import { WHATSAPP_LINK, WHATSAPP_DEFAULT_TEXT } from '@/data/landingData'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { MessageCircle, Menu, Lock } from 'lucide-react'
+import { obterConfiguracoes, registrarEventoAnalytics } from '@/services/site'
 
 export const LandingNavbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [whatsappLink, setWhatsappLink] = useState(WHATSAPP_LINK)
+  const [phoneDisplay, setPhoneDisplay] = useState('(19) 98109-3379')
   const location = useLocation()
+
+  React.useEffect(() => {
+    obterConfiguracoes().then((cfg) => {
+      if (cfg.whatsapp_principal) {
+        const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
+        setWhatsappLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+        if (cfg.whatsapp_principal.length >= 10) {
+          const num = cfg.whatsapp_principal.replace(/^55/, '')
+          setPhoneDisplay(`(${num.slice(0, 2)}) ${num.slice(2, 7)}-${num.slice(7)}`)
+        }
+      }
+    })
+  }, [])
 
   const navLinks = [
     { label: 'Início', to: '/' },
@@ -36,13 +52,19 @@ export const LandingNavbar: React.FC = () => {
           </div>
           <div className="hidden sm:flex items-center gap-4 flex-shrink-0">
             <a
-              href={WHATSAPP_LINK}
+              href={whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                registrarEventoAnalytics({
+                  tipo: 'click_whatsapp',
+                  metadata: { contexto: 'navbar_top_phone' },
+                })
+              }}
               className="hover:text-[#D4AF37] transition-colors flex items-center gap-1 font-medium"
             >
               <MessageCircle className="w-3.5 h-3.5 text-[#D4AF37]" />
-              (19) 98109-3379
+              {phoneDisplay}
             </a>
             <span className="text-white/30">|</span>
             <Link
@@ -99,8 +121,14 @@ export const LandingNavbar: React.FC = () => {
           <Button
             asChild
             className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-sm shadow-sm h-10 px-5 rounded-lg transition-all"
+            onClick={() => {
+              registrarEventoAnalytics({
+                tipo: 'click_whatsapp',
+                metadata: { contexto: 'navbar_desktop_cta' },
+              })
+            }}
           >
-            <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
               <MessageCircle className="w-4 h-4 mr-2 text-[#2C3E50]" />
               Quero um orçamento
             </a>
