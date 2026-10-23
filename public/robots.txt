@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gessobettone.com.br/sitemap.xml

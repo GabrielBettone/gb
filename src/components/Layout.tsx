@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFilters } from '@/contexts/FilterContext'
 import {
@@ -21,11 +21,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ImportModal } from './ImportModal'
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/vendas', label: 'Vendas', icon: Receipt },
-  { path: '/orcamentos', label: 'Orçamentos', icon: Calculator },
-  { path: '/produtos', label: 'Produtos', icon: Boxes },
-  { path: '/alertas', label: 'Alertas', icon: Bell },
+  { path: '/painel', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/painel/vendas', label: 'Vendas', icon: Receipt },
+  { path: '/painel/orcamentos', label: 'Orçamentos', icon: Calculator },
+  { path: '/painel/produtos', label: 'Produtos', icon: Boxes },
+  { path: '/painel/alertas', label: 'Alertas', icon: Bell },
 ]
 
 export const Layout: React.FC = () => {
@@ -39,14 +39,20 @@ export const Layout: React.FC = () => {
   // Título dinâmico da página atual
   const getPageTitle = () => {
     switch (location.pathname) {
-      case '/':
+      case '/painel':
+      case '/painel/':
+      case '/dashboard':
         return 'Dashboard de Vendas'
+      case '/painel/vendas':
       case '/vendas':
         return 'Gestão de Vendas'
+      case '/painel/orcamentos':
       case '/orcamentos':
         return 'Gestão de Orçamentos & Obras'
+      case '/painel/produtos':
       case '/produtos':
         return 'Catálogo de Produtos'
+      case '/painel/alertas':
       case '/alertas':
         return 'Regras e Alertas'
       default:
@@ -128,7 +134,11 @@ export const Layout: React.FC = () => {
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/painel' && location.pathname === '/painel') ||
+              (item.path !== '/painel' &&
+                location.pathname.endsWith(item.path.replace('/painel', '')))
 
             if (collapsed) {
               return (
@@ -174,6 +184,33 @@ export const Layout: React.FC = () => {
             )
           })}
         </nav>
+
+        {/* Link para voltar ao site público */}
+        <div className="px-3 pb-2">
+          {!collapsed ? (
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[#1C4E3D] bg-[#EEF4F0] hover:bg-[#E7EFEA] transition-colors"
+            >
+              <span>Ir para o Site Público</span>
+              <span className="text-[10px] text-[#C2A24B] font-bold">↗</span>
+            </Link>
+          ) : (
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/"
+                  className="flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[#1C4E3D] bg-[#EEF4F0] hover:bg-[#E7EFEA] transition-colors"
+                >
+                  <span className="text-xs font-bold">Site</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-[#1C4E3D] text-white text-xs">
+                Ir para o Site Público
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
 
         {/* Rodapé da Sidebar: Usuário logado & Logout */}
         <div className="p-3 border-t border-[#E3E6EA]">
@@ -258,7 +295,10 @@ export const Layout: React.FC = () => {
                 <div className="py-4 px-3 space-y-1">
                   {navItems.map((item) => {
                     const Icon = item.icon
-                    const isActive = location.pathname === item.path
+                    const isActive =
+                      location.pathname === item.path ||
+                      (item.path !== '/painel' &&
+                        location.pathname.endsWith(item.path.replace('/painel', '')))
                     return (
                       <NavLink
                         key={item.path}
@@ -275,6 +315,16 @@ export const Layout: React.FC = () => {
                       </NavLink>
                     )
                   })}
+                  <div className="pt-2 border-t border-[#E3E6EA]">
+                    <Link
+                      to="/"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#1C4E3D] hover:bg-[#EEF4F0] rounded-lg"
+                    >
+                      <span>Ver Site Público (Landing)</span>
+                      <span className="text-[10px] text-[#C2A24B] font-bold">↗</span>
+                    </Link>
+                  </div>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#E3E6EA] bg-[#F6F7F9]">
                   <div className="flex items-center justify-between">
