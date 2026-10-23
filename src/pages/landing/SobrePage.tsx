@@ -22,16 +22,19 @@ export const SobrePage: React.FC = () => {
       />
 
       {/* Hero da Página Sobre */}
-      <div className="bg-[#1C4E3D] text-white py-14 border-b border-[#153A2E]">
+      <div className="bg-[#2C3E50] text-white py-14 border-b border-[#1B2631]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-3xl">
-            <span className="text-xs uppercase tracking-widest text-[#C2A24B] font-bold block mb-2">
+            <span className="font-heading text-xs uppercase tracking-widest text-[#D4AF37] font-bold block mb-2">
               QUEM SOMOS
             </span>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-4">
+            <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white mb-4">
               Mais de 30 anos dedicados à perfeição em cada acabamento.
             </h1>
-            <p className="text-base sm:text-lg text-[#E7EFEA]/90 leading-relaxed">
+            <p className="font-script text-2xl text-[#D4AF37] mb-3">
+              "Tradição e maestria artesanal"
+            </p>
+            <p className="text-base sm:text-lg text-white/90 leading-relaxed">
               A Gesso Bettone nasceu com o propósito de transformar paredes e tetos comuns em
               ambientes que expressam bom gosto, aconchego e precisão construtiva.
             </p>
@@ -43,12 +46,12 @@ export const SobrePage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-6 space-y-5">
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#1C4E3D]">
-              <Award className="w-4 h-4 text-[#C2A24B]" />
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#2C3E50]">
+              <Award className="w-4 h-4 text-[#D4AF37]" />
               NOSSA TRAJETÓRIA
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#22272A] tracking-tight">
+            <h2 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
               A arte do gesso aliada à engenharia moderna do drywall.
             </h2>
 
@@ -67,31 +70,30 @@ export const SobrePage: React.FC = () => {
 
             <div className="pt-2 space-y-3">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#C2A24B] flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm text-[#22272A]">
+                <CheckCircle2 className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-[#2C3E50]">
                   <strong>Profissionais qualificados:</strong> Instaladores experientes com domínio
                   em alinhamento a laser e normas técnicas ABNT.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#C2A24B] flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm text-[#22272A]">
+                <CheckCircle2 className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-[#2C3E50]">
                   <strong>Materiais certificados:</strong> Chapas, perfis galvanizados e massas de
                   fabricantes homologados para máxima durabilidade.
                 </p>
               </div>
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-[#C2A24B] flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm text-[#22272A]">
+                <CheckCircle2 className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-[#2C3E50]">
                   <strong>Compromisso de limpeza:</strong> Respeito ao seu imóvel com obra
                   organizada e descarte responsável de sobras.
                 </p>
               </div>
             </div>
           </div>
-
           <div className="lg:col-span-6">
-            <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#E3E6EA]">
+            <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#DEE4EA]">
               <img
                 src="https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg"
                 alt="Equipe Gesso Bettone executando forro de alto padrão"
@@ -99,15 +101,15 @@ export const SobrePage: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               <div className="absolute bottom-6 left-6 right-6 text-white">
-                <span className="text-[#C2A24B] font-bold text-xs uppercase tracking-wider block mb-1">
+                <span className="font-heading text-[#D4AF37] font-bold text-xs uppercase tracking-wider block mb-1">
                   Tradição & Confiança
                 </span>
-                <p className="text-lg font-bold">
+                <p className="font-heading text-lg font-bold">
                   Mais de 1.000 ambientes transformados em São Pedro, Piracicaba e região.
                 </p>
               </div>
             </div>
-          </div>
+          </div>{' '}
         </div>
       </div>
 

@@ -70,55 +70,59 @@ export const LandingHero: React.FC = () => {
     setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)
 
   return (
-    <section className="relative bg-[#1C4E3D] text-white overflow-hidden">
-      {/* Background decorativo sutil */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0F2F24] via-[#1C4E3D] to-[#1C4E3D]/90 z-0" />
-      <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#C2A24B]/10 rounded-full blur-3xl pointer-events-none" />
+    <section className="relative bg-[#2C3E50] text-white overflow-hidden">
+      {/* Background decorativo com Azul Ardósia #2C3E50 */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#1B2631] via-[#2C3E50] to-[#2C3E50]/90 z-0" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-12 lg:py-20 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
         {/* Lado Esquerdo: Textos & CTAs */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C2A24B]/20 border border-[#C2A24B]/40 text-[#E7EFEA] text-xs font-semibold tracking-wider uppercase">
-            <span className="w-2 h-2 rounded-full bg-[#C2A24B]" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#ffffff] text-xs font-semibold tracking-wider uppercase">
+            <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
             GESSO • DRYWALL • ACABAMENTOS
           </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-[1.15]">
-            Ambientes que <span className="italic font-serif text-[#C2A24B]">transformam</span>{' '}
-            espaços.
+          <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-[1.15]">
+            Ambientes que transformam espaços.
           </h1>
 
-          <p className="text-base sm:text-lg text-[#E7EFEA]/90 max-w-2xl leading-relaxed">
-            Projetos em gesso e drywall com acabamento, personalidade e atenção aos detalhes. Mais
-            de 30 anos criando soluções sob medida para residências, comércios e fachadas em São
-            Pedro, Piracicaba e região.
+          {/* Selo / Frase de assinatura refinada em Petit Formal Script */}
+          <p className="font-script text-2xl sm:text-3xl text-[#D4AF37] leading-relaxed -mt-2">
+            "A arte e a precisão do gesso sob medida"
+          </p>
+
+          <p className="text-base sm:text-lg text-white/90 max-w-2xl leading-relaxed">
+            Projetos em gesso e drywall com solidez técnica, sofisticação arquitetônica e atenção
+            rigorosa aos detalhes. Mais de 30 anos criando soluções sob medida para residências,
+            comércios e fachadas em São Pedro, Piracicaba e região.
           </p>
 
           {/* Destaques rápidos */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs sm:text-sm text-[#E7EFEA]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 text-xs sm:text-sm text-white/95">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>30+ Anos de Tradição</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>Acabamento Milimétrico</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>Atendimento Consultivo</span>
             </div>
           </div>
 
-          {/* CTAs */}
+          {/* CTAs: Dourado #D4AF37 com texto escuro para contraste impecável */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4">
             <Button
               asChild
               size="lg"
-              className="bg-[#C2A24B] hover:bg-[#b0913e] text-[#1C4E3D] font-bold text-base h-12 px-6 rounded-xl shadow-lg shadow-black/20 transition-all hover:scale-[1.02]"
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-base h-12 px-6 rounded-xl shadow-lg shadow-black/25 transition-all hover:scale-[1.02]"
             >
               <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="w-5 h-5 mr-2" />
+                <MessageCircle className="w-5 h-5 mr-2 text-[#2C3E50]" />
                 Quero um orçamento
               </a>
             </Button>
@@ -158,10 +162,10 @@ export const LandingHero: React.FC = () => {
 
                 {/* Legenda inferior */}
                 <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#C2A24B] text-[#1C4E3D] text-[10px] font-bold tracking-wider uppercase mb-1.5">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#2C3E50] text-[10px] font-bold tracking-wider uppercase mb-1.5">
                     {slide.tag}
                   </span>
-                  <h3 className="text-lg font-bold text-white drop-shadow-sm leading-snug">
+                  <h3 className="font-heading text-lg font-bold text-white drop-shadow-sm leading-snug">
                     {slide.title}
                   </h3>
                   <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{slide.subtitle}</p>
@@ -196,7 +200,7 @@ export const LandingHero: React.FC = () => {
                   onClick={() => setCurrentSlide(idx)}
                   aria-label={`Ir para foto ${idx + 1}`}
                   className={`h-1.5 rounded-full transition-all ${
-                    idx === currentSlide ? 'w-5 bg-[#C2A24B]' : 'w-1.5 bg-white/50'
+                    idx === currentSlide ? 'w-5 bg-[#D4AF37]' : 'w-1.5 bg-white/50'
                   }`}
                 />
               ))}

@@ -4,16 +4,16 @@ import { Handshake } from 'lucide-react'
 
 export const LandingParceiros: React.FC = () => {
   return (
-    <section className="py-14 bg-[#F6F7F9]" id="parceiros">
+    <section className="py-14 bg-[#f4f4f4]" id="parceiros">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-        <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#1C4E3D] mb-2">
-          <Handshake className="w-3.5 h-3.5 text-[#C2A24B]" />
+        <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#2C3E50] mb-2">
+          <Handshake className="w-3.5 h-3.5 text-[#D4AF37]" />
           RELACIONAMENTO & CONFIANÇA
         </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-[#22272A] tracking-tight">
+        <h2 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
           Nossos parceiros
         </h2>
-        <p className="text-xs sm:text-sm text-[#5B6470] mt-1.5 max-w-xl mx-auto">
+        <p className="text-xs sm:text-sm text-[#616F7D] mt-1.5 max-w-xl mx-auto">
           Empresas, construtoras e escritórios de arquitetura que confiam na excelência técnica da
           Gesso Bettone para seus projetos.
         </p>
@@ -22,9 +22,9 @@ export const LandingParceiros: React.FC = () => {
           {PARCEIROS.map((parceiro) => (
             <div
               key={parceiro.nome}
-              className="bg-white p-6 rounded-xl border border-[#E3E6EA] hover:border-[#1C4E3D]/30 transition-all hover:shadow-sm flex flex-col items-center text-center group"
+              className="bg-white p-6 rounded-xl border border-[#DEE4EA] hover:border-[#2C3E50]/30 transition-all hover:shadow-sm flex flex-col items-center text-center group"
             >
-              <div className="w-20 h-20 rounded-xl bg-[#F6F7F9] border border-[#E3E6EA] p-3 flex items-center justify-center mb-4 overflow-hidden group-hover:scale-105 transition-transform">
+              <div className="w-20 h-20 rounded-xl bg-[#f4f4f4] border border-[#DEE4EA] p-3 flex items-center justify-center mb-4 overflow-hidden group-hover:scale-105 transition-transform">
                 <img
                   src={parceiro.logo}
                   alt={`Logo de ${parceiro.nome}`}
@@ -32,14 +32,14 @@ export const LandingParceiros: React.FC = () => {
                   className="max-h-full max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all"
                 />
               </div>
-              <h3 className="font-bold text-base text-[#22272A] group-hover:text-[#1C4E3D] transition-colors">
+              <h3 className="font-heading font-bold text-base text-[#2C3E50] transition-colors">
                 {parceiro.nome}
               </h3>
               {parceiro.papel && (
-                <span className="text-xs font-medium text-[#C2A24B] mt-0.5">{parceiro.papel}</span>
+                <span className="text-xs font-medium text-[#D4AF37] mt-0.5">{parceiro.papel}</span>
               )}
               {parceiro.descricao && (
-                <p className="text-xs text-[#5B6470] mt-2 leading-relaxed">{parceiro.descricao}</p>
+                <p className="text-xs text-[#616F7D] mt-2 leading-relaxed">{parceiro.descricao}</p>
               )}
             </div>
           ))}

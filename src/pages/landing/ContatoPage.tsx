@@ -56,16 +56,16 @@ export const ContatoPage: React.FC = () => {
       />
 
       {/* Hero da Página de Contato */}
-      <div className="bg-[#1C4E3D] text-white py-12 border-b border-[#153A2E]">
+      <div className="bg-[#2C3E50] text-white py-12 border-b border-[#1B2631]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-3xl">
-            <span className="text-xs uppercase tracking-widest text-[#C2A24B] font-bold block mb-2">
+            <span className="font-heading text-xs uppercase tracking-widest text-[#D4AF37] font-bold block mb-2">
               ORÇAMENTO & ATENDIMENTO
             </span>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
               Entre em Contato com a Gesso Bettone
             </h1>
-            <p className="text-sm sm:text-base text-[#E7EFEA]/90 leading-relaxed">
+            <p className="text-sm sm:text-base text-white/90 leading-relaxed">
               Tire dúvidas, envie fotos ou a planta da sua obra e receba uma proposta detalhada sem
               custo nem compromisso.
             </p>
@@ -76,16 +76,16 @@ export const ContatoPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-14">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado Esquerdo: Formulário Pré-WhatsApp */}
-          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-[#E3E6EA] shadow-xs">
+          <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-2xl border border-[#DEE4EA] shadow-xs">
             <div className="mb-6">
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#1C4E3D] mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-[#C2A24B]" />
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#2C3E50] mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
                 SOLICITAÇÃO DE PROPOSTA
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#22272A]">
+              <h2 className="font-heading text-xl sm:text-2xl font-bold text-[#2C3E50]">
                 Preencha os dados do seu projeto
               </h2>
-              <p className="text-xs sm:text-sm text-[#5B6470] mt-1">
+              <p className="text-xs sm:text-sm text-[#616F7D] mt-1">
                 Você será direcionado diretamente para uma conversa com nossa equipe técnica no
                 WhatsApp com tudo já estruturado.
               </p>
@@ -94,7 +94,7 @@ export const ContatoPage: React.FC = () => {
             <form onSubmit={handleEnviarWhatsApp} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="contato-nome" className="text-xs font-semibold text-[#22272A]">
+                  <Label htmlFor="contato-nome" className="text-xs font-semibold text-[#2C3E50]">
                     Seu Nome *
                   </Label>
                   <Input
@@ -107,7 +107,7 @@ export const ContatoPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="contato-cidade" className="text-xs font-semibold text-[#22272A]">
+                  <Label htmlFor="contato-cidade" className="text-xs font-semibold text-[#2C3E50]">
                     Cidade da Obra *
                   </Label>
                   <Input
@@ -122,7 +122,7 @@ export const ContatoPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#22272A]">Tipo de Espaço</Label>
+                  <Label className="text-xs font-semibold text-[#2C3E50]">Tipo de Espaço</Label>
                   <Select value={tipoImovel} onValueChange={setTipoImovel}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o tipo" />
@@ -139,7 +139,7 @@ export const ContatoPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#22272A]">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
                     Serviço de Maior Interesse
                   </Label>
                   <Select value={servicoInteresse} onValueChange={setServicoInteresse}>
@@ -161,7 +161,7 @@ export const ContatoPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="contato-mensagem" className="text-xs font-semibold text-[#22272A]">
+                <Label htmlFor="contato-mensagem" className="text-xs font-semibold text-[#2C3E50]">
                   Descrição / Medidas aproximadas (Opcional)
                 </Label>
                 <Textarea
@@ -177,12 +177,12 @@ export const ContatoPage: React.FC = () => {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full bg-[#1C4E3D] hover:bg-[#163D30] text-white font-bold text-sm h-12 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-sm h-12 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                 >
-                  <MessageCircle className="w-5 h-5 text-[#C2A24B]" />
+                  <MessageCircle className="w-5 h-5 text-[#2C3E50]" />
                   Enviar Solicitação via WhatsApp
                 </Button>
-                <p className="text-[11px] text-center text-[#5B6470] mt-2">
+                <p className="text-[11px] text-center text-[#616F7D] mt-2">
                   Atendimento sem burocracia com nosso especialista
                 </p>
               </div>
@@ -191,82 +191,84 @@ export const ContatoPage: React.FC = () => {
 
           {/* Lado Direito: Canais de Atendimento & Horários */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="p-6 rounded-2xl bg-[#EEF4F0] border border-[#E3E6EA] space-y-4">
-              <h3 className="font-bold text-lg text-[#1C4E3D]">Canais Diretos de Atendimento</h3>
+            <div className="p-6 rounded-2xl bg-[#E8EDF2] border border-[#DEE4EA] space-y-4">
+              <h3 className="font-heading font-bold text-lg text-[#2C3E50]">
+                Canais Diretos de Atendimento
+              </h3>
 
               <div className="space-y-3.5 text-xs sm:text-sm">
-                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E3E6EA]">
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#DEE4EA]">
                   <MessageCircle className="w-5 h-5 text-[#25D366] flex-shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-[#22272A] block">WhatsApp Principal</span>
+                    <span className="font-bold text-[#2C3E50] block">WhatsApp Principal</span>
                     <a
                       href={WHATSAPP_LINK}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#1C4E3D] font-semibold hover:underline"
+                      className="text-[#2C3E50] font-semibold hover:underline"
                     >
                       (19) 98109-3379
                     </a>
-                    <span className="text-[11px] text-[#5B6470] block">
+                    <span className="text-[11px] text-[#616F7D] block">
                       Envio de fotos, plantas e áudios
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E3E6EA]">
-                  <Phone className="w-5 h-5 text-[#1C4E3D] flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#DEE4EA]">
+                  <Phone className="w-5 h-5 text-[#2C3E50] flex-shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-[#22272A] block">Ligações Telefônicas</span>
+                    <span className="font-bold text-[#2C3E50] block">Ligações Telefônicas</span>
                     <a
                       href="tel:+5519981093379"
-                      className="text-[#1C4E3D] font-semibold hover:underline"
+                      className="text-[#2C3E50] font-semibold hover:underline"
                     >
                       (19) 98109-3379
                     </a>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E3E6EA]">
-                  <MapPin className="w-5 h-5 text-[#C2A24B] flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#DEE4EA]">
+                  <MapPin className="w-5 h-5 text-[#D4AF37] flex-shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-[#22272A] block">Base Operacional</span>
-                    <span className="text-[#5B6470]">São Pedro - SP</span>
-                    <span className="text-[11px] text-[#5B6470] block">
+                    <span className="font-bold text-[#2C3E50] block">Base Operacional</span>
+                    <span className="text-[#616F7D]">São Pedro - SP</span>
+                    <span className="text-[11px] text-[#616F7D] block">
                       Atendimento a toda a região metropolitana
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#E3E6EA]">
-                  <Clock className="w-5 h-5 text-[#1C4E3D] flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-[#DEE4EA]">
+                  <Clock className="w-5 h-5 text-[#2C3E50] flex-shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold text-[#22272A] block">Horário de Funcionamento</span>
-                    <span className="text-[#5B6470] block">Segunda a Sexta: 07:00 às 18:00</span>
-                    <span className="text-[#5B6470] block">Sábado: 08:00 às 12:00</span>
+                    <span className="font-bold text-[#2C3E50] block">Horário de Funcionamento</span>
+                    <span className="text-[#616F7D] block">Segunda a Sexta: 07:00 às 18:00</span>
+                    <span className="text-[#616F7D] block">Sábado: 08:00 às 12:00</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-white border border-[#E3E6EA] space-y-2">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-[#1C4E3D]">
+            <div className="p-5 rounded-2xl bg-white border border-[#DEE4EA] space-y-2">
+              <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-[#2C3E50]">
                 Como funciona o processo:
               </h4>
-              <ol className="space-y-2 text-xs text-[#5B6470]">
+              <ol className="space-y-2 text-xs text-[#616F7D]">
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#1C4E3D] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-[#2C3E50] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
                     1
                   </span>
                   <span>Envio de informações ou visita técnica sem compromisso</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#1C4E3D] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-[#2C3E50] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
                     2
                   </span>
                   <span>Elaboração de orçamento detalhado com prazos</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-[#1C4E3D] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-[#2C3E50] text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0">
                     3
                   </span>
                   <span>Execução limpa, rápida e com alto padrão de acabamento</span>

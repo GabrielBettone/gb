@@ -103,7 +103,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               onDrop={(e) => handleDrop(e, etapa)}
               className={`flex-1 flex flex-col bg-[#F6F7F9] rounded-xl border transition-all duration-200 min-h-[580px] ${
                 isHovered
-                  ? 'border-[#1C4E3D] ring-2 ring-[#1C4E3D]/20 bg-[#EEF4F0]/60'
+                  ? 'border-[#2C3E50] ring-2 ring-[#2C3E50]/20 bg-[#E8EDF2]/60'
                   : 'border-[#E3E6EA]'
               }`}
             >
@@ -124,7 +124,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onNovoOrcamento(etapa)}
-                      className="text-[11px] font-semibold text-[#1C4E3D] hover:underline"
+                      className="text-[11px] font-semibold text-[#2C3E50] hover:underline"
                     >
                       + Criar
                     </button>
@@ -133,7 +133,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
                 <div className="flex items-center justify-between text-[11px] text-[#5B6470] pt-1 border-t border-black/5">
                   <span>Total coluna:</span>
-                  <span className="font-bold text-[#1C4E3D] text-xs">
+                  <span className="font-bold text-[#2C3E50] text-xs">
                     {formatMoeda(totalValor)}
                   </span>
                 </div>
@@ -167,13 +167,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           config.corBorda
                         } ${
                           isDragging
-                            ? 'opacity-40 scale-95 border-dashed border-[#1C4E3D]'
-                            : 'border-[#E3E6EA] hover:border-[#1C4E3D]/40'
+                            ? 'opacity-40 scale-95 border-dashed border-[#2C3E50]'
+                            : 'border-[#DEE4EA] hover:border-[#2C3E50]/40'
                         }`}
                       >
                         {/* Linha 1: Número e Origem */}
                         <div className="flex items-center justify-between gap-1 mb-1.5">
-                          <span className="font-bold text-[11px] text-[#1C4E3D] flex items-center gap-1">
+                          <span className="font-bold text-[11px] text-[#2C3E50] flex items-center gap-1">
                             <GripVertical className="w-3 h-3 text-[#8A94A0] opacity-0 group-hover:opacity-100 transition-opacity" />
                             {orc.numero}
                           </span>
@@ -189,7 +189,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
                         {/* Linha 3: Serviço Principal */}
                         <div className="flex items-center gap-1.5 text-[11px] text-[#5B6470] mb-2.5 truncate">
-                          <Layers className="w-3.5 h-3.5 text-[#C2A24B] flex-shrink-0" />
+                          <Layers className="w-3.5 h-3.5 text-[#D4AF37] flex-shrink-0" />
                           <span className="truncate">{prodNome}</span>
                         </div>
 
@@ -206,7 +206,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                               <span>Sem data</span>
                             )}
                           </div>
-                          <span className="font-bold text-xs text-[#1C4E3D]">
+                          <span className="font-bold text-xs text-[#2C3E50]">
                             {formatMoeda(orc.valor_total)}
                           </span>
                         </div>

@@ -67,14 +67,14 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
         <DialogHeader className="p-6 bg-white border-b border-[#E3E6EA]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-[#1C4E3D] text-[#C2A24B] flex items-center justify-center font-bold text-sm shadow-sm border border-[#C2A24B]/30 flex-shrink-0">
+              <div className="w-11 h-11 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-sm shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
                 GB
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <DialogTitle className="text-lg font-bold text-[#1C4E3D]">
-                    {orcamento.numero}
-                  </DialogTitle>
+                  <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50]">
+                    Orçamento {orcamento.numero}
+                  </DialogTitle>{' '}
                   <Badge variant="outline" className={`text-[11px] font-medium ${config.corBadge}`}>
                     {config.label}
                   </Badge>
@@ -85,7 +85,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
 
             <div className="text-right">
               <span className="text-[11px] text-[#5B6470] block">Valor Total</span>
-              <span className="text-xl font-bold text-[#1C4E3D]">
+              <span className="text-xl font-bold text-[#2C3E50]">
                 {formatMoeda(orcamento.valor_total)}
               </span>
             </div>
@@ -96,28 +96,28 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
           {/* Informações Gerais */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 rounded-xl border border-[#E3E6EA]">
             <div className="flex items-center gap-2.5 text-xs text-[#5B6470]">
-              <Phone className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <Phone className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>
                 <strong className="text-[#22272A]">Contato:</strong>{' '}
                 {orcamento.contato || 'Não informado'}
               </span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-[#5B6470]">
-              <MapPin className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <MapPin className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>
                 <strong className="text-[#22272A]">Cidade:</strong>{' '}
                 {orcamento.cidade || 'São Pedro'}
               </span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-[#5B6470]">
-              <Tag className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <Tag className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>
                 <strong className="text-[#22272A]">Canal de Origem:</strong>{' '}
                 {orcamento.canal_origem}
               </span>
             </div>
             <div className="flex items-center gap-2.5 text-xs text-[#5B6470]">
-              <Layers className="w-4 h-4 text-[#C2A24B] flex-shrink-0" />
+              <Layers className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
               <span>
                 <strong className="text-[#22272A]">Serviço Principal:</strong>{' '}
                 {orcamento.expand?.produto_principal?.nome || 'Sob Medida'}
@@ -127,8 +127,8 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
 
           {/* Cronograma do Trabalho */}
           <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-2.5">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D] flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-[#C2A24B]" />
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
               Cronograma do Trabalho (Gantt)
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -152,8 +152,8 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               </div>
             </div>
             {orcamento.data_conclusao && (
-              <div className="p-2.5 bg-[#EEF4F0] rounded-lg border border-[#1C4E3D]/20 text-xs text-[#1C4E3D] flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#1C4E3D]" />
+              <div className="p-2.5 bg-[#E8EDF2] rounded-lg border border-[#2C3E50]/20 text-xs text-[#2C3E50] flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#2C3E50]" />
                 <span>
                   Trabalho concluído em: <strong>{formatData(orcamento.data_conclusao)}</strong>{' '}
                   (Venda sincronizada no Dashboard)
@@ -164,8 +164,8 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
 
           {/* Itens do Orçamento */}
           <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D] flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-[#C2A24B]" />
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
               Itens e Serviços Orçados ({itens.length})
             </h4>
 
@@ -181,7 +181,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
                       {it.quantidade} {it.unidade || 'un'} x {formatMoeda(it.valor_unitario)}
                     </span>
                   </div>
-                  <span className="font-bold text-[#1C4E3D]">{formatMoeda(it.valor_total)}</span>
+                  <span className="font-bold text-[#2C3E50]">{formatMoeda(it.valor_total)}</span>
                 </div>
               ))}
             </div>
@@ -191,7 +191,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               {Boolean(orcamento.desconto) && (
                 <span className="text-red-600">Desconto: -{formatMoeda(orcamento.desconto)}</span>
               )}
-              <span className="font-bold text-[#1C4E3D] text-sm">
+              <span className="font-bold text-[#2C3E50] text-sm">
                 Total: {formatMoeda(orcamento.valor_total)}
               </span>
             </div>
@@ -200,7 +200,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
           {/* Observações */}
           {orcamento.observacoes && (
             <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-1.5">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D]">
+              <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50]">
                 Observações
               </h4>
               <p className="text-xs text-[#5B6470] whitespace-pre-line leading-relaxed">
@@ -227,7 +227,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               <Button
                 size="sm"
                 onClick={() => onConcluir(orcamento)}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs h-9 font-semibold"
+                className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] text-xs h-9 font-bold"
               >
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
                 Marcar como Concluído

@@ -1,7 +1,7 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
-/* Fonte Inter oficial da especificação */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Fontes Oficiais do Brand Guide Gesso Bettone: Tenor Sans, Inter Tight, Petit Formal Script */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Petit+Formal+Script&family=Tenor+Sans&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,62 +10,77 @@
 @layer base {
   body {
     font-family:
-      'Inter',
+      'Inter Tight',
       -apple-system,
       BlinkMacSystemFont,
       'Segoe UI',
       Roboto,
       sans-serif;
-    background-color: #f6f7f9;
-    color: #22272a;
+    background-color: #f4f4f4;
+    color: #2c3e50;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-heading,
+  .font-display {
+    font-family: 'Tenor Sans', Georgia, serif;
+    letter-spacing: -0.01em;
   }
 
   :root {
-    /* Change the colors to match the design system */
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Brand Guide Gesso Bettone:
+       Primária: Azul Ardósia #2C3E50 (210 29% 24%)
+       Destaque/CTA: Dourado #D4AF37 (46 65% 52%)
+       Fundo padrão: Branco Gesso #f4f4f4 (0 0% 95.7%)
+       Branco Puro: #ffffff (0 0% 100%)
+    */
+    --background: 0 0% 95.7%; /* #F4F4F4 Branco Gesso */
+    --foreground: 210 29% 24%; /* #2C3E50 Azul Ardósia */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 29% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 210 29% 24%;
 
-    --primary: 159 47% 21%; /* #1C4E3D */
+    --primary: 210 29% 24%; /* #2C3E50 Azul Ardósia */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 44 49% 52%; /* #C2A24B */
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 46 65% 52%; /* #D4AF37 Dourado artesão */
+    --secondary-foreground: 210 29% 24%;
 
-    --muted: 220 14% 96%; /* #F6F7F9 */
-    --muted-foreground: 215 10% 40%; /* #5B6470 */
+    --muted: 210 20% 96%; /* #F2F4F7 */
+    --muted-foreground: 212 16% 45%; /* #616F7D */
 
-    --accent: 145 22% 92%; /* #E7EFEA */
-    --accent-foreground: 159 47% 21%;
+    --accent: 210 25% 93%; /* #E8EDF2 */
+    --accent-foreground: 210 29% 24%;
 
     --destructive: 4 56% 50%; /* #C4453C */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 12% 91%; /* #E3E6EA */
-    --input: 214 12% 91%;
-    --ring: 159 47% 21%;
+    --border: 210 16% 89%; /* #DEE4EA */
+    --input: 210 16% 89%;
+    --ring: 210 29% 24%;
 
     --radius: 0.75rem; /* 12px para cards */
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 204 10% 15%; /* #22272A */
-    --sidebar-primary: 159 47% 21%;
+    --sidebar-foreground: 210 29% 24%; /* #2C3E50 */
+    --sidebar-primary: 210 29% 24%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 22% 92%;
-    --sidebar-accent-foreground: 159 47% 21%;
-    --sidebar-border: 214 12% 91%;
-    --sidebar-ring: 159 47% 21%;
+    --sidebar-accent: 210 25% 93%;
+    --sidebar-accent-foreground: 210 29% 24%;
+    --sidebar-border: 210 16% 89%;
+    --sidebar-ring: 210 29% 24%;
 
-    --chart-1: 159 47% 21%; /* #1C4E3D */
-    --chart-2: 44 49% 52%; /* #C2A24B */
-    --chart-3: 17 50% 57%; /* #C97A5A terracota */
-    --chart-4: 203 23% 45%; /* #58788C azul-cinza */
-    --chart-5: 84 17% 46%; /* #7A8B62 oliva */
+    /* Gráficos derivados do Azul Ardósia (#2C3E50) com Dourado (#D4AF37) pontual */
+    --chart-1: 210 29% 24%; /* #2C3E50 Azul Ardósia principal */
+    --chart-2: 46 65% 52%; /* #D4AF37 Dourado destaque */
+    --chart-3: 206 33% 42%; /* #486B8A Azul ardósia médio */
+    --chart-4: 210 18% 60%; /* #8596A6 Azul ardósia suave */
+    --chart-5: 38 60% 64%; /* #E2C76A Dourado suave */
   }
 
   .dark {

@@ -46,8 +46,8 @@ export const GlobalFilters: React.FC = () => {
             onClick={() => setShowMobileFilters(!showMobileFilters)}
             className="text-xs h-8 border-[#D5DAE0] text-[#22272A] flex items-center gap-1.5"
           >
-            <Filter className="w-3.5 h-3.5 text-[#1C4E3D]" />
-            Filtros {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#C2A24B]" />}
+            <Filter className="w-3.5 h-3.5 text-[#2C3E50]" />
+            Filtros {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />}
           </Button>
 
           {hasActiveFilters && (
@@ -75,8 +75,8 @@ export const GlobalFilters: React.FC = () => {
               value={filtros.periodoPredefinido}
               onValueChange={(val: any) => atualizarFiltro('periodoPredefinido', val)}
             >
-              <SelectTrigger className="h-8 text-xs w-[140px] border-[#D5DAE0] bg-[#F6F7F9] focus:ring-[#1C4E3D]">
-                <Calendar className="w-3.5 h-3.5 mr-1 text-[#1C4E3D]" />
+              <SelectTrigger className="h-8 text-xs w-[140px] border-[#DEE4EA] bg-[#f4f4f4] focus:ring-[#2C3E50]">
+                <Calendar className="w-3.5 h-3.5 mr-1 text-[#2C3E50]" />
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent>
@@ -131,7 +131,7 @@ export const GlobalFilters: React.FC = () => {
               value={filtros.produtoId || 'todos'}
               onValueChange={(val) => atualizarFiltro('produtoId', val === 'todos' ? '' : val)}
             >
-              <SelectTrigger className="h-8 text-xs w-[160px] border-[#D5DAE0] bg-[#F6F7F9] focus:ring-[#1C4E3D]">
+              <SelectTrigger className="h-8 text-xs w-[160px] border-[#DEE4EA] bg-[#f4f4f4] focus:ring-[#2C3E50]">
                 <SelectValue placeholder="Todos os produtos" />
               </SelectTrigger>
               <SelectContent>
@@ -156,7 +156,7 @@ export const GlobalFilters: React.FC = () => {
                 atualizarFiltro('canal', val === 'todos' ? '' : (val as CanalVenda))
               }
             >
-              <SelectTrigger className="h-8 text-xs w-[140px] border-[#D5DAE0] bg-[#F6F7F9] focus:ring-[#1C4E3D]">
+              <SelectTrigger className="h-8 text-xs w-[140px] border-[#DEE4EA] bg-[#f4f4f4] focus:ring-[#2C3E50]">
                 <SelectValue placeholder="Todos os canais" />
               </SelectTrigger>
               <SelectContent>
@@ -192,7 +192,7 @@ export const GlobalFilters: React.FC = () => {
             {filtros.produtoId && (
               <Badge
                 variant="secondary"
-                className="bg-[#E7EFEA] text-[#1C4E3D] hover:bg-[#E7EFEA] font-medium text-[11px] gap-1 pl-2 pr-1"
+                className="bg-[#E8EDF2] text-[#2C3E50] hover:bg-[#E8EDF2] font-medium text-[11px] gap-1 pl-2 pr-1"
               >
                 Produto: {produtos.find((p) => p.id === filtros.produtoId)?.nome || 'Selecionado'}
                 <button
@@ -207,7 +207,7 @@ export const GlobalFilters: React.FC = () => {
             {filtros.canal && (
               <Badge
                 variant="secondary"
-                className="bg-[#E7EFEA] text-[#1C4E3D] hover:bg-[#E7EFEA] font-medium text-[11px] gap-1 pl-2 pr-1"
+                className="bg-[#E8EDF2] text-[#2C3E50] hover:bg-[#E8EDF2] font-medium text-[11px] gap-1 pl-2 pr-1"
               >
                 Canal: {filtros.canal}
                 <button

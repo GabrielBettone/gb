@@ -15,22 +15,22 @@ export const LandingCTA: React.FC<Props> = ({
   botaoTexto = 'Quero um orçamento',
 }) => {
   return (
-    <section className="py-16 bg-[#1C4E3D] text-white relative overflow-hidden">
+    <section className="py-16 bg-[#2C3E50] text-white relative overflow-hidden">
       {/* Detalhes de iluminação de fundo */}
-      <div className="absolute inset-0 bg-radial-at-c from-[#23634e] to-[#1C4E3D] opacity-70" />
-      <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#C2A24B]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-radial-at-c from-[#395066] to-[#2C3E50] opacity-70" />
+      <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#D4AF37]/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-6">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C2A24B]/20 border border-[#C2A24B]/40 text-[#E7EFEA] text-xs font-semibold tracking-wider uppercase">
-          <Sparkles className="w-3.5 h-3.5 text-[#C2A24B]" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#ffffff] text-xs font-semibold tracking-wider uppercase">
+          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
           FALE CONOSCO
         </div>
 
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
+        <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight">
           {titulo}
         </h2>
 
-        <p className="text-base sm:text-lg text-[#E7EFEA]/90 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-base sm:text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
           {subtitulo}
         </p>
 
@@ -38,10 +38,10 @@ export const LandingCTA: React.FC<Props> = ({
           <Button
             asChild
             size="lg"
-            className="w-full sm:w-auto bg-[#C2A24B] hover:bg-[#b0913e] text-[#1C4E3D] font-bold text-base h-12 px-8 rounded-xl shadow-xl transition-all hover:scale-[1.02]"
+            className="w-full sm:w-auto bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-base h-12 px-8 rounded-xl shadow-xl transition-all hover:scale-[1.02]"
           >
             <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
-              <MessageCircle className="w-5 h-5 mr-2" />
+              <MessageCircle className="w-5 h-5 mr-2 text-[#2C3E50]" />
               {botaoTexto}
             </a>
           </Button>
@@ -59,7 +59,7 @@ export const LandingCTA: React.FC<Props> = ({
           </Button>
         </div>
 
-        <p className="text-xs text-[#E7EFEA]/70 pt-2">
+        <p className="text-xs text-white/70 pt-2">
           Atendimento de segunda a sexta, das 07h às 18h • Sábados das 08h às 12h
         </p>
       </div>

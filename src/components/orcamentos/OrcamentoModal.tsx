@@ -337,18 +337,18 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         <DialogHeader className="p-6 bg-white border-b border-[#E3E6EA] sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#1C4E3D] text-[#C2A24B] flex items-center justify-center font-bold text-sm shadow-sm border border-[#C2A24B]/30 flex-shrink-0">
-                ORC
+              <div className="w-10 h-10 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-sm shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
+                GB
               </div>
               <div>
-                <DialogTitle className="text-lg font-bold text-[#1C4E3D]">
+                <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50]">
                   {orcamentoParaEditar
                     ? `Editar Orçamento: ${orcamentoParaEditar.numero}`
                     : 'Novo Orçamento & Trabalho'}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-[#5B6470] mt-0.5">
+                <DialogDescription className="text-xs text-[#616F7D] mt-0.5">
                   Número sequencial:{' '}
-                  <span className="font-semibold text-[#1C4E3D]">
+                  <span className="font-semibold text-[#2C3E50]">
                     {numeroPrevisto || 'Gerando...'}
                   </span>{' '}
                   — Gesso Bettone
@@ -356,17 +356,17 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               </div>
             </div>
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-[11px] text-[#5B6470] font-medium">Total previsto</span>
-              <span className="text-xl font-bold text-[#1C4E3D]">{formatMoeda(valorTotal)}</span>
+              <span className="text-[11px] text-[#616F7D] font-medium">Total previsto</span>
+              <span className="text-xl font-bold text-[#2C3E50]">{formatMoeda(valorTotal)}</span>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-[#FBFBFC]">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-[#f4f4f4]">
           {/* SEÇÃO 1: DADOS DO CLIENTE & ORIGEM */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#E3E6EA] space-y-4 shadow-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#C2A24B]" />
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-4 shadow-sm">
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
               1. Dados do Cliente e Canal
             </h3>
 
@@ -473,17 +473,18 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           {/* SEÇÃO 2: ITENS DO ORÇAMENTO (SERVIÇOS BETTONE) */}
           <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#E3E6EA] space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D] flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#C2A24B]" />
-                2. Itens do Catálogo de Serviços
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                Itens & Serviços Inclusos ({itens.length})
               </h3>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleAddItem}
-                className="h-8 text-xs text-[#1C4E3D] border-[#1C4E3D]/30 hover:bg-[#EEF4F0]"
+                onClick={adicionarItem}
+                className="h-8 text-xs text-[#2C3E50] border-[#2C3E50]/30 hover:bg-[#E8EDF2]"
               >
+                {' '}
                 <Plus className="w-3.5 h-3.5 mr-1" />
                 Adicionar Serviço
               </Button>
@@ -566,7 +567,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                   {/* Total do Item */}
                   <div className="sm:col-span-1 space-y-1">
                     <Label className="text-[11px] text-[#5B6470]">Total</Label>
-                    <div className="h-8 px-2 flex items-center bg-[#E7EFEA] text-[#1C4E3D] font-semibold text-xs rounded border border-[#1C4E3D]/20">
+                    <div className="h-8 px-2 flex items-center bg-[#E8EDF2] text-[#2C3E50] font-semibold text-xs rounded border border-[#2C3E50]/20">
                       R$ {item.valor_total?.toFixed(0)}
                     </div>
                   </div>
@@ -611,7 +612,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
                 <div className="text-right">
                   <span className="text-xs text-[#5B6470] mr-2">Valor Total:</span>
-                  <span className="text-base font-bold text-[#1C4E3D]">
+                  <span className="text-base font-bold text-[#2C3E50]">
                     {formatMoeda(valorTotal)}
                   </span>
                 </div>
@@ -620,9 +621,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           </div>
 
           {/* SEÇÃO 3: CRONOGRAMA & DATAS (ALIMENTA O GANTT) */}
-          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#E3E6EA] space-y-4 shadow-sm">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#1C4E3D] flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#C2A24B]" />
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-4 shadow-sm">
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
               3. Cronograma do Trabalho & Validade (Linha do Tempo Gantt)
             </h3>
 
@@ -630,9 +631,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               <div className="space-y-1.5">
                 <Label
                   htmlFor="dataInicio"
-                  className="text-xs font-semibold text-[#22272A] flex items-center gap-1.5"
+                  className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                  <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
                   Data de Início Prevista
                 </Label>
                 <Input
@@ -647,9 +648,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               <div className="space-y-1.5">
                 <Label
                   htmlFor="dataFim"
-                  className="text-xs font-semibold text-[#22272A] flex items-center gap-1.5"
+                  className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5"
                 >
-                  <Calendar className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                  <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
                   Data de Fim Prevista
                 </Label>
                 <Input
@@ -704,7 +705,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               type="submit"
               disabled={salvando}
               size="sm"
-              className="h-9 text-xs bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold px-4 shadow-sm"
+              className="h-9 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold px-4 shadow-sm"
             >
               {salvando
                 ? 'Salvando...'

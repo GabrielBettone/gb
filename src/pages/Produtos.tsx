@@ -200,14 +200,14 @@ export const Produtos: React.FC = () => {
             placeholder="Buscar por nome do produto ou descrição..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="pl-9 h-10 text-xs bg-white border-[#E3E6EA] focus:ring-[#1C4E3D] rounded-lg"
+            className="pl-9 h-10 text-xs bg-white border-[#DEE4EA] focus:ring-[#2C3E50] rounded-lg"
           />
         </div>
 
         <Button
           size="sm"
           onClick={handleOpenCreate}
-          className="h-10 text-xs bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold shadow-sm"
+          className="h-10 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold shadow-sm"
         >
           <Plus className="w-3.5 h-3.5 mr-1.5" />
           Novo produto
@@ -217,7 +217,7 @@ export const Produtos: React.FC = () => {
       {/* GRID DE CARDS DE PRODUTO (3 col desktop, 2 col tablet, 1 col mobile) */}
       {loading ? (
         <div className="p-12 text-center text-xs text-[#5B6470]">
-          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#1C4E3D] mb-2" />
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#2C3E50] mb-2" />
           Carregando catálogo de produtos...
         </div>
       ) : produtosFiltrados.length === 0 ? (
@@ -239,7 +239,7 @@ export const Produtos: React.FC = () => {
                 <CardHeader className="p-5 pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
-                      <CardTitle className="text-base font-bold text-[#1C4E3D] flex items-center gap-2">
+                      <CardTitle className="font-heading text-base font-bold text-[#2C3E50] flex items-center gap-2">
                         {prod.nome}
                       </CardTitle>
                       {!prod.ativo && (
@@ -257,7 +257,7 @@ export const Produtos: React.FC = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleOpenEdit(prod)}
-                        className="h-7 w-7 p-0 text-[#5B6470] hover:text-[#1C4E3D]"
+                        className="h-7 w-7 p-0 text-[#616F7D] hover:text-[#2C3E50]"
                         title="Editar produto"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -269,7 +269,7 @@ export const Produtos: React.FC = () => {
                         className={`h-7 w-7 p-0 ${
                           prod.ativo
                             ? 'text-[#5B6470] hover:text-[#C4453C]'
-                            : 'text-[#1C4E3D] hover:text-[#163D30]'
+                            : 'text-[#2C3E50] hover:text-[#1B2631]'
                         }`}
                         title={prod.ativo ? 'Arquivar produto' : 'Reativar produto'}
                       >
@@ -297,7 +297,7 @@ export const Produtos: React.FC = () => {
 
                   <div className="text-right">
                     <span className="text-[11px] text-[#8A94A0] block">Total de vendas</span>
-                    <span className="text-xs font-semibold text-[#1C4E3D]">
+                    <span className="text-xs font-semibold text-[#2C3E50]">
                       {metricas.qtd} pedidos
                     </span>
                   </div>
@@ -312,10 +312,10 @@ export const Produtos: React.FC = () => {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-md bg-white border-[#E3E6EA] rounded-xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-[#1C4E3D] flex items-center gap-2">
-              <Boxes className="w-5 h-5 text-[#C2A24B]" />
-              {editingProduto ? 'Editar Produto' : 'Novo Produto'}
-            </DialogTitle>
+            <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+              <Boxes className="w-5 h-5 text-[#D4AF37]" />
+              {editando ? 'Editar Produto' : 'Novo Produto'}
+            </DialogTitle>{' '}
             <DialogDescription className="text-xs text-[#5B6470]">
               Cadastre serviços e acabamentos em gesso e drywall da Gesso Bettone
             </DialogDescription>
@@ -361,7 +361,7 @@ export const Produtos: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 {saving ? (
                   <>

@@ -55,10 +55,12 @@ const VerifyEmail = () => {
     <div className="min-h-screen bg-[#F6F7F9] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#1C4E3D] text-[#C2A24B] flex items-center justify-center font-bold text-2xl shadow-md border border-[#C2A24B]/30 mb-3">
+          <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-2xl shadow-md border border-[#D4AF37]/30 mb-3">
             GB
           </div>
-          <h1 className="text-2xl font-bold text-[#1C4E3D] tracking-tight">Gesso Bettone</h1>
+          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] tracking-tight">
+            Gesso Bettone
+          </h1>
           <p className="text-sm text-[#5B6470] mt-1">Análise de Vendas e Indicadores</p>
         </div>
 
@@ -74,7 +76,7 @@ const VerifyEmail = () => {
           <CardContent className="flex flex-col items-center justify-center py-6 text-center">
             {status === 'loading' && (
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-10 h-10 text-[#1C4E3D] animate-spin" />
+                <Loader2 className="w-10 h-10 text-[#2C3E50] animate-spin" />
                 <p className="text-sm text-[#5B6470]">Validando seu token de segurança...</p>
               </div>
             )}
@@ -108,7 +110,7 @@ const VerifyEmail = () => {
           </CardContent>
           <CardFooter className="flex justify-center">
             <Link to="/login" className="w-full">
-              <Button className="w-full bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold">
+              <Button className="w-full bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold">
                 Ir para o login
               </Button>
             </Link>

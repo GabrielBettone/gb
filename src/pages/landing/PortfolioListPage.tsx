@@ -41,16 +41,16 @@ export const PortfolioListPage: React.FC = () => {
         jsonLd={portfolioJsonLd}
       />
 
-      <div className="bg-[#1C4E3D] text-white py-12 border-b border-[#153A2E]">
+      <div className="bg-[#2C3E50] text-white py-12 border-b border-[#1B2631]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-3xl">
-            <span className="text-xs uppercase tracking-widest text-[#C2A24B] font-bold block mb-2">
+            <span className="font-heading text-xs uppercase tracking-widest text-[#D4AF37] font-bold block mb-2">
               PORTFÓLIO DE PROJETOS
             </span>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
               Nossos Trabalhos Realizados
             </h1>
-            <p className="text-sm sm:text-base text-[#E7EFEA]/90 leading-relaxed">
+            <p className="text-sm sm:text-base text-white/90 leading-relaxed">
               Veja a qualidade, o detalhamento das quinas e a harmonia da iluminação em obras
               concluídas pela nossa equipe em São Pedro, Piracicaba e região.
             </p>

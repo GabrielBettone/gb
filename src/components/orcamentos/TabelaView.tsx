@@ -99,7 +99,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
             <TableRow>
               <TableHead
                 onClick={() => handleSort('numero')}
-                className="cursor-pointer font-bold text-xs text-[#1C4E3D] hover:bg-[#EEF4F0]"
+                className="cursor-pointer font-bold text-xs text-[#2C3E50] hover:bg-[#E8EDF2]"
               >
                 <div className="flex items-center gap-1">
                   <span>Número</span>
@@ -109,7 +109,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
 
               <TableHead
                 onClick={() => handleSort('cliente')}
-                className="cursor-pointer font-bold text-xs text-[#1C4E3D] hover:bg-[#EEF4F0]"
+                className="cursor-pointer font-bold text-xs text-[#2C3E50] hover:bg-[#E8EDF2]"
               >
                 <div className="flex items-center gap-1">
                   <span>Cliente</span>
@@ -117,13 +117,13 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
                 </div>
               </TableHead>
 
-              <TableHead className="font-bold text-xs text-[#1C4E3D]">Serviço Principal</TableHead>
+              <TableHead className="font-bold text-xs text-[#2C3E50]">Serviço Principal</TableHead>
 
-              <TableHead className="font-bold text-xs text-[#1C4E3D]">Canal</TableHead>
+              <TableHead className="font-bold text-xs text-[#2C3E50]">Canal</TableHead>
 
               <TableHead
                 onClick={() => handleSort('status')}
-                className="cursor-pointer font-bold text-xs text-[#1C4E3D] hover:bg-[#EEF4F0]"
+                className="cursor-pointer font-bold text-xs text-[#2C3E50] hover:bg-[#E8EDF2]"
               >
                 <div className="flex items-center gap-1">
                   <span>Etapa / Status</span>
@@ -133,7 +133,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
 
               <TableHead
                 onClick={() => handleSort('data_inicio')}
-                className="cursor-pointer font-bold text-xs text-[#1C4E3D] hover:bg-[#EEF4F0]"
+                className="cursor-pointer font-bold text-xs text-[#2C3E50] hover:bg-[#E8EDF2]"
               >
                 <div className="flex items-center gap-1">
                   <span>Início Previsto</span>
@@ -143,7 +143,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
 
               <TableHead
                 onClick={() => handleSort('valor_total')}
-                className="cursor-pointer font-bold text-xs text-[#1C4E3D] text-right hover:bg-[#EEF4F0]"
+                className="cursor-pointer font-bold text-xs text-[#2C3E50] text-right hover:bg-[#E8EDF2]"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Valor Total</span>
@@ -151,7 +151,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
                 </div>
               </TableHead>
 
-              <TableHead className="text-right font-bold text-xs text-[#1C4E3D]">Ações</TableHead>
+              <TableHead className="text-right font-bold text-xs text-[#2C3E50]">Ações</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -179,7 +179,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
                     className="hover:bg-[#F9FAFB] transition-colors cursor-pointer"
                     onClick={() => onAbrirDetalhes(orc)}
                   >
-                    <TableCell className="font-bold text-xs text-[#1C4E3D]">{orc.numero}</TableCell>
+                    <TableCell className="font-bold text-xs text-[#2C3E50]">{orc.numero}</TableCell>
 
                     <TableCell>
                       <div className="flex flex-col">
@@ -213,27 +213,27 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
                       {formatData(orc.data_inicio_prevista)}
                     </TableCell>
 
-                    <TableCell className="text-right font-bold text-xs text-[#1C4E3D]">
+                    <TableCell className="text-right font-bold text-xs text-[#2C3E50]">
                       {formatMoeda(orc.valor_total)}
                     </TableCell>
-
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onAbrirDetalhes(orc)}
-                          className="h-8 w-8 p-0 text-[#1C4E3D] hover:bg-[#EEF4F0]"
+                          className="h-8 w-8 p-0 text-[#2C3E50] hover:bg-[#E8EDF2]"
                           title="Ver detalhes"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Eye className="w-4 h-4" />
                         </Button>
+
                         {orc.status !== 'Concluídos' && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => onMudarStatus(orc.id, 'Concluídos')}
-                            className="h-8 text-[11px] text-[#1C4E3D] border-[#1C4E3D]/30 hover:bg-[#EEF4F0]"
+                            className="h-8 text-[11px] text-[#2C3E50] border-[#2C3E50]/30 hover:bg-[#E8EDF2]"
                             title="Concluir trabalho e gerar venda"
                           >
                             <CheckCircle2 className="w-3 h-3 mr-1" />

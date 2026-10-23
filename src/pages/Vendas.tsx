@@ -403,7 +403,7 @@ export const Vendas: React.FC = () => {
                 setBusca(e.target.value)
                 setPagina(1)
               }}
-              className="pl-9 h-10 text-xs bg-white border-[#E3E6EA] focus:ring-[#1C4E3D] rounded-lg"
+              className="pl-9 h-10 text-xs bg-white border-[#DEE4EA] focus:ring-[#2C3E50] rounded-lg"
             />
           </div>
 
@@ -414,7 +414,7 @@ export const Vendas: React.FC = () => {
               onClick={handleExportCSV}
               className="h-10 text-xs border-[#E3E6EA] bg-white text-[#22272A] hover:bg-[#F6F7F9] font-medium"
             >
-              <Download className="w-3.5 h-3.5 mr-1.5 text-[#1C4E3D]" />
+              <Download className="w-3.5 h-3.5 mr-1.5 text-[#2C3E50]" />
               Exportar CSV
             </Button>
 
@@ -426,7 +426,7 @@ export const Vendas: React.FC = () => {
                 }
                 setNovaVendaOpen(true)
               }}
-              className="h-10 text-xs bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold shadow-sm"
+              className="h-10 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold shadow-sm"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               Nova venda
@@ -447,9 +447,9 @@ export const Vendas: React.FC = () => {
                     Data
                     {sortField === 'data' ? (
                       sortAsc ? (
-                        <ArrowUp className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                        <ArrowUp className="w-3.5 h-3.5 text-[#2C3E50]" />
                       ) : (
-                        <ArrowDown className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                        <ArrowDown className="w-3.5 h-3.5 text-[#2C3E50]" />
                       )
                     ) : (
                       <ArrowUpDown className="w-3.5 h-3.5 text-[#8A94A0]" />
@@ -555,7 +555,7 @@ export const Vendas: React.FC = () => {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-xs text-[#5B6470]">
-                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#1C4E3D] mb-1.5" />
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#2C3E50] mb-1.5" />
                     Carregando dados de vendas...
                   </TableCell>
                 </TableRow>
@@ -586,14 +586,14 @@ export const Vendas: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-xs text-[#22272A] py-3">{prodNome}</TableCell>
                       <TableCell className="text-xs py-3">
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E7EFEA] text-[#1C4E3D]">
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8EDF2] text-[#2C3E50]">
                           {venda.canal}
                         </span>
                       </TableCell>
                       <TableCell className="text-xs text-[#5B6470] py-3">
                         {venda.cidade || 'São Pedro'}
                       </TableCell>
-                      <TableCell className="text-xs font-bold text-[#1C4E3D] text-right py-3 font-mono">
+                      <TableCell className="text-xs font-bold text-[#2C3E50] text-right py-3 font-mono">
                         {formatMoeda(venda.valor)}
                       </TableCell>
                       <TableCell className="text-center py-3">
@@ -619,7 +619,7 @@ export const Vendas: React.FC = () => {
         <div className="sm:hidden space-y-3">
           {loading ? (
             <div className="p-8 text-center text-xs text-[#5B6470]">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#1C4E3D] mb-2" />
+              <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#2C3E50] mb-2" />
               Carregando vendas...
             </div>
           ) : vendasPaginadas.length === 0 ? (
@@ -647,14 +647,14 @@ export const Vendas: React.FC = () => {
                         <span>{dataFormatada}</span>
                       </div>
                     </div>
-                    <span className="font-bold text-[#1C4E3D] text-sm font-mono">
+                    <span className="font-bold text-[#2C3E50] text-sm font-mono">
                       {formatMoeda(venda.valor)}
                     </span>
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-[#E3E6EA] flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E7EFEA] text-[#1C4E3D]">
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8EDF2] text-[#2C3E50]">
                         {venda.canal}
                       </span>
                       <span className="text-[#5B6470] truncate max-w-[140px]">{prodNome}</span>
@@ -716,10 +716,10 @@ export const Vendas: React.FC = () => {
       <Dialog open={novaVendaOpen} onOpenChange={setNovaVendaOpen}>
         <DialogContent className="max-w-md bg-white border-[#E3E6EA] rounded-xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-[#1C4E3D] flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#C2A24B]" />
-              Registrar Nova Venda
-            </DialogTitle>
+            <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+              <Plus className="w-5 h-5 text-[#D4AF37]" />
+              {editandoVenda ? 'Editar Venda' : 'Lançar Nova Venda'}
+            </DialogTitle>{' '}
             <DialogDescription className="text-xs text-[#5B6470]">
               Insira os dados da ordem de serviço ou pedido manual
             </DialogDescription>
@@ -831,7 +831,7 @@ export const Vendas: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={savingVenda}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 {savingVenda ? (
                   <>

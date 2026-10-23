@@ -245,12 +245,12 @@ export const Orcamentos: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#1C4E3D]/10 text-[#1C4E3D] border border-[#1C4E3D]/20">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#2C3E50]/10 text-[#2C3E50] border border-[#2C3E50]/20">
                 Gesso Bettone
               </span>
-              <span className="text-xs text-[#5B6470]">Funil de Obras & Trabalhos</span>
+              <span className="text-xs text-[#616F7D]">Funil de Obras & Trabalhos</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-[#1C4E3D] tracking-tight mt-1">
+            <h2 className="font-heading text-xl sm:text-2xl font-bold text-[#2C3E50] tracking-tight mt-1">
               Gestão de Orçamentos & Obras
             </h2>
           </div>
@@ -260,7 +260,7 @@ export const Orcamentos: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => carregarDados()}
-              className="h-9 text-xs bg-white text-[#5B6470] border-[#E3E6EA] hover:text-[#1C4E3D]"
+              className="h-9 text-xs bg-white text-[#616F7D] border-[#DEE4EA] hover:text-[#2C3E50]"
               title="Atualizar dados"
             >
               <RotateCw className="w-3.5 h-3.5 mr-1" />
@@ -273,9 +273,9 @@ export const Orcamentos: React.FC = () => {
                 setOrcamentoParaEditar(null)
                 setModalNovoOpen(true)
               }}
-              className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold h-9 px-4 shadow-sm"
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] text-xs font-bold h-9 px-4 shadow-sm"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
+              <Plus className="w-4 h-4 mr-1.5 text-[#2C3E50]" />
               Novo Orçamento
             </Button>
           </div>
@@ -283,22 +283,22 @@ export const Orcamentos: React.FC = () => {
 
         {/* 4 CARDS DE MÉTRICAS RÁPIDAS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E3E6EA] shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#5B6470]">Pipeline Total</span>
-              <p className="text-base sm:text-lg font-bold text-[#1C4E3D]">
+              <span className="text-[11px] font-medium text-[#616F7D]">Pipeline Total</span>
+              <p className="text-base sm:text-lg font-bold text-[#2C3E50]">
                 {formatMoeda(metricas.valorGeral)}
               </p>
               <span className="text-[10px] text-[#8A94A0] block">{metricas.total} propostas</span>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-[#EEF4F0] text-[#1C4E3D] flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#E8EDF2] text-[#2C3E50] flex items-center justify-center font-bold">
               <DollarSign className="w-4 h-4" />
             </div>
           </div>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E3E6EA] shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#5B6470]">Ag. Aprovação</span>
+              <span className="text-[11px] font-medium text-[#616F7D]">Ag. Aprovação</span>
               <p className="text-base sm:text-lg font-bold text-amber-700">
                 {metricas.aguardandoAprovacao}
               </p>
@@ -309,9 +309,9 @@ export const Orcamentos: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E3E6EA] shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#5B6470]">Obras em Andamento</span>
+              <span className="text-[11px] font-medium text-[#616F7D]">Obras em Andamento</span>
               <p className="text-base sm:text-lg font-bold text-emerald-700">
                 {metricas.emAndamento}
               </p>
@@ -322,29 +322,29 @@ export const Orcamentos: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#E3E6EA] shadow-xs flex items-center justify-between">
+          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#5B6470]">Concluídos</span>
-              <p className="text-base sm:text-lg font-bold text-[#1C4E3D]">{metricas.concluidos}</p>
+              <span className="text-[11px] font-medium text-[#616F7D]">Concluídos</span>
+              <p className="text-base sm:text-lg font-bold text-[#2C3E50]">{metricas.concluidos}</p>
               <span className="text-[10px] text-[#8A94A0] block">Vendas sincronizadas</span>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-[#1C4E3D]/10 text-[#1C4E3D] flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#2C3E50]/10 text-[#2C3E50] flex items-center justify-center font-bold">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
         </div>
 
         {/* BARRA DE CONTROLE: TABS DE VISUALIZAÇÃO + BUSCA + FILTROS */}
-        <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#E3E6EA] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Alternância de Visualizações (Kanban / Gantt / Tabela) */}
-          <div className="flex items-center bg-[#F6F7F9] p-1 rounded-lg border border-[#E3E6EA] self-start sm:self-auto">
+          <div className="flex items-center bg-[#f4f4f4] p-1 rounded-lg border border-[#DEE4EA] self-start sm:self-auto">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#1C4E3D] shadow-xs'
-                  : 'text-[#5B6470] hover:text-[#22272A]'
+                  ? 'bg-white text-[#2C3E50] shadow-xs'
+                  : 'text-[#616F7D] hover:text-[#2C3E50]'
               }`}
             >
               <Kanban className="w-3.5 h-3.5" />
@@ -356,8 +356,8 @@ export const Orcamentos: React.FC = () => {
               onClick={() => setViewMode('gantt')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 viewMode === 'gantt'
-                  ? 'bg-white text-[#1C4E3D] shadow-xs'
-                  : 'text-[#5B6470] hover:text-[#22272A]'
+                  ? 'bg-white text-[#2C3E50] shadow-xs'
+                  : 'text-[#616F7D] hover:text-[#2C3E50]'
               }`}
             >
               <CalendarDays className="w-3.5 h-3.5" />
@@ -369,8 +369,8 @@ export const Orcamentos: React.FC = () => {
               onClick={() => setViewMode('tabela')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
                 viewMode === 'tabela'
-                  ? 'bg-white text-[#1C4E3D] shadow-xs'
-                  : 'text-[#5B6470] hover:text-[#22272A]'
+                  ? 'bg-white text-[#2C3E50] shadow-xs'
+                  : 'text-[#616F7D] hover:text-[#2C3E50]'
               }`}
             >
               <TableIcon className="w-3.5 h-3.5" />
@@ -439,7 +439,7 @@ export const Orcamentos: React.FC = () => {
         {/* ÁREA DE VISUALIZAÇÃO ATIVA */}
         {loading ? (
           <div className="bg-white rounded-xl border border-[#E3E6EA] p-12 flex flex-col items-center justify-center text-xs text-[#5B6470] space-y-2">
-            <div className="w-6 h-6 border-2 border-[#1C4E3D] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#2C3E50] border-t-transparent rounded-full animate-spin" />
             <span>Carregando orçamentos e obras...</span>
           </div>
         ) : (
@@ -517,7 +517,7 @@ export const Orcamentos: React.FC = () => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#1C4E3D]">
+            <AlertDialogTitle className="font-heading text-[#2C3E50]">
               Excluir Orçamento {orcamentoParaExcluir?.numero}?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-[#5B6470]">

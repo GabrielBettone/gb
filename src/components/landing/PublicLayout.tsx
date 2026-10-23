@@ -6,7 +6,7 @@ import FloatingWhatsApp from './FloatingWhatsApp'
 
 export const PublicLayout: React.FC = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-white text-[#22272A] selection:bg-[#C2A24B]/30 selection:text-[#1C4E3D]">
+    <div className="min-h-screen flex flex-col bg-white text-[#2C3E50] selection:bg-[#D4AF37]/30 selection:text-[#2C3E50]">
       <LandingNavbar />
       <main className="flex-1 w-full">
         <Outlet />

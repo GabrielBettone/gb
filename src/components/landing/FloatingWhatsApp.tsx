@@ -25,7 +25,7 @@ export const FloatingWhatsApp: React.FC = () => {
           type="button"
           onClick={scrollToTop}
           aria-label="Voltar ao topo da página"
-          className="w-10 h-10 rounded-full bg-white border border-[#E3E6EA] text-[#1C4E3D] hover:bg-[#EEF4F0] flex items-center justify-center shadow-md transition-all hover:scale-105"
+          className="w-10 h-10 rounded-full bg-white border border-[#DEE4EA] text-[#2C3E50] hover:bg-[#E8EDF2] flex items-center justify-center shadow-md transition-all hover:scale-105"
         >
           <ArrowUp className="w-5 h-5" />
         </button>

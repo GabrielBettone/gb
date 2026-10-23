@@ -237,10 +237,10 @@ export const Alertas: React.FC = () => {
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-[#1C4E3D] flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-[#C2A24B]" />
-              Regras de Alerta
-            </h2>
+            <h2 className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-[#D4AF37]" />
+              Regras de Monitoramento
+            </h2>{' '}
             <p className="text-xs text-[#5B6470] mt-0.5">
               Condições automatizadas verificadas continuamente a cada 10 minutos
             </p>
@@ -254,7 +254,7 @@ export const Alertas: React.FC = () => {
               setFormError('')
               setNovaRegraOpen(true)
             }}
-            className="h-9 text-xs bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold shadow-sm self-start sm:self-auto"
+            className="h-9 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold shadow-sm self-start sm:self-auto"
           >
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Nova regra
@@ -263,7 +263,7 @@ export const Alertas: React.FC = () => {
 
         {loading ? (
           <div className="p-8 text-center text-xs text-[#5B6470]">
-            <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#1C4E3D] mb-2" />
+            <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#2C3E50] mb-2" />
             Carregando regras...
           </div>
         ) : regras.length === 0 ? (
@@ -288,7 +288,7 @@ export const Alertas: React.FC = () => {
                       <Switch
                         checked={regra.habilitada}
                         onCheckedChange={() => handleToggleHabilitada(regra)}
-                        className="scale-75 data-[state=checked]:bg-[#1C4E3D]"
+                        className="scale-75 data-[state=checked]:bg-[#2C3E50]"
                         title={regra.habilitada ? 'Regra ativada' : 'Regra desativada'}
                       />
                       <Button
@@ -308,7 +308,7 @@ export const Alertas: React.FC = () => {
                   <div className="text-xs text-[#5B6470] space-y-1">
                     <p>
                       Alerta quando <strong>{getIndicadorLabel(regra.indicador)}</strong> estiver{' '}
-                      <span className="text-[#1C4E3D] font-semibold">
+                      <span className="text-[#2C3E50] font-semibold">
                         {getComparacaoLabel(regra.comparacao)}
                       </span>{' '}
                       <strong>{formatLimite(regra.indicador, regra.limite)}</strong>.
@@ -334,10 +334,10 @@ export const Alertas: React.FC = () => {
       {/* 2. SEÇÃO HISTÓRICO DE ALERTAS */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-[#1C4E3D] flex items-center gap-2">
-            <Bell className="w-5 h-5 text-[#C2A24B]" />
-            Histórico de Alertas
-          </h2>
+          <h2 className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+            <Bell className="w-5 h-5 text-[#D4AF37]" />
+            Histórico de Alertas Disparados
+          </h2>{' '}
           <p className="text-xs text-[#5B6470] mt-0.5">
             Registro de ocorrências disparadas pelas regras de negócio
           </p>
@@ -387,7 +387,7 @@ export const Alertas: React.FC = () => {
                           {alerta.expand?.regra?.nome || 'Alerta de Indicador'}
                         </h4>
                         {!alerta.lido && (
-                          <span className="w-2 h-2 rounded-full bg-[#C2A24B]" title="Não lido" />
+                          <span className="w-2 h-2 rounded-full bg-[#D4AF37]" title="Não lido" />
                         )}
                       </div>
                       <p className="text-xs text-[#22272A] mt-1 leading-relaxed">
@@ -437,10 +437,10 @@ export const Alertas: React.FC = () => {
       <Dialog open={novaRegraOpen} onOpenChange={setNovaRegraOpen}>
         <DialogContent className="max-w-md bg-white border-[#E3E6EA] rounded-xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-[#1C4E3D] flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#C2A24B]" />
-              Nova Regra de Alerta
-            </DialogTitle>
+            <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
+              <Plus className="w-5 h-5 text-[#D4AF37]" />
+              {editando ? 'Editar Regra' : 'Nova Regra de Alerta'}
+            </DialogTitle>{' '}
             <DialogDescription className="text-xs text-[#5B6470]">
               Configure margens e metas de indicadores para notificações automáticas
             </DialogDescription>
@@ -538,7 +538,7 @@ export const Alertas: React.FC = () => {
                 type="submit"
                 size="sm"
                 disabled={savingRegra}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 {savingRegra ? (
                   <>

@@ -44,23 +44,22 @@ export const ServicosListPage: React.FC = () => {
         jsonLd={itemListJsonLd}
       />
 
-      <div className="bg-[#1C4E3D] text-white py-12 border-b border-[#153A2E]">
+      <div className="bg-[#2C3E50] text-white py-12 border-b border-[#1B2631]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-3xl">
-            <span className="text-xs uppercase tracking-widest text-[#C2A24B] font-bold block mb-2">
+            <span className="font-heading text-xs uppercase tracking-widest text-[#D4AF37] font-bold block mb-2">
               CATÁLOGO COMPLETO
             </span>
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-white mb-3">
               Serviços em Gesso, Drywall e Acabamentos
             </h1>
-            <p className="text-sm sm:text-base text-[#E7EFEA]/90 leading-relaxed">
-              Soluções executadas com precisão técnica milimétrica, materiais certificados e
-              garantia de quem atua há mais de 30 anos no mercado.
+            <p className="text-sm sm:text-base text-white/90 leading-relaxed">
+              Soluções completas com fotos reais, especificações e consultoria técnica para São
+              Pedro, Piracicaba, Águas de São Pedro e toda a região.
             </p>
           </div>
         </div>
       </div>
-
       <LandingServicos showFilter={true} />
 
       <LandingCidades />

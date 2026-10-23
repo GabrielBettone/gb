@@ -48,12 +48,12 @@ export const Index: React.FC = () => {
 
   const navigate = useNavigate()
 
-  // Cores do Design System oficial da especificação
+  // Cores derivadas do Brand Guide oficial: Azul Ardósia #2C3E50 com Dourado #D4AF37 pontual
   const CORES_CANAIS = {
-    WhatsApp: '#1C4E3D',
-    'E-mail': '#58788C',
-    Instagram: '#C97A5A',
-    'Loja física': '#C2A24B',
+    WhatsApp: '#2C3E50',
+    'E-mail': '#486B8A',
+    Instagram: '#8596A6',
+    'Loja física': '#D4AF37',
   }
 
   // Carrega vendas e produtos
@@ -312,21 +312,21 @@ export const Index: React.FC = () => {
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 w-full space-y-6">
         {/* BANNER INICIAL QUANDO NÃO HÁ VENDAS */}
         {vendas.length === 0 && !loading && (
-          <div className="bg-[#E7EFEA] border border-[#1C4E3D]/20 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-[#E8EDF2] border border-[#2C3E50]/20 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="space-y-1 text-center sm:text-left">
-              <h3 className="font-bold text-[#1C4E3D] text-lg">
+              <h3 className="font-heading font-bold text-[#2C3E50] text-lg">
                 Conecte sua planilha de vendas para começar a análise
               </h3>
-              <p className="text-xs text-[#5B6470] max-w-xl">
+              <p className="text-xs text-[#616F7D] max-w-xl">
                 Importe seu arquivo CSV ou Excel da Gesso Bettone para visualizar o faturamento,
                 ticket médio e gráficos consolidados em segundos.
               </p>
             </div>
             <Button
               onClick={() => setImportModalOpen(true)}
-              className="bg-[#1C4E3D] hover:bg-[#163D30] text-white font-semibold text-xs h-10 px-4 flex items-center gap-2 flex-shrink-0"
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs h-10 px-4 flex items-center gap-2 flex-shrink-0"
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-4 h-4 text-[#2C3E50]" />
               Importar Planilha Agora
             </Button>
           </div>
@@ -334,18 +334,18 @@ export const Index: React.FC = () => {
 
         {/* 1. SEÇÃO DE RESUMO: 3 CARDS DE INDICADOR COM VARIAÇÃO */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-          {/* Card 1: Faturamento (Destaque) */}
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          {/* Card 1: Faturamento (Destaque Azul Ardósia) */}
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#5B6470] uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[#616F7D] uppercase tracking-wider">
                 Faturamento Total
               </span>
-              <div className="w-10 h-10 rounded-full bg-[#E7EFEA] flex items-center justify-center text-[#1C4E3D]">
+              <div className="w-10 h-10 rounded-full bg-[#E8EDF2] flex items-center justify-center text-[#2C3E50]">
                 <DollarSign className="w-5 h-5" />
               </div>
             </div>
             <div className="mt-2">
-              <div className="text-2xl sm:text-3xl font-bold text-[#1C4E3D] tracking-tight font-mono">
+              <div className="text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight font-mono">
                 {formatMoeda(kpis.faturamento)}
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs">
@@ -362,21 +362,21 @@ export const Index: React.FC = () => {
                 <span className="text-[#8A94A0]">vs. período anterior</span>
               </div>
             </div>
-            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#1C4E3D]" />
+            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#2C3E50]" />
           </Card>
 
           {/* Card 2: Ticket Médio */}
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#5B6470] uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[#616F7D] uppercase tracking-wider">
                 Ticket Médio
               </span>
-              <div className="w-10 h-10 rounded-full bg-[#FDF3E1] flex items-center justify-center text-[#C2A24B]">
+              <div className="w-10 h-10 rounded-full bg-[#FAF4DE] flex items-center justify-center text-[#D4AF37]">
                 <Receipt className="w-5 h-5" />
               </div>
             </div>
             <div className="mt-2">
-              <div className="text-2xl sm:text-3xl font-bold text-[#22272A] tracking-tight font-mono">
+              <div className="text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight font-mono">
                 {formatMoeda(kpis.ticketMedio)}
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs">
@@ -393,23 +393,23 @@ export const Index: React.FC = () => {
                 <span className="text-[#8A94A0]">vs. período anterior</span>
               </div>
             </div>
-            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#C2A24B]" />
+            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#D4AF37]" />
           </Card>
 
           {/* Card 3: Quantidade de Vendas */}
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5 relative overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#5B6470] uppercase tracking-wider">
+              <span className="text-xs font-semibold text-[#616F7D] uppercase tracking-wider">
                 Quantidade de Vendas
               </span>
-              <div className="w-10 h-10 rounded-full bg-[#E7EFEA] flex items-center justify-center text-[#1C4E3D]">
+              <div className="w-10 h-10 rounded-full bg-[#E8EDF2] flex items-center justify-center text-[#2C3E50]">
                 <ShoppingCart className="w-5 h-5" />
               </div>
             </div>
             <div className="mt-2">
-              <div className="text-2xl sm:text-3xl font-bold text-[#22272A] tracking-tight font-mono">
+              <div className="text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight font-mono">
                 {kpis.quantidade}{' '}
-                <span className="text-xs font-normal text-[#5B6470]">pedidos</span>
+                <span className="text-xs font-normal text-[#616F7D]">pedidos</span>
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs">
                 {kpis.varQtd >= 0 ? (
@@ -425,18 +425,18 @@ export const Index: React.FC = () => {
                 <span className="text-[#8A94A0]">vs. período anterior</span>
               </div>
             </div>
-            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#58788C]" />
+            <div className="absolute left-0 bottom-0 top-0 w-1.5 bg-[#486B8A]" />
           </Card>
         </section>
 
         {/* 2. GRÁFICO PRINCIPAL DE EVOLUÇÃO (SEMANAL / MENSAL) */}
-        <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm overflow-hidden">
-          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[#E3E6EA] gap-3">
+        <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm overflow-hidden">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-[#DEE4EA] gap-3">
             <div>
-              <CardTitle className="text-base font-bold text-[#1C4E3D]">
+              <CardTitle className="font-heading text-base font-bold text-[#2C3E50]">
                 Evolução de Vendas
               </CardTitle>
-              <p className="text-xs text-[#5B6470] mt-0.5">
+              <p className="text-xs text-[#616F7D] mt-0.5">
                 Acompanhamento temporal do faturamento (clique em um ponto para detalhes)
               </p>
             </div>
@@ -447,7 +447,7 @@ export const Index: React.FC = () => {
                 setSelectedPonto(null)
               }}
             >
-              <TabsList className="h-8 bg-[#F6F7F9] border border-[#E3E6EA]">
+              <TabsList className="h-8 bg-[#f4f4f4] border border-[#DEE4EA]">
                 <TabsTrigger value="semanal" className="text-xs h-7 px-3">
                   Semanal
                 </TabsTrigger>
@@ -481,8 +481,8 @@ export const Index: React.FC = () => {
                     {' '}
                     <defs>
                       <linearGradient id="corFaturamento" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1C4E3D" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#1C4E3D" stopOpacity={0.0} />
+                        <stop offset="5%" stopColor="#2C3E50" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#2C3E50" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <XAxis
@@ -504,7 +504,7 @@ export const Index: React.FC = () => {
                       labelFormatter={(lbl) => `Período: ${lbl}`}
                       contentStyle={{
                         backgroundColor: '#FFFFFF',
-                        borderColor: '#E3E6EA',
+                        borderColor: '#DEE4EA',
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}
@@ -512,11 +512,11 @@ export const Index: React.FC = () => {
                     <Area
                       type="monotone"
                       dataKey="faturamento"
-                      stroke="#1C4E3D"
+                      stroke="#2C3E50"
                       strokeWidth={2.5}
                       fillOpacity={1}
                       fill="url(#corFaturamento)"
-                      activeDot={{ r: 6, fill: '#C2A24B', stroke: '#1C4E3D', strokeWidth: 2 }}
+                      activeDot={{ r: 6, fill: '#D4AF37', stroke: '#2C3E50', strokeWidth: 2 }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -525,11 +525,11 @@ export const Index: React.FC = () => {
 
             {/* Mini-tabela das vendas do ponto clicado */}
             {selectedPonto && (
-              <div className="mt-4 p-4 border border-[#E3E6EA] rounded-xl bg-[#F6F7F9] animate-fade-in">
+              <div className="mt-4 p-4 border border-[#DEE4EA] rounded-xl bg-[#f4f4f4] animate-fade-in">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#1C4E3D]" />
-                    <span className="text-xs font-bold text-[#22272A]">
+                    <Calendar className="w-4 h-4 text-[#2C3E50]" />
+                    <span className="font-heading text-xs font-bold text-[#2C3E50]">
                       Vendas em {selectedPonto.label} ({selectedPonto.vendas.length} registros)
                     </span>
                   </div>
@@ -539,7 +539,7 @@ export const Index: React.FC = () => {
                     onClick={() => {
                       navigate('/vendas')
                     }}
-                    className="text-xs text-[#1C4E3D] hover:text-[#C2A24B] h-7 px-2"
+                    className="text-xs text-[#2C3E50] hover:text-[#D4AF37] h-7 px-2 font-medium"
                   >
                     Ver todas no módulo de Vendas <ArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
@@ -548,19 +548,19 @@ export const Index: React.FC = () => {
                   {selectedPonto.vendas.slice(0, 5).map((v) => (
                     <div
                       key={v.id}
-                      className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#E3E6EA] text-xs"
+                      className="flex items-center justify-between p-2 bg-white rounded-lg border border-[#DEE4EA] text-xs"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="font-semibold text-[#22272A]">{v.cliente}</span>
-                        <span className="text-[#5B6470]">
+                        <span className="font-semibold text-[#2C3E50]">{v.cliente}</span>
+                        <span className="text-[#616F7D]">
                           {v.expand?.produto?.nome ||
                             produtos.find((p) => p.id === v.produto)?.nome}
                         </span>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#E7EFEA] text-[#1C4E3D]">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#E8EDF2] text-[#2C3E50]">
                           {v.canal}
                         </span>
                       </div>
-                      <span className="font-bold text-[#1C4E3D] font-mono">
+                      <span className="font-bold text-[#2C3E50] font-mono">
                         {formatMoeda(v.valor)}
                       </span>
                     </div>
@@ -574,17 +574,19 @@ export const Index: React.FC = () => {
         {/* 3. SEÇÃO DE DISTRIBUIÇÃO (PRODUTO & CANAL LADO A LADO) */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Distribuição por Produto (Barras Horizontais) */}
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E3E6EA]">
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#DEE4EA]">
               <div>
-                <h4 className="text-sm font-bold text-[#1C4E3D]">Produtos Mais Vendidos</h4>
-                <p className="text-xs text-[#5B6470] mt-0.5">Ranking por faturamento total</p>
+                <h4 className="font-heading text-sm font-bold text-[#2C3E50]">
+                  Produtos Mais Vendidos
+                </h4>
+                <p className="text-xs text-[#616F7D] mt-0.5">Ranking por faturamento total</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/produtos')}
-                className="text-xs text-[#1C4E3D] h-7 px-2"
+                className="text-xs text-[#2C3E50] h-7 px-2"
               >
                 Ver catálogo
               </Button>
@@ -605,7 +607,7 @@ export const Index: React.FC = () => {
                     <YAxis
                       type="category"
                       dataKey="nome"
-                      stroke="#22272A"
+                      stroke="#2C3E50"
                       fontSize={11}
                       width={120}
                       tickLine={false}
@@ -615,12 +617,12 @@ export const Index: React.FC = () => {
                       formatter={(val: any) => [formatMoeda(Number(val)), 'Total']}
                       contentStyle={{
                         backgroundColor: '#FFFFFF',
-                        borderColor: '#E3E6EA',
+                        borderColor: '#DEE4EA',
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="valor" fill="#1C4E3D" radius={[0, 4, 4, 0]} barSize={16} />
+                    <Bar dataKey="valor" fill="#2C3E50" radius={[0, 4, 4, 0]} barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -628,11 +630,13 @@ export const Index: React.FC = () => {
           </Card>
 
           {/* Distribuição por Canal de Venda (Gráfico de Rosca) */}
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E3E6EA]">
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#DEE4EA]">
               <div>
-                <h4 className="text-sm font-bold text-[#1C4E3D]">Participação por Canal</h4>
-                <p className="text-xs text-[#5B6470] mt-0.5">Origem das vendas e conversões</p>
+                <h4 className="font-heading text-sm font-bold text-[#2C3E50]">
+                  Participação por Canal
+                </h4>
+                <p className="text-xs text-[#616F7D] mt-0.5">Origem das vendas e conversões</p>
               </div>
             </div>
             <div className="h-[260px] w-full pt-2">
@@ -655,7 +659,7 @@ export const Index: React.FC = () => {
                       {dadosDistribuicaoCanal.map((entry) => (
                         <Cell
                           key={entry.name}
-                          fill={CORES_CANAIS[entry.name as keyof typeof CORES_CANAIS] || '#1C4E3D'}
+                          fill={CORES_CANAIS[entry.name as keyof typeof CORES_CANAIS] || '#2C3E50'}
                         />
                       ))}
                     </Pie>
@@ -663,7 +667,7 @@ export const Index: React.FC = () => {
                       formatter={(val: any, name: any) => [formatMoeda(Number(val)), name]}
                       contentStyle={{
                         backgroundColor: '#FFFFFF',
-                        borderColor: '#E3E6EA',
+                        borderColor: '#DEE4EA',
                         borderRadius: '8px',
                         fontSize: '12px',
                       }}
@@ -671,11 +675,11 @@ export const Index: React.FC = () => {
                     <Legend
                       verticalAlign="bottom"
                       height={36}
-                      formatter={(val, entry: any) => {
+                      formatter={(val) => {
                         const item = dadosDistribuicaoCanal.find((c) => c.name === val)
                         const pct = item ? item.percent.toFixed(0) : 0
                         return (
-                          <span className="text-xs text-[#22272A] ml-1">
+                          <span className="text-xs text-[#2C3E50] ml-1">
                             {val} ({pct}%)
                           </span>
                         )
@@ -690,13 +694,15 @@ export const Index: React.FC = () => {
 
         {/* 4. SEÇÃO DE ALERTAS ATIVOS */}
         <section>
-          <Card className="rounded-xl border border-[#E3E6EA] bg-white shadow-sm p-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E3E6EA]">
+          <Card className="rounded-xl border border-[#DEE4EA] bg-white shadow-sm p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-[#DEE4EA]">
               <div className="flex items-center gap-2">
-                <Bell className="w-5 h-5 text-[#C2A24B]" />
+                <Bell className="w-5 h-5 text-[#D4AF37]" />
                 <div>
-                  <h4 className="text-sm font-bold text-[#1C4E3D]">Alertas do Sistema</h4>
-                  <p className="text-xs text-[#5B6470]">
+                  <h4 className="font-heading text-sm font-bold text-[#2C3E50]">
+                    Alertas do Sistema
+                  </h4>
+                  <p className="text-xs text-[#616F7D]">
                     Desvios e marcos monitorados automaticamente
                   </p>
                 </div>
@@ -705,7 +711,7 @@ export const Index: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate('/alertas')}
-                className="text-xs text-[#1C4E3D] hover:text-[#C2A24B] h-8 px-2"
+                className="text-xs text-[#2C3E50] hover:text-[#D4AF37] h-8 px-2 font-medium"
               >
                 Gerenciar regras <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Button>

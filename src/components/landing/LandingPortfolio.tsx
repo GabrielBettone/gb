@@ -25,14 +25,14 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
         {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#1C4E3D] mb-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#C2A24B]" />
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-[#2C3E50] mb-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
               TRABALHOS REALIZADOS
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#22272A] tracking-tight">
+            <h2 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold text-[#2C3E50] tracking-tight">
               Portfólio de Projetos
             </h2>
-            <p className="text-sm sm:text-base text-[#5B6470] mt-1.5 max-w-2xl">
+            <p className="text-sm sm:text-base text-[#616F7D] mt-1.5 max-w-2xl">
               Confira projetos reais executados pela nossa equipe. Fotos reais de obras concluídas
               com alto nível de acabamento.
             </p>
@@ -40,15 +40,15 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
 
           {/* Filtros por Categoria */}
           {showFilter && (
-            <div className="flex flex-wrap items-center gap-1.5 bg-[#F6F7F9] p-1.5 rounded-xl border border-[#E3E6EA]">
+            <div className="flex flex-wrap items-center gap-1.5 bg-[#f4f4f4] p-1.5 rounded-xl border border-[#DEE4EA]">
               {(['Todos', 'Residencial', 'Comercial', 'Fachadas'] as const).map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFilter(cat)}
                   className={`px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
                     filter === cat
-                      ? 'bg-[#1C4E3D] text-white shadow-xs font-semibold'
-                      : 'text-[#5B6470] hover:text-[#1C4E3D] hover:bg-white'
+                      ? 'bg-[#2C3E50] text-white shadow-xs font-semibold'
+                      : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-white'
                   }`}
                 >
                   {cat}
@@ -63,7 +63,7 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
           {displayed.map((proj) => (
             <article
               key={proj.slug}
-              className="group bg-white rounded-xl border border-[#E3E6EA] overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col hover:border-[#1C4E3D]/40"
+              className="group bg-white rounded-xl border border-[#DEE4EA] overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col hover:border-[#2C3E50]/40"
             >
               {/* Imagem de Capa com Hover Effect */}
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
@@ -77,14 +77,14 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
 
                 {/* Tag Categoria */}
                 <div className="absolute top-3 left-3">
-                  <Badge className="bg-[#1C4E3D] text-white text-[11px] font-semibold border-none shadow-xs">
+                  <Badge className="bg-[#2C3E50] text-white text-[11px] font-semibold border-none shadow-xs">
                     {proj.categoria}
                   </Badge>
                 </div>
 
                 {/* Quantidade de Fotos */}
                 <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs backdrop-blur font-medium">
-                  <Images className="w-3.5 h-3.5 text-[#C2A24B]" />
+                  <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
                   <span>{proj.fotosCount} fotos</span>
                 </div>
               </div>
@@ -93,22 +93,22 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
               <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
                   {proj.subtitulo && (
-                    <span className="text-[11px] font-semibold text-[#C2A24B] uppercase tracking-wider block mb-1">
+                    <span className="text-[11px] font-semibold text-[#D4AF37] uppercase tracking-wider block mb-1">
                       {proj.subtitulo}
                     </span>
                   )}
-                  <h3 className="text-lg font-bold text-[#22272A] group-hover:text-[#1C4E3D] transition-colors mb-2">
+                  <h3 className="font-heading text-lg font-bold text-[#2C3E50] group-hover:text-[#2C3E50] transition-colors mb-2">
                     <Link to={`/portfolio/${proj.slug}`}>{proj.titulo}</Link>
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#5B6470] line-clamp-3 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#616F7D] line-clamp-3 leading-relaxed">
                     {proj.descricao}
                   </p>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-[#E3E6EA] flex items-center justify-between">
+                <div className="pt-4 mt-4 border-t border-[#DEE4EA] flex items-center justify-between">
                   <Link
                     to={`/portfolio/${proj.slug}`}
-                    className="inline-flex items-center text-xs font-semibold text-[#1C4E3D] group-hover:text-[#C2A24B] transition-colors"
+                    className="inline-flex items-center text-xs font-semibold text-[#2C3E50] group-hover:text-[#D4AF37] transition-colors"
                   >
                     Ver galeria do projeto
                     <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-1" />
@@ -124,7 +124,7 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
           <div className="mt-10 text-center">
             <Link
               to="/portfolio"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-[#F6F7F9] border border-[#E3E6EA] text-sm font-semibold text-[#1C4E3D] hover:bg-[#EEF4F0] hover:border-[#1C4E3D]/30 transition-all shadow-xs"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-[#f4f4f4] border border-[#DEE4EA] text-sm font-semibold text-[#2C3E50] hover:bg-[#E8EDF2] hover:border-[#2C3E50]/30 transition-all shadow-xs"
             >
               Ver todos os {PROJETOS.length} projetos do portfólio
               <ArrowRight className="w-4 h-4 ml-2" />

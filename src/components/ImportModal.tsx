@@ -486,8 +486,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     >
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6 bg-white border-[#E3E6EA] rounded-xl shadow-lg">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-[#1C4E3D] flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-[#C2A24B]" />
+          <DialogTitle className="font-heading text-xl font-bold text-[#2C3E50] flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-[#D4AF37]" />
             Importação de Planilha de Vendas
           </DialogTitle>
           <DialogDescription className="text-xs text-[#5B6470]">
@@ -523,7 +523,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 e.preventDefault()
                 handleFileChange(e.dataTransfer.files)
               }}
-              className="border-2 border-dashed border-[#D5DAE0] hover:border-[#1C4E3D] bg-[#F6F7F9] hover:bg-[#E7EFEA]/30 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors relative"
+              className="border-2 border-dashed border-[#DEE4EA] hover:border-[#2C3E50] bg-[#f4f4f4] hover:bg-[#E8EDF2]/40 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors relative"
             >
               <input
                 type="file"
@@ -532,8 +532,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={(e) => handleFileChange(e.target.files)}
               />
-              <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-[#1C4E3D] mb-3 border border-[#E3E6EA]">
-                <UploadCloud className="w-7 h-7 text-[#1C4E3D]" />
+              <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-[#2C3E50] mb-3 border border-[#DEE4EA]">
+                <UploadCloud className="w-7 h-7 text-[#2C3E50]" />
               </div>
               <h4 className="text-sm font-semibold text-[#22272A] mb-1">
                 Arraste seus arquivos aqui ou clique para selecionar
@@ -554,7 +554,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     className="flex items-center justify-between p-2.5 rounded-lg border border-[#E3E6EA] bg-white text-xs"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <FileSpreadsheet className="w-4 h-4 text-[#1C4E3D]" />
+                      <FileSpreadsheet className="w-4 h-4 text-[#2C3E50]" />
                       <span className="font-medium truncate">{file.name}</span>
                       <span className="text-[#8A94A0]">({(file.size / 1024).toFixed(1)} KB)</span>
                     </div>
@@ -576,7 +576,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         {/* ETAPA 2: MAPEAMENTO DE COLUNAS */}
         {step === 2 && !importResult && (
           <div className="space-y-5 py-2">
-            <div className="p-3 bg-[#E7EFEA] text-[#1C4E3D] rounded-lg text-xs font-medium">
+            <div className="p-3 bg-[#E8EDF2] text-[#2C3E50] rounded-lg text-xs font-medium">
               Identificamos automaticamente as colunas da planilha. Revise ou ajuste o vínculo de
               cada campo obrigatório.
             </div>
@@ -809,9 +809,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <CheckCircle2 className="w-10 h-10" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-[#1C4E3D]">
-                Importação finalizada com sucesso!
-              </h3>
+              <h3 className="font-heading text-lg font-bold text-[#2C3E50]">
+                Importação Concluída com Sucesso!
+              </h3>{' '}
               <p className="text-xs text-[#5B6470] mt-1">
                 Foram importadas <strong>{importResult.total}</strong> vendas.
                 {importResult.skipped > 0 &&
@@ -819,7 +819,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               </p>
             </div>
             <Button
-              className="bg-[#1C4E3D] hover:bg-[#163D30] text-white px-6 font-semibold"
+              className="bg-[#2C3E50] hover:bg-[#1B2631] text-white px-6 font-semibold"
               onClick={() => {
                 onOpenChange(false)
                 resetModal()
@@ -868,7 +868,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   }
                   setStep(2)
                 }}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 Avançar
               </Button>
@@ -878,7 +878,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <Button
                 size="sm"
                 onClick={() => setStep(3)}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 Revisar importação
               </Button>
@@ -889,7 +889,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 size="sm"
                 onClick={handleImport}
                 disabled={importing || (validRowsCount === 0 && skipInvalid)}
-                className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold"
+                className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
                 {importing ? (
                   <>

@@ -232,9 +232,9 @@ export const GanttView: React.FC<GanttViewProps> = ({
       case 'Trabalhos iniciados':
         return 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white'
       case 'Concluídos':
-        return 'bg-[#1C4E3D] hover:bg-[#163D30] border-[#163D30] text-[#C2A24B]'
+        return 'bg-[#2C3E50] hover:bg-[#1B2631] border-[#1B2631] text-[#D4AF37]'
       default:
-        return 'bg-[#1C4E3D] text-white'
+        return 'bg-[#2C3E50] text-white'
     }
   }
 
@@ -260,7 +260,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
             variant="outline"
             size="sm"
             onClick={() => setOffsetDias(0)}
-            className="h-8 px-2.5 text-xs bg-white border-[#E3E6EA] text-[#1C4E3D] font-semibold"
+            className="h-8 px-2.5 text-xs bg-white border-[#DEE4EA] text-[#2C3E50] font-semibold"
           >
             Hoje
           </Button>
@@ -276,7 +276,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
 
         {/* Dica de Uso do Drag-and-Drop */}
         <div className="hidden md:flex items-center gap-2 text-xs text-[#5B6470] bg-white px-3 py-1 rounded-full border border-[#E3E6EA]">
-          <MoveHorizontal className="w-3.5 h-3.5 text-[#C2A24B]" />
+          <MoveHorizontal className="w-3.5 h-3.5 text-[#D4AF37]" />
           <span>
             <strong>Arrastar centro:</strong> move trabalho | <strong>Arrastar bordas:</strong>{' '}
             aumenta/diminui dias
@@ -322,7 +322,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
           <div className="sticky top-0 z-20 flex bg-white border-b border-[#E3E6EA]">
             {/* Coluna fixa esquerda: identificador do trabalho */}
             <div
-              className="sticky left-0 z-30 bg-[#F6F7F9] border-r border-[#E3E6EA] px-4 py-2.5 flex items-center font-bold text-xs text-[#1C4E3D] shadow-xs"
+              className="sticky left-0 z-30 bg-[#f4f4f4] border-r border-[#DEE4EA] px-4 py-2.5 flex items-center font-heading font-bold text-xs text-[#2C3E50] shadow-xs"
               style={{ width: `${COL_INFO_WIDTH}px`, minWidth: `${COL_INFO_WIDTH}px` }}
             >
               Trabalho / Cliente / Serviço
@@ -345,7 +345,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
                     key={idx}
                     className={`flex flex-col items-center justify-center border-r border-[#E3E6EA] text-center transition-colors ${
                       isHoje
-                        ? 'bg-[#1C4E3D]/10 text-[#1C4E3D] font-bold ring-1 ring-[#1C4E3D]'
+                        ? 'bg-[#2C3E50]/10 text-[#2C3E50] font-bold ring-1 ring-[#2C3E50]'
                         : isFimDeSemana
                           ? 'bg-[#F9FAFB] text-[#8A94A0]'
                           : 'bg-white text-[#5B6470]'
@@ -353,7 +353,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
                     style={{ width: `${pixelsPorDia}px`, minWidth: `${pixelsPorDia}px` }}
                   >
                     {mesStr && (
-                      <span className="text-[9px] uppercase font-bold text-[#C2A24B] -mb-0.5">
+                      <span className="text-[9px] uppercase font-bold text-[#D4AF37] -mb-0.5">
                         {mesStr}
                       </span>
                     )}
@@ -419,7 +419,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
                       style={{ width: `${COL_INFO_WIDTH}px`, minWidth: `${COL_INFO_WIDTH}px` }}
                     >
                       <div className="flex items-center justify-between gap-1 mb-0.5">
-                        <span className="font-bold text-xs text-[#1C4E3D] hover:underline">
+                        <span className="font-bold text-xs text-[#2C3E50] hover:underline">
                           {orc.numero}
                         </span>
                         <Badge
@@ -439,7 +439,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
 
                       <div className="flex items-center justify-between text-[11px] text-[#5B6470] mt-0.5 truncate">
                         <span className="truncate">{item.prodNome}</span>
-                        <span className="font-bold text-[#1C4E3D] ml-1">
+                        <span className="font-bold text-[#2C3E50] ml-1">
                           {item.duracaoDias} {item.duracaoDias === 1 ? 'dia' : 'dias'}
                         </span>
                       </div>

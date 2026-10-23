@@ -97,25 +97,25 @@ export const Layout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F9] flex flex-col md:flex-row">
+    <div className="min-h-screen bg-[#f4f4f4] flex flex-col md:flex-row">
       {/* SIDEBAR DESKTOP & TABLET */}
       <aside
-        className={`hidden md:flex flex-col bg-white border-r border-[#E3E6EA] transition-all duration-200 sticky top-0 h-screen z-30 select-none ${
+        className={`hidden md:flex flex-col bg-white border-r border-[#DEE4EA] transition-all duration-200 sticky top-0 h-screen z-30 select-none ${
           collapsed ? 'w-[72px]' : 'w-[260px]'
         }`}
       >
         {/* Topo: Logo & Monograma */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[#E3E6EA]">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#DEE4EA]">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-[#1C4E3D] text-[#C2A24B] flex items-center justify-center font-bold text-base shadow-sm border border-[#C2A24B]/30 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-base shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
               GB
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-none truncate">
-                <span className="font-bold text-sm text-[#1C4E3D] tracking-tight">
+                <span className="font-heading font-bold text-sm text-[#2C3E50] tracking-tight">
                   Gesso Bettone
                 </span>
-                <span className="text-[11px] text-[#5B6470] mt-0.5">Análise de Vendas</span>
+                <span className="text-[11px] text-[#616F7D] mt-0.5">Análise de Vendas</span>
               </div>
             )}
           </div>
@@ -123,7 +123,7 @@ export const Layout: React.FC = () => {
             variant="ghost"
             size="sm"
             onClick={() => setCollapsed(!collapsed)}
-            className="h-7 w-7 p-0 text-[#5B6470] hover:text-[#1C4E3D] hidden lg:flex"
+            className="h-7 w-7 p-0 text-[#616F7D] hover:text-[#2C3E50] hidden lg:flex"
             aria-label={collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -148,17 +148,17 @@ export const Layout: React.FC = () => {
                       to={item.path}
                       className={`flex items-center justify-center h-10 w-10 mx-auto rounded-lg transition-colors relative ${
                         isActive
-                          ? 'bg-[#EEF4F0] text-[#1C4E3D] font-semibold'
-                          : 'text-[#5B6470] hover:bg-[#E7EFEA] hover:text-[#1C4E3D]'
+                          ? 'bg-[#E8EDF2] text-[#2C3E50] font-semibold'
+                          : 'text-[#616F7D] hover:bg-[#E8EDF2] hover:text-[#2C3E50]'
                       }`}
                     >
                       {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#C2A24B] rounded-r-full" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#D4AF37] rounded-r-full" />
                       )}
                       <Icon className="w-5 h-5" />
                     </NavLink>
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-[#1C4E3D] text-white text-xs">
+                  <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
                     {item.label}
                   </TooltipContent>
                 </Tooltip>
@@ -171,14 +171,14 @@ export const Layout: React.FC = () => {
                 to={item.path}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors relative ${
                   isActive
-                    ? 'bg-[#EEF4F0] text-[#1C4E3D] font-semibold shadow-[0_1px_2px_rgba(28,35,43,0.03)]'
-                    : 'text-[#5B6470] hover:bg-[#E7EFEA] hover:text-[#1C4E3D]'
+                    ? 'bg-[#E8EDF2] text-[#2C3E50] font-semibold shadow-[0_1px_2px_rgba(28,35,43,0.03)]'
+                    : 'text-[#616F7D] hover:bg-[#E8EDF2] hover:text-[#2C3E50]'
                 }`}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#C2A24B] rounded-r-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#D4AF37] rounded-r-full" />
                 )}
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#1C4E3D]' : 'text-[#5B6470]'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-[#2C3E50]' : 'text-[#616F7D]'}`} />
                 <span>{item.label}</span>
               </NavLink>
             )
@@ -190,22 +190,22 @@ export const Layout: React.FC = () => {
           {!collapsed ? (
             <Link
               to="/"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[#1C4E3D] bg-[#EEF4F0] hover:bg-[#E7EFEA] transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors"
             >
               <span>Ir para o Site Público</span>
-              <span className="text-[10px] text-[#C2A24B] font-bold">↗</span>
+              <span className="text-[10px] text-[#D4AF37] font-bold">↗</span>
             </Link>
           ) : (
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
                 <Link
                   to="/"
-                  className="flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[#1C4E3D] bg-[#EEF4F0] hover:bg-[#E7EFEA] transition-colors"
+                  className="flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors"
                 >
                   <span className="text-xs font-bold">Site</span>
                 </Link>
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#1C4E3D] text-white text-xs">
+              <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
                 Ir para o Site Público
               </TooltipContent>
             </Tooltip>
@@ -213,7 +213,7 @@ export const Layout: React.FC = () => {
         </div>
 
         {/* Rodapé da Sidebar: Usuário logado & Logout */}
-        <div className="p-3 border-t border-[#E3E6EA]">
+        <div className="p-3 border-t border-[#DEE4EA]">
           {collapsed ? (
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
@@ -225,23 +225,23 @@ export const Layout: React.FC = () => {
                   <LogOut className="w-4 h-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#1C4E3D] text-white text-xs">
+              <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
                 Sair da conta
               </TooltipContent>
             </Tooltip>
           ) : (
-            <div className="flex items-center justify-between p-2 rounded-lg bg-[#F6F7F9] border border-[#E3E6EA]">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-[#f4f4f4] border border-[#DEE4EA]">
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <Avatar className="w-8 h-8 rounded-full border border-[#D5DAE0] bg-white text-[#1C4E3D]">
+                <Avatar className="w-8 h-8 rounded-full border border-[#DEE4EA] bg-white text-[#2C3E50]">
                   <AvatarFallback className="text-[11px] font-bold">
                     {getInitials(user?.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col truncate">
-                  <span className="text-xs font-semibold text-[#22272A] truncate">
+                  <span className="text-xs font-semibold text-[#2C3E50] truncate">
                     {user?.name || 'Administrador'}
                   </span>
-                  <span className="text-[10px] text-[#5B6470] truncate">{user?.email}</span>
+                  <span className="text-[10px] text-[#616F7D] truncate">{user?.email}</span>
                 </div>
               </div>
               <Tooltip delayDuration={100}>
@@ -250,7 +250,7 @@ export const Layout: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={handleLogout}
-                    className="h-7 w-7 p-0 text-[#5B6470] hover:text-[#C4453C] hover:bg-[#FBEFEE]"
+                    className="h-7 w-7 p-0 text-[#616F7D] hover:text-[#C4453C] hover:bg-[#FBEFEE]"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                   </Button>
@@ -265,7 +265,7 @@ export const Layout: React.FC = () => {
       {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* HEADER FIXO SUPERIOR */}
-        <header className="h-16 bg-white border-b border-[#E3E6EA] sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between shadow-sm">
+        <header className="h-16 bg-white border-b border-[#DEE4EA] sticky top-0 z-30 px-4 sm:px-6 flex items-center justify-between shadow-sm">
           {/* Esquerda: Hambúrguer Mobile + Título */}
           <div className="flex items-center gap-3">
             {/* Menu Mobile Hambúrguer */}
@@ -274,21 +274,23 @@ export const Layout: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="md:hidden h-9 w-9 p-0 text-[#1C4E3D]"
+                  className="md:hidden h-9 w-9 p-0 text-[#2C3E50]"
                   aria-label="Abrir menu"
                 >
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[280px] p-0 bg-white">
-                <SheetHeader className="p-4 border-b border-[#E3E6EA]">
+                <SheetHeader className="p-4 border-b border-[#DEE4EA]">
                   <SheetTitle className="flex items-center gap-3 text-left">
-                    <div className="w-9 h-9 rounded-xl bg-[#1C4E3D] text-[#C2A24B] flex items-center justify-center font-bold text-sm shadow-sm border border-[#C2A24B]/30 flex-shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-sm shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
                       GB
                     </div>
                     <div className="flex flex-col leading-none">
-                      <span className="font-bold text-sm text-[#1C4E3D]">Gesso Bettone</span>
-                      <span className="text-[11px] text-[#5B6470] mt-0.5">Análise de Vendas</span>
+                      <span className="font-heading font-bold text-sm text-[#2C3E50]">
+                        Gesso Bettone
+                      </span>
+                      <span className="text-[11px] text-[#616F7D] mt-0.5">Análise de Vendas</span>
                     </div>
                   </SheetTitle>
                 </SheetHeader>
@@ -306,31 +308,31 @@ export const Layout: React.FC = () => {
                         onClick={() => setMobileMenuOpen(false)}
                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs transition-colors ${
                           isActive
-                            ? 'bg-[#EEF4F0] text-[#1C4E3D] font-semibold border-l-4 border-[#C2A24B]'
-                            : 'text-[#5B6470] hover:bg-[#E7EFEA]'
+                            ? 'bg-[#E8EDF2] text-[#2C3E50] font-semibold border-l-4 border-[#D4AF37]'
+                            : 'text-[#616F7D] hover:bg-[#E8EDF2]'
                         }`}
                       >
-                        <Icon className="w-4 h-4 text-[#1C4E3D]" />
+                        <Icon className="w-4 h-4 text-[#2C3E50]" />
                         <span>{item.label}</span>
                       </NavLink>
                     )
                   })}
-                  <div className="pt-2 border-t border-[#E3E6EA]">
+                  <div className="pt-2 border-t border-[#DEE4EA]">
                     <Link
                       to="/"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#1C4E3D] hover:bg-[#EEF4F0] rounded-lg"
+                      className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-[#2C3E50] hover:bg-[#E8EDF2] rounded-lg"
                     >
                       <span>Ver Site Público (Landing)</span>
-                      <span className="text-[10px] text-[#C2A24B] font-bold">↗</span>
+                      <span className="text-[10px] text-[#D4AF37] font-bold">↗</span>
                     </Link>
                   </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#E3E6EA] bg-[#F6F7F9]">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#DEE4EA] bg-[#f4f4f4]">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Avatar className="w-8 h-8 rounded-full border bg-white">
-                        <AvatarFallback className="text-xs font-bold text-[#1C4E3D]">
+                        <AvatarFallback className="text-xs font-bold text-[#2C3E50]">
                           {getInitials(user?.name)}
                         </AvatarFallback>
                       </Avatar>
@@ -338,7 +340,7 @@ export const Layout: React.FC = () => {
                         <span className="text-xs font-semibold truncate">
                           {user?.name || 'Administrador'}
                         </span>
-                        <span className="text-[10px] text-[#5B6470] truncate">{user?.email}</span>
+                        <span className="text-[10px] text-[#616F7D] truncate">{user?.email}</span>
                       </div>
                     </div>
                     <Button
@@ -357,29 +359,29 @@ export const Layout: React.FC = () => {
               </SheetContent>
             </Sheet>
 
-            <h1 className="text-base sm:text-xl font-bold text-[#22272A] tracking-tight truncate">
+            <h1 className="font-heading text-base sm:text-xl font-bold text-[#2C3E50] tracking-tight truncate">
               {getPageTitle()}
             </h1>
           </div>
 
           {/* Direita: Resumo do Período + Botão Nova Importação + Avatar Mobile */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center text-xs text-[#5B6470] bg-[#F6F7F9] px-3 py-1.5 rounded-full border border-[#E3E6EA]">
-              <span className="font-medium text-[#22272A] mr-1">Período:</span>
+            <div className="hidden sm:flex items-center text-xs text-[#616F7D] bg-[#f4f4f4] px-3 py-1.5 rounded-full border border-[#DEE4EA]">
+              <span className="font-medium text-[#2C3E50] mr-1">Período:</span>
               <span>{getPeriodoSummary()}</span>
             </div>
 
             <Button
               size="sm"
               onClick={() => setImportModalOpen(true)}
-              className="bg-[#1C4E3D] hover:bg-[#163D30] text-white text-xs font-semibold h-9 px-3.5 shadow-sm transition-all"
+              className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold h-9 px-3.5 shadow-sm transition-all"
             >
-              <Upload className="w-3.5 h-3.5 mr-1.5" />
+              <Upload className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
               <span>Nova importação</span>
             </Button>
 
             <div className="md:hidden">
-              <Avatar className="w-8 h-8 rounded-full border border-[#D5DAE0] bg-white text-[#1C4E3D]">
+              <Avatar className="w-8 h-8 rounded-full border border-[#DEE4EA] bg-white text-[#2C3E50]">
                 <AvatarFallback className="text-[11px] font-bold">
                   {getInitials(user?.name)}
                 </AvatarFallback>
