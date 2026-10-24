@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T22:47:19.273Z",
+  "generatedAt": "2026-10-24T23:02:53.962Z",
   "collections": [
     {
       "name": "users",
@@ -670,6 +670,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "arquivo_principal",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivos_galeria",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -792,6 +804,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "arquivo_capa",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivos_galeria",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -994,6 +1018,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "arquivo_logo",
+          "type": "file",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1147,6 +1177,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "simulador_ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "simulador_exigir_login",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "simulador_cota_padrao",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_site_settings_chave ON site_settings (chave)"]
@@ -1712,6 +1760,186 @@
         "CREATE INDEX idx_parcelas_orcamento ON pagamentos_parcelas (orcamento)",
         "CREATE INDEX idx_parcelas_status ON pagamentos_parcelas (status)",
         "CREATE INDEX idx_parcelas_vencimento ON pagamentos_parcelas (data_vencimento)"
+      ]
+    },
+    {
+      "name": "simulador_clientes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bloqueado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cota_mensal",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracoes_mes_atual",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "mes_referencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pin_acesso",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultimo_codigo_confirmacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "confirmado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_simulador_clientes_tel ON simulador_clientes (telefone)"]
+    },
+    {
+      "name": "simulador_historico",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "simulador_clientes"
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "servico_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "servico_slug",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto_original",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto_resultado",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "url_original",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "url_resultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prompt_usado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_sim_hist_telefone ON simulador_historico (telefone)",
+        "CREATE INDEX idx_sim_hist_created ON simulador_historico (created)"
       ]
     }
   ]
