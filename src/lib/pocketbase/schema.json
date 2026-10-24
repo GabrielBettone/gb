@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-23T10:49:28.896Z",
+  "generatedAt": "2026-10-24T22:47:19.273Z",
   "collections": [
     {
       "name": "users",
@@ -462,6 +462,45 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "cliente_cadastrado",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "grupo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes_grupos"
+        },
+        {
+          "name": "metodo_pagamento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "metodos_pagamento"
+        },
+        {
+          "name": "valor_a_vista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_a_prazo",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exibir_cnpj",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -1203,6 +1242,476 @@
         "CREATE INDEX idx_site_analytics_tipo ON site_analytics_events (tipo)",
         "CREATE INDEX idx_site_analytics_dia ON site_analytics_events (data_dia)",
         "CREATE INDEX idx_site_analytics_visitor ON site_analytics_events (visitor_id)"
+      ]
+    },
+    {
+      "name": "clientes_grupos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_clientes_grupos_nome ON clientes_grupos (nome)"]
+    },
+    {
+      "name": "clientes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "grupo",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes_grupos"
+        },
+        {
+          "name": "documento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_clientes_nome ON clientes (nome)",
+        "CREATE INDEX idx_clientes_grupo ON clientes (grupo)",
+        "CREATE INDEX idx_clientes_documento ON clientes (documento)"
+      ]
+    },
+    {
+      "name": "orcamento_servicos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "grupo",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes_grupos"
+        },
+        {
+          "name": "modo_calculo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["area", "dimensoes"]
+        },
+        {
+          "name": "unidade",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "preco_unitario",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao_pdf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "site_service",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "site_services"
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "metodos_pagamento",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "desconto_a_vista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "condicoes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_parcelas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_metodos_pagamento_nome ON metodos_pagamento (nome)"]
+    },
+    {
+      "name": "orcamento_configuracoes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "chave",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_fantasia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exibir_cnpj_padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nosso_compromisso",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_orc_config_chave ON orcamento_configuracoes (chave)"]
+    },
+    {
+      "name": "pagamentos_parcelas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "orcamento",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "orcamentos"
+        },
+        {
+          "name": "numero_parcela",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "total_parcelas",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_previsto",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["a_pagar", "paga", "cancelada"]
+        },
+        {
+          "name": "data_pagamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_pago",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ajuste",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "forma_pagamento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_baixa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_parcelas_orcamento ON pagamentos_parcelas (orcamento)",
+        "CREATE INDEX idx_parcelas_status ON pagamentos_parcelas (status)",
+        "CREATE INDEX idx_parcelas_vencimento ON pagamentos_parcelas (data_vencimento)"
       ]
     }
   ]

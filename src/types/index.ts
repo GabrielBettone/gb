@@ -37,11 +37,92 @@ export type StatusOrcamento =
 
 export interface ItemOrcamento {
   produto_id?: string
+  servico_id?: string
   descricao: string
   quantidade: number
   unidade?: string
   valor_unitario: number
   valor_total: number
+  // Para cálculo por largura × comprimento
+  largura?: number
+  comprimento?: number
+}
+
+export interface ClienteGrupo extends RecordModel {
+  nome: string
+  descricao?: string
+  ativo: boolean
+  padrao?: boolean
+}
+
+export interface Cliente extends RecordModel {
+  nome: string
+  grupo: string
+  documento?: string
+  whatsapp?: string
+  email?: string
+  cidade?: string
+  endereco?: string
+  observacoes?: string
+  expand?: {
+    grupo?: ClienteGrupo
+  }
+}
+
+export interface OrcamentoServicoItem extends RecordModel {
+  nome: string
+  grupo: string
+  modo_calculo: 'area' | 'dimensoes'
+  unidade: string
+  preco_unitario: number
+  descricao_pdf?: string
+  ativo: boolean
+  site_service?: string
+  expand?: {
+    grupo?: ClienteGrupo
+  }
+}
+
+export interface MetodoPagamento extends RecordModel {
+  nome: string
+  desconto_a_vista?: number // %
+  condicoes?: string[] | string // JSON array de strings
+  numero_parcelas?: number
+  padrao?: boolean
+  ativo: boolean
+}
+
+export interface OrcamentoConfiguracao extends RecordModel {
+  chave: string
+  razao_social?: string
+  nome_fantasia?: string
+  cnpj?: string
+  exibir_cnpj_padrao?: boolean
+  nosso_compromisso?: string[] | string
+  telefone?: string
+  email?: string
+  endereco?: string
+  cidade?: string
+}
+
+export type StatusParcela = 'a_pagar' | 'paga' | 'cancelada'
+
+export interface PagamentoParcela extends RecordModel {
+  orcamento: string
+  numero_parcela: number
+  total_parcelas: number
+  descricao?: string
+  valor_previsto: number
+  data_vencimento: string
+  status: StatusParcela
+  data_pagamento?: string
+  valor_pago?: number
+  ajuste?: number
+  forma_pagamento?: string
+  observacoes_baixa?: string
+  expand?: {
+    orcamento?: Orcamento
+  }
 }
 
 export interface Orcamento extends RecordModel {
@@ -52,8 +133,17 @@ export interface Orcamento extends RecordModel {
   canal_origem: CanalVenda
   status: StatusOrcamento
   produto_principal?: string
+  cliente_cadastrado?: string
+  grupo?: string
+  metodo_pagamento?: string
+  valor_a_vista?: number
+  valor_a_prazo?: number
+  exibir_cnpj?: boolean
   expand?: {
     produto_principal?: Produto
+    cliente_cadastrado?: Cliente
+    grupo?: ClienteGrupo
+    metodo_pagamento?: MetodoPagamento
   }
   itens?: ItemOrcamento[] | string
   subtotal?: number

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import type { Orcamento } from '@/types'
+import React, { useState, useEffect } from 'react'
+import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,8 +16,12 @@ import {
   Trash2,
   Layers,
   ArrowRight,
+  Printer,
+  CreditCard,
 } from 'lucide-react'
 import { ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
+import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
+import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 
 interface OrcamentoDetalhesModalProps {
   orcamento: Orcamento | null
@@ -36,6 +40,14 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
   onConcluir,
   onExcluir,
 }) => {
+  const [configGeral, setConfigGeral] = useState<OrcamentoConfiguracao | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      obterConfiguracoesOrcamento().then(setConfigGeral).catch(console.error)
+    }
+  }, [open])
+
   if (!orcamento) return null
 
   const config = ETAPAS_CONFIG[orcamento.status] || {
@@ -59,6 +71,12 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
       style: 'currency',
       currency: 'BRL',
     })
+  }
+
+  const handleImprimir = () => {
+    if (orcamento) {
+      imprimirOrcamentoPDF(orcamento, configGeral)
+    }
   }
 
   return (
@@ -223,6 +241,17 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
           </Button>
 
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleImprimir}
+              className="text-xs h-9 border-[#2C3E50]/30 text-[#2C3E50] hover:bg-[#E8EDF2]"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
+              Imprimir / PDF
+            </Button>
+
             {orcamento.status !== 'Concluídos' && onConcluir && (
               <Button
                 size="sm"

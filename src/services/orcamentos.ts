@@ -100,7 +100,7 @@ export async function gerarProximoNumeroOrcamento(): Promise<string> {
 export async function listarOrcamentos(): Promise<Orcamento[]> {
   const records = await pb.collection<Orcamento>('orcamentos').getFullList({
     sort: '-created',
-    expand: 'produto_principal',
+    expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
   })
 
   // Normaliza campo itens
@@ -120,6 +120,12 @@ export interface CriarOrcamentoDTO {
   canal_origem: CanalVenda
   status?: StatusOrcamento
   produto_principal?: string
+  cliente_cadastrado?: string
+  grupo?: string
+  metodo_pagamento?: string
+  valor_a_vista?: number
+  valor_a_prazo?: number
+  exibir_cnpj?: boolean
   itens: ItemOrcamento[]
   subtotal: number
   desconto: number
@@ -142,6 +148,12 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     canal_origem: dados.canal_origem,
     status,
     produto_principal: dados.produto_principal || null,
+    cliente_cadastrado: dados.cliente_cadastrado || null,
+    grupo: dados.grupo || null,
+    metodo_pagamento: dados.metodo_pagamento || null,
+    valor_a_vista: dados.valor_a_vista ?? null,
+    valor_a_prazo: dados.valor_a_prazo ?? null,
+    exibir_cnpj: dados.exibir_cnpj ?? true,
     itens: dados.itens,
     subtotal: dados.subtotal,
     desconto: dados.desconto,
@@ -153,6 +165,15 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     validade: dados.validade ? `${dados.validade} 12:00:00.000Z` : null,
     observacoes: dados.observacoes?.trim() || '',
   })
+
+  // Se já for criado em etapa avançada, gera a agenda
+  if (
+    status === 'Aprovados aguardando início' ||
+    status === 'Trabalhos iniciados' ||
+    status === 'Concluídos'
+  ) {
+    await gerarAgendaPagamentoSeNaoExistir(record)
+  }
 
   // Se já for criado como Concluído (caso raro), dispara sincronização de venda
   if (status === 'Concluídos') {
@@ -178,6 +199,14 @@ export async function atualizarOrcamento(
   if (dados.status !== undefined) payload.status = dados.status
   if (dados.produto_principal !== undefined)
     payload.produto_principal = dados.produto_principal || null
+  if (dados.cliente_cadastrado !== undefined)
+    payload.cliente_cadastrado = dados.cliente_cadastrado || null
+  if (dados.grupo !== undefined) payload.grupo = dados.grupo || null
+  if (dados.metodo_pagamento !== undefined)
+    payload.metodo_pagamento = dados.metodo_pagamento || null
+  if (dados.valor_a_vista !== undefined) payload.valor_a_vista = dados.valor_a_vista
+  if (dados.valor_a_prazo !== undefined) payload.valor_a_prazo = dados.valor_a_prazo
+  if (dados.exibir_cnpj !== undefined) payload.exibir_cnpj = dados.exibir_cnpj
   if (dados.itens !== undefined) payload.itens = dados.itens
   if (dados.subtotal !== undefined) payload.subtotal = dados.subtotal
   if (dados.desconto !== undefined) payload.desconto = dados.desconto
@@ -213,8 +242,17 @@ export async function atualizarOrcamento(
   if (dados.observacoes !== undefined) payload.observacoes = dados.observacoes.trim()
 
   const updated = await pb.collection<Orcamento>('orcamentos').update(id, payload, {
-    expand: 'produto_principal',
+    expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
   })
+
+  // Se passou para 'Aprovados aguardando início', 'Trabalhos iniciados' ou 'Concluídos', gera a agenda de pagamentos
+  if (
+    dados.status === 'Aprovados aguardando início' ||
+    dados.status === 'Trabalhos iniciados' ||
+    dados.status === 'Concluídos'
+  ) {
+    await gerarAgendaPagamentoSeNaoExistir(updated)
+  }
 
   // Se passou para 'Concluídos', sincronizar venda de forma idempotente
   if (dados.status === 'Concluídos') {
@@ -244,8 +282,16 @@ export async function atualizarStatusOrcamento(
   }
 
   const updated = await pb.collection<Orcamento>('orcamentos').update(id, payload, {
-    expand: 'produto_principal',
+    expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
   })
+
+  if (
+    novoStatus === 'Aprovados aguardando início' ||
+    novoStatus === 'Trabalhos iniciados' ||
+    novoStatus === 'Concluídos'
+  ) {
+    await gerarAgendaPagamentoSeNaoExistir(updated)
+  }
 
   if (novoStatus === 'Concluídos') {
     await sincronizarVendaAoConcluir(updated)
@@ -300,6 +346,122 @@ export async function excluirOrcamento(id: string): Promise<void> {
  * Sincroniza uma venda correspondente ao concluir um trabalho/orçamento (REQUISITO 7)
  * Evita duplicidade através do campo 'orcamento' na coleção vendas.
  */
+/**
+ * Gera a agenda de pagamentos (parcelas em pagamentos_parcelas) conforme o método de pagamento selecionado
+ * - À vista = 1 parcela (com valor à vista com desconto)
+ * - Entrada + saldo = 2 parcelas (entrada na aprovação/início, saldo na entrega)
+ * - Parcelado = N parcelas mensais iguais a partir da data base
+ */
+export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Promise<void> {
+  try {
+    // 1. Verifica se já existem parcelas para este orçamento
+    const existentes = await pb.collection('pagamentos_parcelas').getList(1, 1, {
+      filter: `orcamento = '${orcamento.id}'`,
+    })
+    if (existentes.totalItems > 0) {
+      return // Já possui parcelas cadastradas, não recria
+    }
+
+    // 2. Busca método de pagamento do orçamento
+    let metodo: any = null
+    if (orcamento.metodo_pagamento) {
+      try {
+        metodo = await pb.collection('metodos_pagamento').getOne(orcamento.metodo_pagamento)
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+
+    const hoje = new Date()
+    const addDays = (d: Date, days: number) => {
+      const res = new Date(d.getTime())
+      res.setDate(res.getDate() + days)
+      return `${res.getFullYear()}-${String(res.getMonth() + 1).padStart(2, '0')}-${String(
+        res.getDate(),
+      ).padStart(2, '0')} 12:00:00.000Z`
+    }
+
+    const addMonths = (d: Date, months: number) => {
+      const res = new Date(d.getTime())
+      res.setMonth(res.getMonth() + months)
+      return `${res.getFullYear()}-${String(res.getMonth() + 1).padStart(2, '0')}-${String(
+        res.getDate(),
+      ).padStart(2, '0')} 12:00:00.000Z`
+    }
+
+    const valorTotal = orcamento.valor_total || 0
+    const valorAVista = orcamento.valor_a_vista || valorTotal
+    const nomeMetodo = (metodo?.nome || '').toLowerCase()
+    const numParcelasMetodo = metodo?.numero_parcelas || 1
+
+    if (numParcelasMetodo === 1 || nomeMetodo.includes('vista')) {
+      // 1 Parcela: Valor com desconto à vista
+      await pb.collection('pagamentos_parcelas').create({
+        orcamento: orcamento.id,
+        numero_parcela: 1,
+        total_parcelas: 1,
+        descricao: 'Pagamento à vista com desconto',
+        valor_previsto: valorAVista,
+        data_vencimento: addDays(hoje, 5),
+        status: 'a_pagar',
+      })
+    } else if (numParcelasMetodo === 2 || nomeMetodo.includes('entrada')) {
+      // 2 Parcelas: Entrada (50%) + Saldo na entrega (50%)
+      const valEntrada = Math.round((valorTotal / 2) * 100) / 100
+      const valSaldo = Math.round((valorTotal - valEntrada) * 100) / 100
+
+      await pb.collection('pagamentos_parcelas').create({
+        orcamento: orcamento.id,
+        numero_parcela: 1,
+        total_parcelas: 2,
+        descricao: 'Entrada na assinatura/início da obra',
+        valor_previsto: valEntrada,
+        data_vencimento: addDays(hoje, 3),
+        status: 'a_pagar',
+      })
+
+      // Vencimento do saldo: data_fim_prevista ou em 20 dias
+      const vencimentoSaldo = orcamento.data_fim_prevista
+        ? orcamento.data_fim_prevista
+        : addDays(hoje, 20)
+
+      await pb.collection('pagamentos_parcelas').create({
+        orcamento: orcamento.id,
+        numero_parcela: 2,
+        total_parcelas: 2,
+        descricao: 'Saldo final na entrega e vistoria da obra',
+        valor_previsto: valSaldo,
+        data_vencimento: vencimentoSaldo,
+        status: 'a_pagar',
+      })
+    } else {
+      // N Parcelas mensais iguais
+      const n = Math.max(2, numParcelasMetodo)
+      const valorParcela = Math.round((valorTotal / n) * 100) / 100
+
+      for (let i = 1; i <= n; i++) {
+        const val =
+          i === n ? Math.round((valorTotal - valorParcela * (n - 1)) * 100) / 100 : valorParcela
+        await pb.collection('pagamentos_parcelas').create({
+          orcamento: orcamento.id,
+          numero_parcela: i,
+          total_parcelas: n,
+          descricao: `Parcela ${i}/${n} - Cartão / Boleto`,
+          valor_previsto: val,
+          data_vencimento: addMonths(hoje, i - 1),
+          status: 'a_pagar',
+        })
+      }
+    }
+  } catch (e) {
+    console.error('Erro ao gerar agenda de pagamentos para o orçamento:', e)
+  }
+}
+
+/**
+ * Sincroniza uma venda correspondente ao concluir um trabalho/orçamento
+ * Evita duplicidade através do campo 'orcamento' na coleção vendas.
+ */
 export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<Venda | null> {
   try {
     // 1. Verifica se já existe venda com este orcamento vinculado
@@ -308,7 +470,6 @@ export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<
         .collection<Venda>('vendas')
         .getFirstListItem(`orcamento = '${orcamento.id}'`)
       if (existing) {
-        // Já existe uma venda gerada para este orçamento, não duplica
         return existing
       }
     } catch {

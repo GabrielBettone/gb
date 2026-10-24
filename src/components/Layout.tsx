@@ -24,7 +24,7 @@ import { ImportModal } from './ImportModal'
 const navItems = [
   { path: '/painel', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/painel/vendas', label: 'Vendas', icon: Receipt },
-  { path: '/painel/orcamentos', label: 'Orçamentos', icon: Calculator },
+  { path: '/painel/orcamentos', label: 'Orçamentos & Contas', icon: Calculator },
   { path: '/painel/produtos', label: 'Produtos', icon: Boxes },
   { path: '/painel/alertas', label: 'Alertas', icon: Bell },
   { path: '/painel/site', label: 'Site (Gerenciador)', icon: Globe },

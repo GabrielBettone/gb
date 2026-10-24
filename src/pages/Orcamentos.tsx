@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
-import type { Orcamento, Produto, StatusOrcamento } from '@/types'
+import type { Orcamento, Produto, StatusOrcamento, ClienteGrupo, MetodoPagamento } from '@/types'
 import {
   listarOrcamentos,
   atualizarStatusOrcamento,
@@ -8,11 +8,18 @@ import {
   excluirOrcamento,
   ETAPAS_ORCAMENTO,
 } from '@/services/orcamentos'
+import { listarGrupos, listarMetodosPagamento } from '@/services/orcamentoModulo'
 import { KanbanView } from '@/components/orcamentos/KanbanView'
 import { GanttView } from '@/components/orcamentos/GanttView'
 import { TabelaView } from '@/components/orcamentos/TabelaView'
 import { OrcamentoModal } from '@/components/orcamentos/OrcamentoModal'
 import { OrcamentoDetalhesModal } from '@/components/orcamentos/OrcamentoDetalhesModal'
+import { AbaServicosPrecos } from '@/components/orcamentos/AbaServicosPrecos'
+import { AbaClientes } from '@/components/orcamentos/AbaClientes'
+import { AbaGrupos } from '@/components/orcamentos/AbaGrupos'
+import { AbaMetodosPagamento } from '@/components/orcamentos/AbaMetodosPagamento'
+import { AbaConfiguracoes } from '@/components/orcamentos/AbaConfiguracoes'
+import { AbaContasReceber } from '@/components/orcamentos/AbaContasReceber'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -38,28 +45,48 @@ import {
   Table as TableIcon,
   Plus,
   Search,
-  Filter,
   DollarSign,
   Briefcase,
   CheckCircle2,
   Clock,
   RotateCw,
+  FolderKanban,
+  Tag,
+  Users,
+  Layers,
+  CreditCard,
+  Settings,
+  Banknote,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 
+type AbaModulo =
+  | 'funil'
+  | 'servicos'
+  | 'clientes'
+  | 'grupos'
+  | 'metodos'
+  | 'configuracoes'
+  | 'receber'
+
 export const Orcamentos: React.FC = () => {
   const { toast } = useToast()
+
+  // Aba principal selecionada (Padrão das 6 abas do sistema antigo + Funil + Contas a Receber)
+  const [abaAtiva, setAbaAtiva] = useState<AbaModulo>('funil')
 
   // Estados principais
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [grupos, setGrupos] = useState<ClienteGrupo[]>([])
+  const [metodos, setMetodos] = useState<MetodoPagamento[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Modo de visualização: kanban, gantt ou tabela
+  // Modo de visualização dentro do Funil: kanban, gantt ou tabela
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'tabela'>('kanban')
 
-  // Filtros locais
+  // Filtros locais do funil
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [filtroCanal, setFiltroCanal] = useState<string>('todos')
@@ -73,17 +100,21 @@ export const Orcamentos: React.FC = () => {
   // Carrega dados do PocketBase
   const carregarDados = useCallback(async () => {
     try {
-      const [orcs, prods] = await Promise.all([
+      const [orcs, prods, grps, mets] = await Promise.all([
         listarOrcamentos(),
         pb.collection<Produto>('produtos').getFullList({
           filter: 'ativo = true',
           sort: 'nome',
         }),
+        listarGrupos(),
+        listarMetodosPagamento(),
       ])
       setOrcamentos(orcs)
       setProdutos(prods)
+      setGrupos(grps)
+      setMetodos(mets)
     } catch (e) {
-      console.error('Erro ao carregar orçamentos e produtos:', e)
+      console.error('Erro ao carregar dados do módulo de orçamentos:', e)
     } finally {
       setLoading(false)
     }
@@ -93,7 +124,7 @@ export const Orcamentos: React.FC = () => {
     carregarDados()
   }, [carregarDados])
 
-  // Realtime updates
+  // Realtime updates para orçamentos e parcelas
   useRealtime<Orcamento>('orcamentos', () => {
     carregarDados()
   })
@@ -101,7 +132,6 @@ export const Orcamentos: React.FC = () => {
   // Manipulador de mudança de etapa via Drag-and-Drop do Kanban ou Ação Rápida
   const handleMudarStatus = async (id: string, novoStatus: StatusOrcamento) => {
     try {
-      // Atualização otimista
       setOrcamentos((prev) => prev.map((o) => (o.id === id ? { ...o, status: novoStatus } : o)))
 
       await atualizarStatusOrcamento(id, novoStatus)
@@ -109,7 +139,12 @@ export const Orcamentos: React.FC = () => {
       if (novoStatus === 'Concluídos') {
         toast({
           title: 'Trabalho Concluído!',
-          description: 'Venda criada automaticamente na coleção Vendas e adicionada ao Dashboard.',
+          description: 'Venda registrada no Dashboard e agenda de pagamentos atualizada.',
+        })
+      } else if (novoStatus === 'Aprovados aguardando início') {
+        toast({
+          title: 'Orçamento Aprovado!',
+          description: 'Agenda de pagamentos gerada para controle e conciliação bancária.',
         })
       } else {
         toast({
@@ -136,7 +171,6 @@ export const Orcamentos: React.FC = () => {
     novaDataFim: string,
   ) => {
     try {
-      // Atualização otimista
       setOrcamentos((prev) =>
         prev.map((o) =>
           o.id === id
@@ -185,7 +219,7 @@ export const Orcamentos: React.FC = () => {
     }
   }
 
-  // Filtragem dos orçamentos
+  // Filtragem dos orçamentos para a visualização Funil
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.toLowerCase().trim()
 
@@ -198,15 +232,15 @@ export const Orcamentos: React.FC = () => {
       }
 
       if (termo) {
-        const cliente = (orc.cliente || '').toLowerCase()
+        const cli = (orc.cliente || '').toLowerCase()
         const numero = (orc.numero || '').toLowerCase()
-        const cidade = (orc.cidade || '').toLowerCase()
+        const cid = (orc.cidade || '').toLowerCase()
         const prod = (orc.expand?.produto_principal?.nome || '').toLowerCase()
 
         if (
-          !cliente.includes(termo) &&
+          !cli.includes(termo) &&
           !numero.includes(termo) &&
-          !cidade.includes(termo) &&
+          !cid.includes(termo) &&
           !prod.includes(termo)
         ) {
           return false
@@ -241,17 +275,17 @@ export const Orcamentos: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 w-full space-y-6">
-        {/* CABEÇALHO DO MÓDULO & CARDS DE RESUMO */}
+        {/* CABEÇALHO DO MÓDULO */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#2C3E50]/10 text-[#2C3E50] border border-[#2C3E50]/20">
                 Gesso Bettone
               </span>
-              <span className="text-xs text-[#616F7D]">Funil de Obras & Trabalhos</span>
+              <span className="text-xs text-[#616F7D]">Área Interna • Módulo Comercial</span>
             </div>
             <h2 className="font-heading text-xl sm:text-2xl font-bold text-[#2C3E50] tracking-tight mt-1">
-              Gestão de Orçamentos & Obras
+              Módulo de Orçamentos & Contas
             </h2>
           </div>
 
@@ -281,198 +315,330 @@ export const Orcamentos: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 CARDS DE MÉTRICAS RÁPIDAS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#616F7D]">Pipeline Total</span>
-              <p className="text-base sm:text-lg font-bold text-[#2C3E50]">
-                {formatMoeda(metricas.valorGeral)}
-              </p>
-              <span className="text-[10px] text-[#8A94A0] block">{metricas.total} propostas</span>
-            </div>
-            <div className="w-9 h-9 rounded-xl bg-[#E8EDF2] text-[#2C3E50] flex items-center justify-center font-bold">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
+        {/* NAVEGAÇÃO ENTRE AS ABAS DO MÓDULO (Padrão 6 Abas do Sistema Antigo + Contas a Receber) */}
+        <div className="bg-white p-1.5 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center gap-1.5 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('funil')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'funil'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <FolderKanban className="w-4 h-4" />
+            <span>Funil de Orçamentos ({orcamentos.length})</span>
+          </button>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#616F7D]">Ag. Aprovação</span>
-              <p className="text-base sm:text-lg font-bold text-amber-700">
-                {metricas.aguardandoAprovacao}
-              </p>
-              <span className="text-[10px] text-[#8A94A0] block">A realizar ou propostas</span>
-            </div>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('receber')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'receber'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <Banknote className="w-4 h-4 text-[#D4AF37]" />
+            <span>Contas a Receber / Baixa</span>
+          </button>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#616F7D]">Obras em Andamento</span>
-              <p className="text-base sm:text-lg font-bold text-emerald-700">
-                {metricas.emAndamento}
-              </p>
-              <span className="text-[10px] text-[#8A94A0] block">Trabalhos iniciados</span>
-            </div>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <Briefcase className="w-4 h-4" />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('servicos')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'servicos'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <Tag className="w-4 h-4" />
+            <span>Serviços e Preços</span>
+          </button>
 
-          <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-medium text-[#616F7D]">Concluídos</span>
-              <p className="text-base sm:text-lg font-bold text-[#2C3E50]">{metricas.concluidos}</p>
-              <span className="text-[10px] text-[#8A94A0] block">Vendas sincronizadas</span>
-            </div>
-            <div className="w-9 h-9 rounded-xl bg-[#2C3E50]/10 text-[#2C3E50] flex items-center justify-center font-bold">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('clientes')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'clientes'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Clientes</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('grupos')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'grupos'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Grupos ({grupos.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('metodos')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'metodos'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Métodos de Pagamento</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('configuracoes')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              abaAtiva === 'configuracoes'
+                ? 'bg-[#2C3E50] text-white shadow-xs'
+                : 'text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#f4f4f4]'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Configurações</span>
+          </button>
         </div>
 
-        {/* BARRA DE CONTROLE: TABS DE VISUALIZAÇÃO + BUSCA + FILTROS */}
-        <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Alternância de Visualizações (Kanban / Gantt / Tabela) */}
-          <div className="flex items-center bg-[#f4f4f4] p-1 rounded-lg border border-[#DEE4EA] self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                viewMode === 'kanban'
-                  ? 'bg-white text-[#2C3E50] shadow-xs'
-                  : 'text-[#616F7D] hover:text-[#2C3E50]'
-              }`}
-            >
-              <Kanban className="w-3.5 h-3.5" />
-              <span>Kanban</span>
-            </button>
+        {/* CONTEÚDO DA ABA ATIVA */}
+        {abaAtiva === 'funil' && (
+          <div className="space-y-6">
+            {/* 4 CARDS DE RESUMO RÁPIDO DO FUNIL */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-medium text-[#616F7D]">Pipeline Total</span>
+                  <p className="text-base sm:text-lg font-bold text-[#2C3E50]">
+                    {formatMoeda(metricas.valorGeral)}
+                  </p>
+                  <span className="text-[10px] text-[#8A94A0] block">
+                    {metricas.total} propostas
+                  </span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-[#E8EDF2] text-[#2C3E50] flex items-center justify-center font-bold">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setViewMode('gantt')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                viewMode === 'gantt'
-                  ? 'bg-white text-[#2C3E50] shadow-xs'
-                  : 'text-[#616F7D] hover:text-[#2C3E50]'
-              }`}
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Gantt (Cronograma)</span>
-            </button>
+              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-medium text-[#616F7D]">Ag. Aprovação</span>
+                  <p className="text-base sm:text-lg font-bold text-amber-700">
+                    {metricas.aguardandoAprovacao}
+                  </p>
+                  <span className="text-[10px] text-[#8A94A0] block">A realizar ou propostas</span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => setViewMode('tabela')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                viewMode === 'tabela'
-                  ? 'bg-white text-[#2C3E50] shadow-xs'
-                  : 'text-[#616F7D] hover:text-[#2C3E50]'
-              }`}
-            >
-              <TableIcon className="w-3.5 h-3.5" />
-              <span>Tabela</span>
-            </button>
-          </div>
+              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-medium text-[#616F7D]">Obras em Andamento</span>
+                  <p className="text-base sm:text-lg font-bold text-emerald-700">
+                    {metricas.emAndamento}
+                  </p>
+                  <span className="text-[10px] text-[#8A94A0] block">Trabalhos iniciados</span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Briefcase className="w-4 h-4" />
+                </div>
+              </div>
 
-          {/* Filtros e Busca */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 md:max-w-2xl justify-end">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-[#8A94A0] absolute left-3 top-1/2 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder="Buscar por cliente, número ou serviço..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="pl-9 h-9 text-xs bg-white"
-              />
+              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <span className="text-[11px] font-medium text-[#616F7D]">Concluídos</span>
+                  <p className="text-base sm:text-lg font-bold text-[#2C3E50]">
+                    {metricas.concluidos}
+                  </p>
+                  <span className="text-[10px] text-[#8A94A0] block">Vendas sincronizadas</span>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-[#2C3E50]/10 text-[#2C3E50] flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
             </div>
 
-            <div className="w-full sm:w-44">
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="h-9 text-xs bg-white">
-                  <SelectValue placeholder="Todas as etapas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">
-                    Todas as Etapas
-                  </SelectItem>
-                  {ETAPAS_ORCAMENTO.map((st) => (
-                    <SelectItem key={st} value={st} className="text-xs">
-                      {st}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* BARRA DE CONTROLE: TABS DE VISUALIZAÇÃO + BUSCA + FILTROS */}
+            <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#DEE4EA] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              {/* Alternância de Visualizações (Kanban / Gantt / Tabela) */}
+              <div className="flex items-center bg-[#f4f4f4] p-1 rounded-lg border border-[#DEE4EA] self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('kanban')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    viewMode === 'kanban'
+                      ? 'bg-white text-[#2C3E50] shadow-xs'
+                      : 'text-[#616F7D] hover:text-[#2C3E50]'
+                  }`}
+                >
+                  <Kanban className="w-3.5 h-3.5" />
+                  <span>Kanban</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewMode('gantt')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    viewMode === 'gantt'
+                      ? 'bg-white text-[#2C3E50] shadow-xs'
+                      : 'text-[#616F7D] hover:text-[#2C3E50]'
+                  }`}
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  <span>Gantt (Cronograma)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setViewMode('tabela')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    viewMode === 'tabela'
+                      ? 'bg-white text-[#2C3E50] shadow-xs'
+                      : 'text-[#616F7D] hover:text-[#2C3E50]'
+                  }`}
+                >
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span>Tabela</span>
+                </button>
+              </div>
+
+              {/* Filtros e Busca */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 md:max-w-2xl justify-end">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-[#8A94A0] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    type="text"
+                    placeholder="Buscar por cliente, número ou serviço..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className="pl-9 h-9 text-xs bg-white"
+                  />
+                </div>
+
+                <div className="w-full sm:w-44">
+                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                    <SelectTrigger className="h-9 text-xs bg-white">
+                      <SelectValue placeholder="Todas as etapas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos" className="text-xs">
+                        Todas as Etapas
+                      </SelectItem>
+                      {ETAPAS_ORCAMENTO.map((st) => (
+                        <SelectItem key={st} value={st} className="text-xs">
+                          {st}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="w-full sm:w-36">
+                  <Select value={filtroCanal} onValueChange={setFiltroCanal}>
+                    <SelectTrigger className="h-9 text-xs bg-white">
+                      <SelectValue placeholder="Canais" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos" className="text-xs">
+                        Todos os Canais
+                      </SelectItem>
+                      <SelectItem value="WhatsApp" className="text-xs">
+                        WhatsApp
+                      </SelectItem>
+                      <SelectItem value="E-mail" className="text-xs">
+                        E-mail
+                      </SelectItem>
+                      <SelectItem value="Instagram" className="text-xs">
+                        Instagram
+                      </SelectItem>
+                      <SelectItem value="Loja física" className="text-xs">
+                        Loja física
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
 
-            <div className="w-full sm:w-36">
-              <Select value={filtroCanal} onValueChange={setFiltroCanal}>
-                <SelectTrigger className="h-9 text-xs bg-white">
-                  <SelectValue placeholder="Canais" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos" className="text-xs">
-                    Todos os Canais
-                  </SelectItem>
-                  <SelectItem value="WhatsApp" className="text-xs">
-                    WhatsApp
-                  </SelectItem>
-                  <SelectItem value="E-mail" className="text-xs">
-                    E-mail
-                  </SelectItem>
-                  <SelectItem value="Instagram" className="text-xs">
-                    Instagram
-                  </SelectItem>
-                  <SelectItem value="Loja física" className="text-xs">
-                    Loja física
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
+            {/* ÁREA DE VISUALIZAÇÃO ATIVA DO FUNIL */}
+            {loading ? (
+              <div className="bg-white rounded-xl border border-[#DEE4EA] p-12 flex flex-col items-center justify-center text-xs text-[#616F7D] space-y-2">
+                <div className="w-6 h-6 border-2 border-[#2C3E50] border-t-transparent rounded-full animate-spin" />
+                <span>Carregando orçamentos e obras...</span>
+              </div>
+            ) : (
+              <div>
+                {viewMode === 'kanban' && (
+                  <KanbanView
+                    orcamentos={orcamentosFiltrados}
+                    onMudarStatus={handleMudarStatus}
+                    onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
+                    onNovoOrcamento={() => {
+                      setOrcamentoParaEditar(null)
+                      setModalNovoOpen(true)
+                    }}
+                  />
+                )}
 
-        {/* ÁREA DE VISUALIZAÇÃO ATIVA */}
-        {loading ? (
-          <div className="bg-white rounded-xl border border-[#E3E6EA] p-12 flex flex-col items-center justify-center text-xs text-[#5B6470] space-y-2">
-            <div className="w-6 h-6 border-2 border-[#2C3E50] border-t-transparent rounded-full animate-spin" />
-            <span>Carregando orçamentos e obras...</span>
-          </div>
-        ) : (
-          <div>
-            {viewMode === 'kanban' && (
-              <KanbanView
-                orcamentos={orcamentosFiltrados}
-                onMudarStatus={handleMudarStatus}
-                onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
-                onNovoOrcamento={() => {
-                  setOrcamentoParaEditar(null)
-                  setModalNovoOpen(true)
-                }}
-              />
-            )}
+                {viewMode === 'gantt' && (
+                  <GanttView
+                    orcamentos={orcamentosFiltrados}
+                    onAtualizarDatas={handleAtualizarDatasGantt}
+                    onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
+                  />
+                )}
 
-            {viewMode === 'gantt' && (
-              <GanttView
-                orcamentos={orcamentosFiltrados}
-                onAtualizarDatas={handleAtualizarDatasGantt}
-                onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
-              />
-            )}
-
-            {viewMode === 'tabela' && (
-              <TabelaView
-                orcamentos={orcamentosFiltrados}
-                onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
-                onMudarStatus={handleMudarStatus}
-              />
+                {viewMode === 'tabela' && (
+                  <TabelaView
+                    orcamentos={orcamentosFiltrados}
+                    onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
+                    onMudarStatus={handleMudarStatus}
+                  />
+                )}
+              </div>
             )}
           </div>
         )}
+
+        {/* ABA: CONTAS A RECEBER & CONCILIAÇÃO BANCÁRIA */}
+        {abaAtiva === 'receber' && <AbaContasReceber onAtualizarOrcamentos={carregarDados} />}
+
+        {/* ABA: SERVIÇOS E PREÇOS */}
+        {abaAtiva === 'servicos' && <AbaServicosPrecos grupos={grupos} />}
+
+        {/* ABA: CLIENTES */}
+        {abaAtiva === 'clientes' && (
+          <AbaClientes
+            grupos={grupos}
+            orcamentos={orcamentos}
+            onSelecionarOrcamento={(orc) => {
+              setOrcamentoDetalhes(orc)
+              setAbaAtiva('funil')
+            }}
+          />
+        )}
+
+        {/* ABA: GRUPOS */}
+        {abaAtiva === 'grupos' && <AbaGrupos grupos={grupos} onAtualizar={carregarDados} />}
+
+        {/* ABA: MÉTODOS DE PAGAMENTO */}
+        {abaAtiva === 'metodos' && (
+          <AbaMetodosPagamento metodos={metodos} onAtualizar={carregarDados} />
+        )}
+
+        {/* ABA: CONFIGURAÇÕES DO ORÇAMENTO */}
+        {abaAtiva === 'configuracoes' && <AbaConfiguracoes />}
       </div>
 
       {/* MODAL NOVO OU EDITAR ORÇAMENTO */}
@@ -520,7 +686,7 @@ export const Orcamentos: React.FC = () => {
             <AlertDialogTitle className="font-heading text-[#2C3E50]">
               Excluir Orçamento {orcamentoParaExcluir?.numero}?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-[#5B6470]">
+            <AlertDialogDescription className="text-xs text-[#616F7D]">
               Tem certeza que deseja remover este orçamento de {orcamentoParaExcluir?.cliente}? Esta
               ação não poderá ser desfeita.
             </AlertDialogDescription>

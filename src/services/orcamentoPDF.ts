@@ -1,0 +1,514 @@
+import type { Orcamento, OrcamentoConfiguracao } from '@/types'
+import { parseItens } from '@/services/orcamentos'
+import { parseCompromisso } from '@/services/orcamentoModulo'
+
+export function imprimirOrcamentoPDF(
+  orcamento: Orcamento,
+  config?: OrcamentoConfiguracao | null,
+): void {
+  const janela = window.open('', '_blank', 'width=900,height=1000')
+  if (!janela) {
+    alert('Por favor, permita pop-ups para gerar e imprimir o PDF do orçamento.')
+    return
+  }
+
+  const itens = parseItens(orcamento.itens)
+  const compromisso = config?.nosso_compromisso
+    ? parseCompromisso(config.nosso_compromisso)
+    : [
+        'Utilização de matérias-primas e gesso de alta pureza certificados pelas normas ABNT',
+        'Mão de obra altamente qualificada com experiência de mais de 15 anos no mercado',
+        'Cumprimento rigoroso do cronograma de início e entrega acordado',
+        'Garantia estrutural de 5 anos sobre os serviços executados',
+        'Limpeza completa da obra ao término de cada etapa de instalação',
+      ]
+
+  const formatData = (d?: string) => {
+    if (!d) return 'A definir'
+    const dateObj = new Date(d)
+    return isNaN(dateObj.getTime())
+      ? d
+      : dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  }
+
+  const formatMoeda = (val?: number) => {
+    return (val || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    })
+  }
+
+  const exibirCnpj = orcamento.exibir_cnpj ?? config?.exibir_cnpj_padrao ?? true
+  const valorTotal = orcamento.valor_total || 0
+  const valorAVista = orcamento.valor_a_vista || valorTotal
+  const valorAPrazo = orcamento.valor_a_prazo || valorTotal
+  const metodoNome = orcamento.expand?.metodo_pagamento?.nome || 'Condição padrão'
+
+  // Condições do método
+  const condicoesMetodo: string[] = []
+  if (orcamento.expand?.metodo_pagamento?.condicoes) {
+    const raw = orcamento.expand.metodo_pagamento.condicoes
+    if (Array.isArray(raw)) {
+      condicoesMetodo.push(...raw)
+    } else if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) condicoesMetodo.push(...parsed)
+        else condicoesMetodo.push(raw)
+      } catch {
+        condicoesMetodo.push(raw)
+      }
+    }
+  }
+
+  const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Orçamento ${orcamento.numero} — Gesso Bettone</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=Petit+Formal+Script&family=Tenor+Sans&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4;
+      margin: 14mm 16mm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #2C3E50;
+      background: #ffffff;
+      line-height: 1.45;
+      font-size: 11pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 2px solid #2C3E50;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-badge {
+      width: 52px;
+      height: 52px;
+      background-color: #2C3E50;
+      color: #D4AF37;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Tenor Sans', serif;
+      font-weight: bold;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+      border: 1px solid #D4AF37;
+      box-shadow: 0 2px 4px rgba(44, 62, 80, 0.15);
+    }
+    .brand-title {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 20pt;
+      font-weight: 700;
+      color: #2C3E50;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+    }
+    .brand-sub {
+      font-size: 8.5pt;
+      color: #616F7D;
+      margin-top: 2px;
+    }
+    .doc-meta {
+      text-align: right;
+    }
+    .doc-number {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 15pt;
+      font-weight: 700;
+      color: #2C3E50;
+    }
+    .doc-date {
+      font-size: 8.5pt;
+      color: #616F7D;
+      margin-top: 2px;
+    }
+    .grid-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 14px;
+      margin-bottom: 14px;
+    }
+    .card-info {
+      background: #f8fafc;
+      border: 1px solid #DEE4EA;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .card-title {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 9.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #2C3E50;
+      border-bottom: 1px solid #DEE4EA;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+    }
+    .card-item {
+      font-size: 9pt;
+      color: #4A5568;
+      margin-bottom: 3px;
+    }
+    .card-item strong {
+      color: #2C3E50;
+    }
+
+    /* Tabela de Itens */
+    .table-container {
+      margin-top: 14px;
+    }
+    .section-title {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 11pt;
+      font-weight: 700;
+      color: #2C3E50;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 14px;
+      background: #D4AF37;
+      border-radius: 2px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+    th {
+      background-color: #2C3E50;
+      color: #ffffff;
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-weight: 600;
+      text-align: left;
+      padding: 7px 10px;
+      font-size: 8.5pt;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #DEE4EA;
+      color: #2C3E50;
+      vertical-align: top;
+    }
+    tr:nth-child(even) td {
+      background-color: #fcfdfe;
+    }
+    .item-desc {
+      font-weight: 600;
+      color: #2C3E50;
+    }
+    .item-detalhe {
+      font-size: 8pt;
+      color: #616F7D;
+      margin-top: 2px;
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+
+    /* Valores e Pagamentos Lado a Lado */
+    .pricing-box {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .price-card {
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #DEE4EA;
+    }
+    .price-card.a-vista {
+      background: #F0F5F2;
+      border-color: #2C3E50;
+    }
+    .price-card.a-prazo {
+      background: #f8fafc;
+      border-color: #DEE4EA;
+    }
+    .price-card-title {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 9pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .price-card.a-vista .price-card-title {
+      color: #1C4E3D;
+    }
+    .price-card.a-prazo .price-card-title {
+      color: #2C3E50;
+    }
+    .price-value {
+      font-family: 'Tenor Sans', Georgia, serif;
+      font-size: 16pt;
+      font-weight: 700;
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+    .price-card.a-vista .price-value {
+      color: #1C4E3D;
+    }
+    .price-card.a-prazo .price-value {
+      color: #2C3E50;
+    }
+    .price-conditions {
+      font-size: 8pt;
+      color: #616F7D;
+      line-height: 1.4;
+    }
+
+    /* Nosso Compromisso */
+    .compromisso-box {
+      margin-top: 14px;
+      background: #ffffff;
+      border: 1px solid #DEE4EA;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .compromisso-list {
+      list-style: none;
+      margin-top: 6px;
+    }
+    .compromisso-list li {
+      font-size: 8.5pt;
+      color: #4A5568;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .compromisso-list li::before {
+      content: '✓';
+      color: #D4AF37;
+      font-weight: bold;
+    }
+
+    /* Assinatura */
+    .footer-sign {
+      margin-top: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-top: 14px;
+      border-top: 1px solid #DEE4EA;
+    }
+    .sign-brand {
+      font-family: 'Petit Formal Script', cursive;
+      font-size: 18pt;
+      color: #2C3E50;
+    }
+    .sign-line {
+      width: 220px;
+      border-top: 1px solid #2C3E50;
+      text-align: center;
+      padding-top: 4px;
+      font-size: 8pt;
+      color: #616F7D;
+    }
+
+    .no-print-bar {
+      background: #2C3E50;
+      color: #ffffff;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .btn-imprimir {
+      background: #D4AF37;
+      color: #2C3E50;
+      font-weight: bold;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    @media print {
+      .no-print-bar {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print-bar">
+    <div style="font-size: 13px; font-weight: 600;">
+      Visualização de Impressão / Salvar em PDF — Orçamento ${orcamento.numero}
+    </div>
+    <button class="btn-imprimir" onclick="window.print()">
+      🖨️ Imprimir / Salvar PDF
+    </button>
+  </div>
+
+  <div style="padding: 16px 20px;">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo-container">
+        <div class="logo-badge">GB</div>
+        <div>
+          <h1 class="brand-title">GESSO BETTONE</h1>
+          <p class="brand-sub">Comércio & Instalações de Gesso, Drywall e Acabamentos Finos</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-number">${orcamento.numero}</div>
+        <div class="doc-date">Emissão: ${formatData(orcamento.created)}</div>
+        <div class="doc-date">Validade da proposta: ${formatData(orcamento.validade)}</div>
+      </div>
+    </div>
+
+    <!-- DADOS DA EMPRESA & DADOS DO CLIENTE -->
+    <div class="grid-info">
+      <div class="card-info">
+        <div class="card-title">Dados da Empresa Emissora</div>
+        <div class="card-item"><strong>Razão Social:</strong> ${config?.razao_social || 'Gesso Bettone Comércio e Instalações Eireli'}</div>
+        ${exibirCnpj && (config?.cnpj || '32.185.940/0001-72') ? `<div class="card-item"><strong>CNPJ:</strong> ${config?.cnpj || '32.185.940/0001-72'}</div>` : ''}
+        <div class="card-item"><strong>Telefone / WhatsApp:</strong> ${config?.telefone || '(19) 99767-1189'}</div>
+        <div class="card-item"><strong>E-mail:</strong> ${config?.email || 'contato@gessobettone.com.br'}</div>
+        <div class="card-item"><strong>Endereço:</strong> ${config?.endereco || 'Rua Valentim Amaral, 412 - Centro'} — ${config?.cidade || 'São Pedro/SP'}</div>
+      </div>
+
+      <div class="card-info">
+        <div class="card-title">Dados do Cliente / Local da Obra</div>
+        <div class="card-item"><strong>Cliente:</strong> ${orcamento.cliente}</div>
+        ${orcamento.expand?.cliente_cadastrado?.documento ? `<div class="card-item"><strong>CPF/CNPJ:</strong> ${orcamento.expand.cliente_cadastrado.documento}</div>` : ''}
+        <div class="card-item"><strong>Contato:</strong> ${orcamento.contato || orcamento.expand?.cliente_cadastrado?.whatsapp || 'Não informado'}</div>
+        <div class="card-item"><strong>Cidade / Local:</strong> ${orcamento.cidade || orcamento.expand?.cliente_cadastrado?.cidade || 'São Pedro'}</div>
+        ${orcamento.expand?.cliente_cadastrado?.endereco ? `<div class="card-item"><strong>Endereço Obra:</strong> ${orcamento.expand.cliente_cadastrado.endereco}</div>` : ''}
+        ${orcamento.expand?.grupo?.nome ? `<div class="card-item"><strong>Tabela Aplicada:</strong> ${orcamento.expand.grupo.nome}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- TABELA DE SERVIÇOS & ITENS -->
+    <div class="table-container">
+      <div class="section-title">Detalhamento dos Serviços e Materiais</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50%;">Descrição do Serviço</th>
+            <th class="text-center" style="width: 15%;">Quantidade</th>
+            <th class="text-right" style="width: 15%;">Valor Unit.</th>
+            <th class="text-right" style="width: 20%;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itens
+            .map(
+              (it) => `
+            <tr>
+              <td>
+                <div class="item-desc">${it.descricao}</div>
+                ${it.largura && it.comprimento ? `<div class="item-detalhe">Dimensões: ${it.largura}m × ${it.comprimento}m = ${(it.largura * it.comprimento).toFixed(2)} m²</div>` : ''}
+              </td>
+              <td class="text-center">${it.quantidade} ${it.unidade || 'un'}</td>
+              <td class="text-right">${formatMoeda(it.valor_unitario)}</td>
+              <td class="text-right" style="font-weight: 700;">${formatMoeda(it.valor_total)}</td>
+            </tr>
+          `,
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- VALOR À VISTA E A PRAZO LADO A LADO -->
+    <div class="pricing-box">
+      <div class="price-card a-vista">
+        <div class="price-card-title">Opção 1 • Pagamento À Vista</div>
+        <div class="price-value">${formatMoeda(valorAVista)}</div>
+        <div class="price-conditions">
+          ${orcamento.desconto ? `Desconto de ${formatMoeda(orcamento.desconto)} aplicado.<br/>` : ''}
+          Quitação no ato do fechamento / início da obra via PIX ou transferência imediata.
+        </div>
+      </div>
+
+      <div class="price-card a-prazo">
+        <div class="price-card-title">Opção 2 • Pagamento a Prazo</div>
+        <div class="price-value">${formatMoeda(valorAPrazo)}</div>
+        <div class="price-conditions">
+          <strong>Método:</strong> ${metodoNome}<br/>
+          ${condicoesMetodo.length > 0 ? condicoesMetodo.join(' • ') : 'Parcelamento conforme acordado com a equipe comercial.'}
+        </div>
+      </div>
+    </div>
+
+    <!-- CRONOGRAMA & OBSERVAÇÕES -->
+    ${
+      orcamento.data_inicio_prevista || orcamento.data_fim_prevista || orcamento.observacoes
+        ? `
+      <div class="card-info" style="margin-top: 14px;">
+        <div class="card-title">Cronograma & Observações Técnicas</div>
+        ${orcamento.data_inicio_prevista ? `<div class="card-item"><strong>Previsão de Início:</strong> ${formatData(orcamento.data_inicio_prevista)}</div>` : ''}
+        ${orcamento.data_fim_prevista ? `<div class="card-item"><strong>Previsão de Conclusão:</strong> ${formatData(orcamento.data_fim_prevista)}</div>` : ''}
+        ${orcamento.observacoes ? `<div class="card-item" style="margin-top: 6px; white-space: pre-line;"><strong>Observações:</strong> ${orcamento.observacoes}</div>` : ''}
+      </div>
+    `
+        : ''
+    }
+
+    <!-- NOSSO COMPROMISSO -->
+    <div class="compromisso-box">
+      <div class="section-title">Nosso Compromisso com Sua Obra</div>
+      <ul class="compromisso-list">
+        ${compromisso.map((c) => `<li>${c}</li>`).join('')}
+      </ul>
+    </div>
+
+    <!-- ASSINATURAS -->
+    <div class="footer-sign">
+      <div>
+        <div class="sign-brand">Gesso Bettone</div>
+        <div style="font-size: 8pt; color: #616F7D; margin-top: 2px;">
+          Excelência e Tradição em Acabamentos
+        </div>
+      </div>
+
+      <div class="sign-line">
+        De acordo do Cliente<br/>
+        Data: ____/____/________
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `
+
+  janela.document.open()
+  janela.document.write(html)
+  janela.document.close()
+}
