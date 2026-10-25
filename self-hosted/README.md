@@ -3,7 +3,7 @@
 
 Este guia foi elaborado para ser simples, direto e à prova de dúvidas, mesmo para quem nunca configurou um servidor ou banco de dados na vida.
 
-Nesta edição, o sistema utiliza o **Supabase** (PostgreSQL gerenciado na nuvem) para o banco de dados, autenticação de usuários e armazenamento de fotos/vídeos. O front-end roda no seu próprio VPS (ex.: **Hostinger VPS**, DigitalOcean, AWS, Hetzner ou qualquer servidor com Docker) através de um contêiner leve com Nginx.
+Nesta edição, o sistema utiliza o **Supabase** (PostgreSQL gerenciado na nuvem) para o banco de dados, autenticação de usuários e armazenamento de fotos/vídeos. O front-end roda perfeitamente em hospedagem compartilhada da **Hostinger (via Git deployment ou upload do `dist/`)** ou em VPS próprio com Docker/Nginx.
 
 ---
 
@@ -18,6 +18,22 @@ Nesta edição, o sistema utiliza o **Supabase** (PostgreSQL gerenciado na nuvem
 8. [Passo 7: Configurar seu Domínio e SSL Grátis (HTTPS)](#passo-7-configurar-seu-domínio-e-ssl-grátis-https)
 9. [Edge Functions do Supabase (Mídias, Marca d'Água e IA)](#edge-functions-do-supabase-mídias-marca-dágua-e-ia)
 10. [Checklist de Verificação Pós-Instalação](#checklist-de-verificação-pós-instalação)
+
+---
+
+## 0. Deploy na Hostinger (Hospedagem Web / Cloud / Git) — Evitando Erro 404
+
+Ao hospedar uma aplicação SPA (Single Page Application em React) na Hostinger, rotas como `/orcamentos`, `/painel`, `/vendas` podem retornar erro **404 Not Found** se o servidor Apache/LiteSpeed tentar procurar arquivos físicos nessas pastas.
+
+Para garantir que o roteamento funcione 100%:
+1. **Arquivos automáticos no repositório**:
+   - `public/.htaccess`: Já incluído no projeto com regras do `mod_rewrite` para redirecionar todas as requisições não físicas para o `index.html`.
+   - `public/_redirects`: Para ambientes compatíveis (`/* /index.html 200`).
+   - `public/404.html`: Cópia espelho do `index.html` para roteamento SPA automático caso a Hostinger use a página 404 personalizada do servidor.
+2. **Build e Deploy na Hostinger**:
+   - O comando de build do repositório copia todos os arquivos da pasta `public/` para a raiz de `dist/`.
+   - Se você faz deploy via Git automatizado da Hostinger: aponte o diretório de publicação para `dist` ou copie o conteúdo de `dist/` para `public_html/`.
+   - Certifique-se de que o arquivo `.htaccess` esteja presente na raiz da sua pasta `public_html/` (habilite "Mostrar arquivos ocultos" no Gerenciador de Arquivos da Hostinger se não o visualizar).
 
 ---
 

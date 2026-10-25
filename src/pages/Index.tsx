@@ -76,17 +76,12 @@ export const Index: React.FC = () => {
       setVendas(vendasRes)
       setProdutos(produtosRes)
       setAlertas(alertasRes.items)
-
-      // Se não houver vendas, abre o modal de importação com convite
-      if (vendasRes.length === 0) {
-        setImportModalOpen(true)
-      }
     } catch (e) {
-      console.error('Erro ao carregar dados do PocketBase:', e)
+      console.error('Erro ao carregar dados:', e)
     } finally {
       setLoading(false)
     }
-  }, [setImportModalOpen])
+  }, [])
 
   useEffect(() => {
     carregarDados()

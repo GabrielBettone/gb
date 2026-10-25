@@ -256,15 +256,31 @@ export async function atualizarOrcamento(
   }
   if (dados.observacoes !== undefined) payload.observacoes = dados.observacoes.trim()
 
+  // Obtém o registro antes do update para detectar se o valor_total mudou
+  let valorAnterior: number | undefined
+  try {
+    const atual = await dataAdapter.getOne<Orcamento>('orcamentos', id)
+    valorAnterior = atual?.valor_total
+  } catch {
+    /* ignore */
+  }
+
   const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
 
-  // Se passou para 'Aprovados aguardando início', 'Trabalhos iniciados' ou 'Concluídos', gera a agenda de pagamentos
-  if (
+  // Se o valor_total foi alterado, recalcula as parcelas em aberto
+  const mudouValor =
+    dados.valor_total !== undefined &&
+    valorAnterior !== undefined &&
+    Math.abs(dados.valor_total - valorAnterior) > 0.01
+
+  if (mudouValor) {
+    await gerarAgendaPagamentoSeNaoExistir(updated, true)
+  } else if (
     dados.status === 'Aprovados aguardando início' ||
     dados.status === 'Trabalhos iniciados' ||
     dados.status === 'Concluídos'
   ) {
-    await gerarAgendaPagamentoSeNaoExistir(updated)
+    await gerarAgendaPagamentoSeNaoExistir(updated, false)
   }
 
   // Se passou para 'Concluídos', sincronizar venda de forma idempotente
@@ -281,10 +297,40 @@ export async function atualizarOrcamento(
 /**
  * Atualiza apenas o status de um orçamento (usado no Drag-and-Drop do Kanban)
  */
+/**
+ * Cancela/estorna parcelas em aberto ('a_pagar') de um orçamento ao retroceder etapa
+ * Preserva as parcelas já pagas/conciliadas.
+ * Retorna a quantidade de parcelas canceladas.
+ */
+export async function cancelarParcelasEmAberto(orcamentoId: string): Promise<number> {
+  try {
+    const parcelas = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+      filter: `orcamento = '${orcamentoId}'`,
+    })
+
+    const abertas = parcelas.filter((p) => p.status === 'a_pagar')
+    for (const p of abertas) {
+      await dataAdapter.update('pagamentos_parcelas', p.id, {
+        status: 'cancelada',
+        observacoes_baixa:
+          'Estornada por retrocesso ou cancelamento de etapa em ' +
+          new Date().toLocaleDateString('pt-BR'),
+      })
+    }
+    return abertas.length
+  } catch (err) {
+    console.error('Erro ao cancelar parcelas em aberto do orçamento:', err)
+    return 0
+  }
+}
+
+/**
+ * Atualiza apenas o status de um orçamento (usado no Drag-and-Drop do Kanban)
+ */
 export async function atualizarStatusOrcamento(
   id: string,
   novoStatus: StatusOrcamento,
-): Promise<Orcamento> {
+): Promise<{ orcamento: Orcamento; parcelasEstornadas: number }> {
   const agoraIso = new Date().toISOString()
   const payload: Record<string, any> = {
     status: novoStatus,
@@ -295,6 +341,18 @@ export async function atualizarStatusOrcamento(
   }
 
   const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
+  let parcelasEstornadas = 0
+
+  // Se voltou para etapa preliminar ou cancelamento, estorna as parcelas em aberto
+  const etapasPreliminares = [
+    'Orçamentos a realizar',
+    'Aguardando aprovação',
+    'Cancelado',
+    'Cancelados',
+  ]
+  if (etapasPreliminares.includes(novoStatus)) {
+    parcelasEstornadas = await cancelarParcelasEmAberto(id)
+  }
 
   if (
     novoStatus === 'Aprovados aguardando início' ||
@@ -309,8 +367,11 @@ export async function atualizarStatusOrcamento(
   }
 
   return {
-    ...updated,
-    itens: parseItens(updated.itens),
+    orcamento: {
+      ...updated,
+      itens: parseItens(updated.itens),
+    },
+    parcelasEstornadas,
   }
 }
 
@@ -357,14 +418,79 @@ export async function excluirOrcamento(id: string): Promise<void> {
  * - Entrada + saldo = 2 parcelas (entrada na aprovação/início, saldo na entrega)
  * - Parcelado = N parcelas mensais iguais a partir da data base
  */
-export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Promise<void> {
+/**
+ * Gera ou recalcula a agenda de pagamentos de um orçamento
+ * - Se `forcarRecalculo` for verdadeiro (ou quando o valor do orçamento mudar),
+ *   abate os valores de parcelas já pagas/conciliadas e recalcula/redistribui o saldo
+ *   restante entre as parcelas em aberto ('a_pagar').
+ * - Preserva integralmente as parcelas 'paga'.
+ */
+export async function gerarAgendaPagamentoSeNaoExistir(
+  orcamento: Orcamento,
+  forcarRecalculo = false,
+): Promise<void> {
   try {
     // 1. Verifica se já existem parcelas para este orçamento
-    const existentes = await dataAdapter.getList('pagamentos_parcelas', 1, 1, {
+    const existentes = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
       filter: `orcamento = '${orcamento.id}'`,
     })
-    if (existentes.totalItems > 0) {
-      return // Já possui parcelas cadastradas, não recria
+
+    const parcelasPagas = existentes.filter((p) => p.status === 'paga')
+    const parcelasAbertas = existentes.filter((p) => p.status === 'a_pagar')
+
+    if (existentes.length > 0 && !forcarRecalculo) {
+      return // Já possui parcelas cadastradas e não foi solicitado recálculo
+    }
+
+    // Se é para recalcular e já temos parcelas
+    if (existentes.length > 0 && forcarRecalculo) {
+      const totalJaPago = parcelasPagas.reduce(
+        (acc, p) =>
+          acc +
+          (p.valor_pago !== undefined && p.valor_pago !== null ? p.valor_pago : p.valor_previsto),
+        0,
+      )
+      const novoTotal = orcamento.valor_total || 0
+      const saldoRestante = Math.max(0, Math.round((novoTotal - totalJaPago) * 100) / 100)
+
+      if (parcelasAbertas.length > 0) {
+        // Redistribui o saldo restante entre as parcelas em aberto existentes
+        const nAbertas = parcelasAbertas.length
+        const valorPorParcelaAberta = Math.round((saldoRestante / nAbertas) * 100) / 100
+
+        for (let i = 0; i < nAbertas; i++) {
+          const p = parcelasAbertas[i]
+          const val =
+            i === nAbertas - 1
+              ? Math.round((saldoRestante - valorPorParcelaAberta * (nAbertas - 1)) * 100) / 100
+              : valorPorParcelaAberta
+
+          await dataAdapter.update('pagamentos_parcelas', p.id, {
+            valor_previsto: val,
+            observacoes_baixa:
+              'Recalculado após alteração de valor do orçamento em ' +
+              new Date().toLocaleDateString('pt-BR'),
+          })
+        }
+        return
+      } else if (saldoRestante > 0) {
+        // Se todas estavam pagas mas o valor total aumentou, gera 1 parcela adicional de saldo
+        const hoje = new Date()
+        const vencimento =
+          orcamento.data_fim_prevista || new Date(hoje.getTime() + 15 * 86400000).toISOString()
+        const proximoNumero = existentes.length + 1
+        await dataAdapter.create('pagamentos_parcelas', {
+          orcamento: orcamento.id,
+          numero_parcela: proximoNumero,
+          total_parcelas: proximoNumero,
+          descricao: 'Complemento / Saldo adicional de alteração de orçamento',
+          valor_previsto: saldoRestante,
+          data_vencimento: vencimento,
+          status: 'a_pagar',
+        })
+        return
+      }
+      return
     }
 
     // 2. Busca método de pagamento do orçamento

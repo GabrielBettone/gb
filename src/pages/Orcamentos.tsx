@@ -199,9 +199,14 @@ export const Orcamentos: React.FC = () => {
         prev.map((o) => (o.id === id ? { ...o, status: novoStatus as any } : o)),
       )
 
-      await atualizarStatusOrcamento(id, novoStatus as any)
+      const res = await atualizarStatusOrcamento(id, novoStatus as any)
 
-      if (novoStatus === 'Concluídos') {
+      if (res.parcelasEstornadas > 0) {
+        toast({
+          title: 'Parcelas em aberto estornadas',
+          description: `Parcelas em aberto foram estornadas devido ao retorno de etapa (${res.parcelasEstornadas} parcela(s) cancelada(s)).`,
+        })
+      } else if (novoStatus === 'Concluídos') {
         toast({
           title: 'Trabalho Concluído!',
           description: 'Venda registrada no Dashboard e agenda de pagamentos atualizada.',
@@ -321,7 +326,8 @@ export const Orcamentos: React.FC = () => {
   const handleExcluirEtapa = async (etapa: OrcamentoEtapa) => {
     try {
       await excluirEtapa(etapa.id, etapas, orcamentos, async (orcId, novoStatus) => {
-        await atualizarStatusOrcamento(orcId, novoStatus as any)
+        const r = await atualizarStatusOrcamento(orcId, novoStatus as any)
+        return r.orcamento
       })
       toast({
         title: 'Etapa removida',
