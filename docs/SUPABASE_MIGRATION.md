@@ -61,3 +61,10 @@ Recompilar a aplicação e validar em endereço temporário. Não expor chaves p
 ## Observação importante
 
 Este PR é somente a fundação de schema e o plano técnico; **não migra o frontend nem os dados e não está pronto para ser implantado como substituição do PocketBase**.
+
+
+### Código base de integração (ainda isolado)
+
+Foi adicionada a camada `src/lib/supabase/client.ts` com funções HTTP tipadas para leitura, inserção, atualização, exclusão, RPC e upload de arquivos. Ela usa somente a URL do projeto e uma chave pública/publishable, respeitando as políticas RLS; não contém `service_role`. Também foi adicionado `.env.example` com os nomes das duas variáveis públicas esperadas.
+
+**Esses helpers ainda não substituem o PocketBase nos módulos atuais.** A autenticação, o realtime, os serviços do site/orçamentos, o simulador e a migração de dados/mídias continuam pendentes. Não configurar a Hostinger com as variáveis Supabase nem promover esta branch para produção até concluir essas etapas e validar a compilação.
