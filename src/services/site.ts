@@ -318,7 +318,7 @@ export async function criarServico(
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
       arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
     }
-    const record = await pb.collection('site_services').create(formData)
+    const record = await dataAdapter.upload<any>('site_services', formData)
     return {
       ...record,
       beneficios: parseJsonArray<string>(record.beneficios),
@@ -329,7 +329,7 @@ export async function criarServico(
     } as unknown as SiteServico
   }
 
-  const record = await pb.collection('site_services').create(payload)
+  const record = await dataAdapter.create<any>('site_services', payload)
   return {
     ...record,
     beneficios: parseJsonArray<string>(record.beneficios),
@@ -415,7 +415,7 @@ export async function atualizarServico(
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
       arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
     }
-    const record = await pb.collection('site_services').update(id, formData)
+    const record = await dataAdapter.upload<any>('site_services', formData, id)
     return {
       ...record,
       beneficios: parseJsonArray<string>(record.beneficios),
@@ -430,7 +430,7 @@ export async function atualizarServico(
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
   if (data.keywords !== undefined) payload.keywords = JSON.stringify(data.keywords)
 
-  const record = await pb.collection('site_services').update(id, payload)
+  const record = await dataAdapter.update<any>('site_services', id, payload)
   return {
     ...record,
     beneficios: parseJsonArray<string>(record.beneficios),
@@ -742,7 +742,7 @@ export async function criarProjeto(
     if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
       arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
     }
-    const record = await pb.collection('site_portfolio').create(formData)
+    const record = await dataAdapter.upload<any>('site_portfolio', formData)
     return {
       ...record,
       detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
@@ -754,7 +754,7 @@ export async function criarProjeto(
     } as unknown as SitePortfolioItem
   }
 
-  const record = await pb.collection('site_portfolio').create(payload)
+  const record = await dataAdapter.create<any>('site_portfolio', payload)
   return {
     ...record,
     detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
@@ -868,7 +868,7 @@ export async function atualizarProjeto(
     if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
       arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
     }
-    const record = await pb.collection('site_portfolio').update(id, formData)
+    const record = await dataAdapter.upload<any>('site_portfolio', formData, id)
     return {
       ...record,
       detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
@@ -885,7 +885,7 @@ export async function atualizarProjeto(
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
   if (data.videos !== undefined) payload.videos = JSON.stringify(data.videos)
 
-  const record = await pb.collection('site_portfolio').update(id, payload)
+  const record = await dataAdapter.update<any>('site_portfolio', id, payload)
   return {
     ...record,
     detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
@@ -1082,7 +1082,7 @@ export async function criarParceiro(
       if (val !== undefined && val !== null) formData.append(key, String(val))
     })
     formData.append('arquivo_logo', arquivoLogo)
-    const record = await pb.collection('site_partners').create(formData)
+    const record = await dataAdapter.upload<any>('site_partners', formData)
     return {
       id: record.id,
       nome: record.nome,
@@ -1098,7 +1098,7 @@ export async function criarParceiro(
     }
   }
 
-  const record = await pb.collection('site_partners').create(data)
+  const record = await dataAdapter.create<any>('site_partners', data)
   return {
     id: record.id,
     nome: record.nome,
@@ -1155,7 +1155,7 @@ export async function atualizarParceiro(
       if (val !== undefined && val !== null) formData.append(key, String(val))
     })
     formData.append('arquivo_logo', arquivoLogo)
-    const record = await pb.collection('site_partners').update(id, formData)
+    const record = await dataAdapter.upload<any>('site_partners', formData, id)
     return {
       id: record.id,
       nome: record.nome,
@@ -1171,7 +1171,7 @@ export async function atualizarParceiro(
     }
   }
 
-  const record = await pb.collection('site_partners').update(id, data)
+  const record = await dataAdapter.update<any>('site_partners', id, data)
   return {
     id: record.id,
     nome: record.nome,
@@ -1385,9 +1385,9 @@ export async function salvarConfiguracoes(
     formData.append('arquivo_logo', arquivoLogo)
 
     if (existingId) {
-      resultRecord = await pb.collection('site_settings').update(existingId, formData)
+      resultRecord = await dataAdapter.upload<any>('site_settings', formData, existingId)
     } else {
-      resultRecord = await pb.collection('site_settings').create(formData)
+      resultRecord = await dataAdapter.upload<any>('site_settings', formData)
     }
   } else {
     const payload: any = {
@@ -1399,9 +1399,9 @@ export async function salvarConfiguracoes(
     }
 
     if (existingId) {
-      resultRecord = await pb.collection('site_settings').update(existingId, payload)
+      resultRecord = await dataAdapter.update<any>('site_settings', existingId, payload)
     } else {
-      resultRecord = await pb.collection('site_settings').create(payload)
+      resultRecord = await dataAdapter.create<any>('site_settings', payload)
     }
   }
 

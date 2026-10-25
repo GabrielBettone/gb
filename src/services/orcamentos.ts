@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 import type { Orcamento, StatusOrcamento, ItemOrcamento, CanalVenda, Venda } from '@/types'
 
 export const ETAPAS_ORCAMENTO: StatusOrcamento[] = [
@@ -85,7 +86,7 @@ export async function gerarProximoNumeroOrcamento(): Promise<string> {
     }
 
     // Se nenhum achado com o ano atual, conta registros totais para garantir consistência
-    const total = await pb.collection('orcamentos').getList(1, 1)
+    const total = await dataAdapter.getList('orcamentos', 1, 1)
     const prox = (total.totalItems + 1).toString().padStart(4, '0')
     return `${prefixo}${prox}`
   } catch (e) {
@@ -98,7 +99,7 @@ export async function gerarProximoNumeroOrcamento(): Promise<string> {
  * Busca a lista completa de orçamentos expandindo produto_principal
  */
 export async function listarOrcamentos(): Promise<Orcamento[]> {
-  const records = await pb.collection<Orcamento>('orcamentos').getFullList({
+  const records = await dataAdapter.getFullList<Orcamento>('orcamentos', {
     sort: '-created',
     expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
   })
@@ -140,7 +141,7 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
   const numero = await gerarProximoNumeroOrcamento()
   const status = dados.status || 'Orçamentos a realizar'
 
-  const record = await pb.collection<Orcamento>('orcamentos').create({
+  const record = await dataAdapter.create<Orcamento>('orcamentos', {
     numero,
     cliente: dados.cliente.trim(),
     contato: dados.contato?.trim() || '',
@@ -241,9 +242,7 @@ export async function atualizarOrcamento(
   }
   if (dados.observacoes !== undefined) payload.observacoes = dados.observacoes.trim()
 
-  const updated = await pb.collection<Orcamento>('orcamentos').update(id, payload, {
-    expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
-  })
+  const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
 
   // Se passou para 'Aprovados aguardando início', 'Trabalhos iniciados' ou 'Concluídos', gera a agenda de pagamentos
   if (
@@ -281,9 +280,7 @@ export async function atualizarStatusOrcamento(
     payload.data_conclusao = agoraIso
   }
 
-  const updated = await pb.collection<Orcamento>('orcamentos').update(id, payload, {
-    expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
-  })
+  const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
 
   if (
     novoStatus === 'Aprovados aguardando início' ||
@@ -318,16 +315,10 @@ export async function atualizarDatasGantt(
     ? dataFimPrevista
     : `${dataFimPrevista.substring(0, 10)} 12:00:00.000Z`
 
-  const updated = await pb.collection<Orcamento>('orcamentos').update(
-    id,
-    {
-      data_inicio_prevista: dInicioStr,
-      data_fim_prevista: dFimStr,
-    },
-    {
-      expand: 'produto_principal',
-    },
-  )
+  const updated = await dataAdapter.update<Orcamento>('orcamentos', id, {
+    data_inicio_prevista: dInicioStr,
+    data_fim_prevista: dFimStr,
+  })
 
   return {
     ...updated,
@@ -339,7 +330,7 @@ export async function atualizarDatasGantt(
  * Exclui um orçamento
  */
 export async function excluirOrcamento(id: string): Promise<void> {
-  await pb.collection('orcamentos').delete(id)
+  await dataAdapter.delete('orcamentos', id)
 }
 
 /**

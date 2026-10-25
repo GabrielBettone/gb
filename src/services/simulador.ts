@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 
 export interface SimuladorConfig {
   simulador_ativo: boolean
@@ -120,7 +121,7 @@ export async function gerarSimulacaoComIa(
  */
 export async function listarClientesSimulador(): Promise<SimuladorCliente[]> {
   try {
-    const records = await pb.collection('simulador_clientes').getFullList({
+    const records = await dataAdapter.getFullList<any>('simulador_clientes', {
       sort: '-created',
     })
     return records.map((r) => ({
@@ -147,7 +148,7 @@ export async function atualizarClienteSimulador(
   id: string,
   dados: Partial<SimuladorCliente>,
 ): Promise<SimuladorCliente> {
-  const record = await pb.collection('simulador_clientes').update(id, dados)
+  const record = await dataAdapter.update<any>('simulador_clientes', id, dados)
   return {
     id: record.id,
     telefone: record.telefone,
@@ -164,7 +165,7 @@ export async function atualizarClienteSimulador(
  */
 export async function listarHistoricoSimulacoes(): Promise<SimuladorHistoricoItem[]> {
   try {
-    const records = await pb.collection('simulador_historico').getFullList({
+    const records = await dataAdapter.getFullList<any>('simulador_historico', {
       sort: '-created',
     })
     return records.map((r) => ({

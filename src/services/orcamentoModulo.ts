@@ -1,4 +1,5 @@
 import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 import type {
   ClienteGrupo,
   Cliente,
@@ -11,7 +12,7 @@ import type {
 
 // ==================== 1. GRUPOS DE CLIENTES ====================
 export async function listarGrupos(): Promise<ClienteGrupo[]> {
-  return pb.collection<ClienteGrupo>('clientes_grupos').getFullList({
+  return dataAdapter.getFullList<ClienteGrupo>('clientes_grupos', {
     sort: 'nome',
   })
 }
@@ -22,23 +23,23 @@ export async function criarGrupo(dados: {
   ativo: boolean
   padrao?: boolean
 }): Promise<ClienteGrupo> {
-  return pb.collection<ClienteGrupo>('clientes_grupos').create(dados)
+  return dataAdapter.create<ClienteGrupo>('clientes_grupos', dados)
 }
 
 export async function atualizarGrupo(
   id: string,
   dados: Partial<ClienteGrupo>,
 ): Promise<ClienteGrupo> {
-  return pb.collection<ClienteGrupo>('clientes_grupos').update(id, dados)
+  return dataAdapter.update<ClienteGrupo>('clientes_grupos', id, dados)
 }
 
 export async function excluirGrupo(id: string): Promise<void> {
-  await pb.collection('clientes_grupos').delete(id)
+  await dataAdapter.delete('clientes_grupos', id)
 }
 
 // ==================== 2. CLIENTES ====================
 export async function listarClientes(): Promise<Cliente[]> {
-  return pb.collection<Cliente>('clientes').getFullList({
+  return dataAdapter.getFullList<Cliente>('clientes', {
     sort: 'nome',
     expand: 'grupo',
   })
@@ -54,15 +55,15 @@ export async function criarCliente(dados: {
   endereco?: string
   observacoes?: string
 }): Promise<Cliente> {
-  return pb.collection<Cliente>('clientes').create(dados, { expand: 'grupo' })
+  return dataAdapter.create<Cliente>('clientes', dados)
 }
 
 export async function atualizarCliente(id: string, dados: Partial<Cliente>): Promise<Cliente> {
-  return pb.collection<Cliente>('clientes').update(id, dados, { expand: 'grupo' })
+  return dataAdapter.update<Cliente>('clientes', id, dados)
 }
 
 export async function excluirCliente(id: string): Promise<void> {
-  await pb.collection('clientes').delete(id)
+  await dataAdapter.delete('clientes', id)
 }
 
 // ==================== 3. SERVIÇOS E PREÇOS DO ORÇAMENTO ====================
@@ -74,7 +75,7 @@ export async function listarOrcamentoServicos(grupoId?: string): Promise<Orcamen
   if (grupoId && grupoId !== 'todos') {
     options.filter = `grupo = '${grupoId}'`
   }
-  return pb.collection<OrcamentoServicoItem>('orcamento_servicos').getFullList(options)
+  return dataAdapter.getFullList<OrcamentoServicoItem>('orcamento_servicos', options)
 }
 
 export async function criarOrcamentoServico(dados: {
@@ -87,29 +88,25 @@ export async function criarOrcamentoServico(dados: {
   ativo: boolean
   site_service?: string
 }): Promise<OrcamentoServicoItem> {
-  return pb
-    .collection<OrcamentoServicoItem>('orcamento_servicos')
-    .create(dados, { expand: 'grupo' })
+  return dataAdapter.create<OrcamentoServicoItem>('orcamento_servicos', dados)
 }
 
 export async function atualizarOrcamentoServico(
   id: string,
   dados: Partial<OrcamentoServicoItem>,
 ): Promise<OrcamentoServicoItem> {
-  return pb
-    .collection<OrcamentoServicoItem>('orcamento_servicos')
-    .update(id, dados, { expand: 'grupo' })
+  return dataAdapter.update<OrcamentoServicoItem>('orcamento_servicos', id, dados)
 }
 
 export async function excluirOrcamentoServico(id: string): Promise<void> {
-  await pb.collection('orcamento_servicos').delete(id)
+  await dataAdapter.delete('orcamento_servicos', id)
 }
 
 export async function duplicarOrcamentoServico(
   servico: OrcamentoServicoItem,
   novoGrupoId?: string,
 ): Promise<OrcamentoServicoItem> {
-  return pb.collection<OrcamentoServicoItem>('orcamento_servicos').create({
+  return dataAdapter.create<OrcamentoServicoItem>('orcamento_servicos', {
     nome: `${servico.nome} (Cópia)`,
     grupo: novoGrupoId || servico.grupo,
     modo_calculo: servico.modo_calculo,
@@ -134,7 +131,7 @@ export function parseCondicoes(condicoes: string[] | string | undefined): string
 }
 
 export async function listarMetodosPagamento(): Promise<MetodoPagamento[]> {
-  const records = await pb.collection<MetodoPagamento>('metodos_pagamento').getFullList({
+  const records = await dataAdapter.getFullList<MetodoPagamento>('metodos_pagamento', {
     sort: '-padrao,nome',
   })
   return records.map((m) => ({
@@ -151,7 +148,7 @@ export async function criarMetodoPagamento(dados: {
   padrao?: boolean
   ativo: boolean
 }): Promise<MetodoPagamento> {
-  const record = await pb.collection<MetodoPagamento>('metodos_pagamento').create(dados)
+  const record = await dataAdapter.create<MetodoPagamento>('metodos_pagamento', dados)
   return {
     ...record,
     condicoes: parseCondicoes(record.condicoes),
@@ -162,7 +159,7 @@ export async function atualizarMetodoPagamento(
   id: string,
   dados: Partial<MetodoPagamento>,
 ): Promise<MetodoPagamento> {
-  const record = await pb.collection<MetodoPagamento>('metodos_pagamento').update(id, dados)
+  const record = await dataAdapter.update<MetodoPagamento>('metodos_pagamento', id, dados)
   return {
     ...record,
     condicoes: parseCondicoes(record.condicoes),
@@ -170,7 +167,7 @@ export async function atualizarMetodoPagamento(
 }
 
 export async function excluirMetodoPagamento(id: string): Promise<void> {
-  await pb.collection('metodos_pagamento').delete(id)
+  await dataAdapter.delete('metodos_pagamento', id)
 }
 
 // ==================== 5. CONFIGURAÇÕES DO ORÇAMENTO ====================
@@ -187,13 +184,14 @@ export function parseCompromisso(compromisso: string[] | string | undefined): st
 
 export async function obterConfiguracoesOrcamento(): Promise<OrcamentoConfiguracao> {
   try {
-    const rec = await pb
-      .collection<OrcamentoConfiguracao>('orcamento_configuracoes')
-      .getFirstListItem("chave = 'padrao'")
+    const rec = await dataAdapter.getFirstListItem<OrcamentoConfiguracao>(
+      'orcamento_configuracoes',
+      "chave = 'padrao'",
+    )
 
     const pbBase = (pb.baseUrl || '').replace(/\/+$/, '')
     const logoUrl = rec.arquivo_logo
-      ? `${pbBase}/api/files/${rec.collectionId}/${rec.id}/${rec.arquivo_logo}`
+      ? `${pbBase}/api/files/${rec.collectionId || 'orcamento_configuracoes'}/${rec.id}/${rec.arquivo_logo}`
       : rec.logo_url || ''
 
     return {
@@ -229,9 +227,10 @@ export async function salvarConfiguracoesOrcamento(
   let existingId = dados.id
   if (!existingId) {
     try {
-      const rec = await pb
-        .collection<OrcamentoConfiguracao>('orcamento_configuracoes')
-        .getFirstListItem("chave = 'padrao'")
+      const rec = await dataAdapter.getFirstListItem<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        "chave = 'padrao'",
+      )
       existingId = rec.id
     } catch {
       /* intentionally ignored */
@@ -239,17 +238,20 @@ export async function salvarConfiguracoesOrcamento(
   }
 
   if (existingId) {
-    const updated = await pb
-      .collection<OrcamentoConfiguracao>('orcamento_configuracoes')
-      .update(existingId, dados)
+    const updated = await dataAdapter.update<OrcamentoConfiguracao>(
+      'orcamento_configuracoes',
+      existingId,
+      dados,
+    )
     return {
       ...updated,
       nosso_compromisso: parseCompromisso(updated.nosso_compromisso),
     }
   } else {
-    const created = await pb
-      .collection<OrcamentoConfiguracao>('orcamento_configuracoes')
-      .create({ ...dados, chave: 'padrao' })
+    const created = await dataAdapter.create<OrcamentoConfiguracao>('orcamento_configuracoes', {
+      ...dados,
+      chave: 'padrao',
+    })
     return {
       ...created,
       nosso_compromisso: parseCompromisso(created.nosso_compromisso),
@@ -279,7 +281,7 @@ export async function listarParcelasPagamento(filtros?: {
     parts.push(`data_vencimento <= '${filtros.dataFim} 23:59:59.999Z'`)
   }
 
-  return pb.collection<PagamentoParcela>('pagamentos_parcelas').getFullList({
+  return dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
     filter: parts.length > 0 ? parts.join(' && ') : undefined,
     sort: 'data_vencimento',
     expand: 'orcamento',
@@ -300,34 +302,26 @@ export async function darBaixaParcela(
     ? `${dados.data_pagamento.substring(0, 10)} 12:00:00.000Z`
     : new Date().toISOString()
 
-  return pb.collection<PagamentoParcela>('pagamentos_parcelas').update(
-    id,
-    {
-      status: 'paga',
-      valor_pago: dados.valor_pago,
-      ajuste: dados.ajuste || 0,
-      data_pagamento: dataPgto,
-      forma_pagamento: dados.forma_pagamento || 'PIX',
-      observacoes_baixa: dados.observacoes_baixa || '',
-    },
-    { expand: 'orcamento' },
-  )
+  return dataAdapter.update<PagamentoParcela>('pagamentos_parcelas', id, {
+    status: 'paga',
+    valor_pago: dados.valor_pago,
+    ajuste: dados.ajuste || 0,
+    data_pagamento: dataPgto,
+    forma_pagamento: dados.forma_pagamento || 'PIX',
+    observacoes_baixa: dados.observacoes_baixa || '',
+  })
 }
 
 export async function estornarBaixaParcela(id: string): Promise<PagamentoParcela> {
-  return pb.collection<PagamentoParcela>('pagamentos_parcelas').update(
-    id,
-    {
-      status: 'a_pagar',
-      valor_pago: null,
-      ajuste: 0,
-      data_pagamento: null,
-      observacoes_baixa: 'Baixa estornada em ' + new Date().toLocaleDateString('pt-BR'),
-    },
-    { expand: 'orcamento' },
-  )
+  return dataAdapter.update<PagamentoParcela>('pagamentos_parcelas', id, {
+    status: 'a_pagar',
+    valor_pago: null,
+    ajuste: 0,
+    data_pagamento: null,
+    observacoes_baixa: 'Baixa estornada em ' + new Date().toLocaleDateString('pt-BR'),
+  })
 }
 
 export async function excluirParcela(id: string): Promise<void> {
-  await pb.collection('pagamentos_parcelas').delete(id)
+  await dataAdapter.delete('pagamentos_parcelas', id)
 }

@@ -220,9 +220,14 @@ export const SiteServicosPage: React.FC = () => {
       setModalOpen(false)
       carregarDados()
     } catch (err: any) {
+      console.error('Erro ao salvar serviço:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível salvar o serviço. Verifique a conexão com o banco e tente novamente.'
+          : err.message
       toast({
         title: 'Erro ao salvar serviço',
-        description: err.message || 'Verifique se o slug é único.',
+        description: msg,
         variant: 'destructive',
       })
     }
@@ -232,10 +237,15 @@ export const SiteServicosPage: React.FC = () => {
     if (!confirm(`Deseja excluir o serviço "${s.nome}"?`)) return
     try {
       await excluirServico(s.id)
-      toast({ title: 'Serviço excluído' })
+      toast({ title: 'Serviço excluído com sucesso.' })
       carregarDados()
-    } catch {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+    } catch (err: any) {
+      console.error('Erro ao excluir serviço:', err)
+      toast({
+        title: 'Erro ao excluir serviço',
+        description: 'Não foi possível excluir o serviço. Tente novamente.',
+        variant: 'destructive',
+      })
     }
   }
 

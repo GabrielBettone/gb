@@ -115,13 +115,43 @@ export const dataAdapter = {
         : undefined
 
       const token = supabaseAuth.getToken()
-      return supabaseSelect<T>(collection, {
+      const records = await supabaseSelect<any>(collection, {
         filters,
         order,
         limit: options.limit,
         offset: options.offset,
         accessToken: token,
       })
+
+      // Expansão leve para compatibilidade com PB (ex: expand: 'grupo')
+      if (options.expand && Array.isArray(records) && records.length > 0) {
+        const expandKeys = options.expand.split(',').map((k) => k.trim())
+        for (const expandKey of expandKeys) {
+          if (expandKey === 'grupo') {
+            const grupoIds = Array.from(
+              new Set(records.map((r) => r.grupo).filter(Boolean)),
+            ) as string[]
+            if (grupoIds.length > 0) {
+              try {
+                const grupos = await supabaseSelect<any>('clientes_grupos', {
+                  filters: [{ column: 'id', operator: 'in', value: grupoIds }],
+                  accessToken: token,
+                })
+                const grupoMap = new Map(grupos.map((g) => [g.id, g]))
+                records.forEach((r) => {
+                  if (r.grupo && grupoMap.has(r.grupo)) {
+                    r.expand = { ...(r.expand || {}), grupo: grupoMap.get(r.grupo) }
+                  }
+                })
+              } catch (err) {
+                console.warn('Erro ao expandir grupo via Supabase:', err)
+              }
+            }
+          }
+        }
+      }
+
+      return records as T[]
     }
 
     return pb.collection(collection).getFullList<T>({

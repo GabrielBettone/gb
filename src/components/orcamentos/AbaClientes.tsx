@@ -171,10 +171,15 @@ export const AbaClientes: React.FC<AbaClientesProps> = ({
       setModalOpen(false)
       carregar()
     } catch (err: any) {
+      console.error('Erro ao salvar cliente:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível salvar o cliente. Verifique a conexão com o banco e tente novamente.'
+          : err.message
       toast({
         variant: 'destructive',
-        title: 'Erro ao salvar',
-        description: err?.message,
+        title: 'Erro ao salvar cliente',
+        description: msg,
       })
     } finally {
       setSalvando(false)
@@ -189,10 +194,11 @@ export const AbaClientes: React.FC<AbaClientesProps> = ({
       setClienteParaExcluir(null)
       carregar()
     } catch (err: any) {
+      console.error('Erro ao excluir cliente:', err)
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir',
-        description: err?.message,
+        description: 'Não foi possível excluir o cliente. Tente novamente.',
       })
     }
   }

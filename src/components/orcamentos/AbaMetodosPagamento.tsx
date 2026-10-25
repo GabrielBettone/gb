@@ -125,10 +125,15 @@ export const AbaMetodosPagamento: React.FC<AbaMetodosPagamentoProps> = ({
       setModalOpen(false)
       onAtualizar()
     } catch (err: any) {
+      console.error('Erro ao salvar método de pagamento:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível salvar o método de pagamento. Verifique a conexão com o banco e tente novamente.'
+          : err.message
       toast({
         variant: 'destructive',
-        title: 'Erro ao salvar',
-        description: err?.message,
+        title: 'Erro ao salvar método',
+        description: msg,
       })
     } finally {
       setSalvando(false)
@@ -143,10 +148,11 @@ export const AbaMetodosPagamento: React.FC<AbaMetodosPagamentoProps> = ({
       setMetodoParaExcluir(null)
       onAtualizar()
     } catch (err: any) {
+      console.error('Erro ao excluir método de pagamento:', err)
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir',
-        description: err?.message,
+        description: 'Não foi possível excluir o método. Tente novamente.',
       })
     }
   }

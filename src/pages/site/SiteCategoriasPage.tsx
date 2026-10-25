@@ -92,27 +92,32 @@ export const SiteCategoriasPage: React.FC = () => {
     try {
       if (editando) {
         await atualizarCategoria(editando.id, {
-          nome,
-          slug,
+          nome: nome.trim(),
+          slug: slug.trim(),
           ativa,
           ordem: Number(ordem),
         })
-        toast({ title: 'Categoria atualizada' })
+        toast({ title: 'Categoria atualizada com sucesso!' })
       } else {
         await criarCategoria({
-          nome,
-          slug,
+          nome: nome.trim(),
+          slug: slug.trim(),
           ativa,
           ordem: Number(ordem),
         })
-        toast({ title: 'Categoria criada' })
+        toast({ title: 'Categoria criada com sucesso!' })
       }
       setModalOpen(false)
-      carregarDados()
+      carregar()
     } catch (err: any) {
+      console.error('Erro ao salvar categoria:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível salvar a categoria. Verifique a conexão com o banco e tente novamente.'
+          : err.message
       toast({
         title: 'Erro ao salvar categoria',
-        description: err.message || 'Slug deve ser único.',
+        description: msg,
         variant: 'destructive',
       })
     }
@@ -122,13 +127,17 @@ export const SiteCategoriasPage: React.FC = () => {
     if (!confirm(`Deseja excluir a categoria "${c.nome}"?`)) return
     try {
       await excluirCategoria(c.id)
-      toast({ title: 'Categoria excluída' })
-      carregarDados()
-    } catch {
-      toast({ title: 'Erro ao excluir categoria', variant: 'destructive' })
+      toast({ title: 'Categoria excluída com sucesso.' })
+      carregar()
+    } catch (err: any) {
+      console.error('Erro ao excluir categoria:', err)
+      toast({
+        title: 'Erro ao excluir categoria',
+        description: 'Não foi possível excluir a categoria. Tente novamente.',
+        variant: 'destructive',
+      })
     }
   }
-
   return (
     <div className="min-h-screen bg-[#f4f4f4]">
       <SiteTopNav />

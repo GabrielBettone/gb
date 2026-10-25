@@ -83,7 +83,7 @@ export const AbaGrupos: React.FC<AbaGruposProps> = ({ grupos, onAtualizar }) => 
           ativo,
           padrao,
         })
-        toast({ title: 'Grupo atualizado!' })
+        toast({ title: 'Grupo atualizado com sucesso!' })
       } else {
         await criarGrupo({
           nome: nome.trim(),
@@ -96,10 +96,15 @@ export const AbaGrupos: React.FC<AbaGruposProps> = ({ grupos, onAtualizar }) => 
       setModalOpen(false)
       onAtualizar()
     } catch (err: any) {
+      console.error('Erro ao salvar grupo:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível salvar o grupo. Verifique a conexão com o banco e tente novamente.'
+          : err.message
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar grupo',
-        description: err?.message,
+        description: msg,
       })
     } finally {
       setSalvando(false)
@@ -114,10 +119,15 @@ export const AbaGrupos: React.FC<AbaGruposProps> = ({ grupos, onAtualizar }) => 
       setGrupoParaExcluir(null)
       onAtualizar()
     } catch (err: any) {
+      console.error('Erro ao excluir grupo:', err)
+      const msg =
+        err?.message?.includes('Failed to') || !err?.message
+          ? 'Não foi possível excluir o grupo. Tente novamente.'
+          : err.message
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir',
-        description: err?.message,
+        description: msg,
       })
     }
   }

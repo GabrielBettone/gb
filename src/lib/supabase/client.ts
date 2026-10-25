@@ -67,9 +67,13 @@ export function getSupabaseConfig(): SupabaseConfiguration {
           .env
       : {}
 
-  const url = (env.VITE_SUPABASE_URL || nodeEnv.VITE_SUPABASE_URL || nodeEnv.SUPABASE_URL || '')
+  let url = (env.VITE_SUPABASE_URL || nodeEnv.VITE_SUPABASE_URL || nodeEnv.SUPABASE_URL || '')
     .trim()
     .replace(/\/+$/, '')
+  if (url && !/^https?:\/\//i.test(url)) {
+    url = `https://${url}`
+  }
+
   // Suporta VITE_SUPABASE_PUBLISHABLE_KEY (formato novo sb_publishable_...) e fallback para VITE_SUPABASE_ANON_KEY ou SUPABASE_API_KEY
   const publicKey = (
     env.VITE_SUPABASE_PUBLISHABLE_KEY ||
@@ -90,7 +94,7 @@ function readConfiguration(): SupabaseConfiguration {
 
 export function isSupabaseConfigured(): boolean {
   const { url, publicKey } = readConfiguration()
-  return /^https:\/\//i.test(url) && Boolean(publicKey)
+  return /^https?:\/\//i.test(url) && Boolean(publicKey)
 }
 
 function getConfiguration(): SupabaseConfiguration {
@@ -100,8 +104,8 @@ function getConfiguration(): SupabaseConfiguration {
       'Supabase ainda não está configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY na configuração da aplicação.',
     )
   }
-  if (!/^https:\/\//i.test(config.url)) {
-    throw new Error('VITE_SUPABASE_URL precisa ser uma URL HTTPS válida.')
+  if (!/^https?:\/\//i.test(config.url)) {
+    throw new Error('VITE_SUPABASE_URL precisa ser uma URL válida.')
   }
   return config
 }
