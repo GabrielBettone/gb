@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T23:43:42.409Z",
+  "generatedAt": "2026-10-25T00:13:05.874Z",
   "collections": [
     {
       "name": "users",
@@ -1195,6 +1195,18 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "arquivo_logo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo_url",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_site_settings_chave ON site_settings (chave)"]
@@ -1652,6 +1664,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "arquivo_logo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "logo_url",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_orc_config_chave ON orcamento_configuracoes (chave)"]

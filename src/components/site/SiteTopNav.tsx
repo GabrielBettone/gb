@@ -9,6 +9,7 @@ export const SiteTopNav: React.FC = () => {
     { label: 'Portfólio', path: '/painel/site/portfolio' },
     { label: 'Depoimentos', path: '/painel/site/depoimentos' },
     { label: 'Parceiros', path: '/painel/site/parceiros' },
+    { label: 'Simulador IA', path: '/painel/site/simulador' },
     { label: 'Configurações', path: '/painel/site/configuracoes' },
   ]
 

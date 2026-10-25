@@ -237,19 +237,24 @@ routerAdd('POST', '/backend/v1/simulador/gerar', (e) => {
     let urlResultado = ''
     let metodoGeracao = 'gateway'
 
-    const gatewayUrl = $os.getenv('SKIP_AI_GATEWAY_URL')
-    const gatewayKey = $os.getenv('SKIP_AI_GATEWAY_API_KEY')
+    const gatewayUrl =
+      $os.getenv('OPENAI_BASE_URL') || $os.getenv('SKIP_AI_GATEWAY_URL') || 'https://api.openai.com'
+    const gatewayKey =
+      $os.getenv('OPENAI_API_KEY') ||
+      $os.getenv('AI_API_KEY') ||
+      $os.getenv('SKIP_AI_GATEWAY_API_KEY') ||
+      ''
 
-    if (gatewayUrl && gatewayKey) {
+    if (gatewayKey) {
       try {
         const payloadEnvio = {
+          model: 'dall-e-3',
           prompt: prompt,
           n: 1,
           size: '1024x1024',
           response_format: 'url',
         }
 
-        // Chamada direta sincronizada pelo hook PocketBase
         const res = $http.send({
           url: gatewayUrl.replace(/\/+$/, '') + '/v1/images/generations',
           method: 'POST',
@@ -258,7 +263,7 @@ routerAdd('POST', '/backend/v1/simulador/gerar', (e) => {
             Authorization: 'Bearer ' + gatewayKey,
           },
           body: JSON.stringify(payloadEnvio),
-          timeout: 45,
+          timeout: 50,
         })
 
         if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -267,11 +272,11 @@ routerAdd('POST', '/backend/v1/simulador/gerar', (e) => {
             urlResultado = resBody.data[0].url || resBody.data[0].b64_json || ''
           }
         } else {
-          console.log('AI Gateway retornou status ' + res.statusCode + ': ' + res.raw)
+          console.log('Provedor de imagem retornou ' + res.statusCode + ': ' + res.raw)
         }
       } catch (errGateway) {
         console.log(
-          'Falha na chamada ao gateway de imagens:',
+          'Falha na chamada ao serviço de imagens com IA:',
           errGateway.message || String(errGateway),
         )
       }

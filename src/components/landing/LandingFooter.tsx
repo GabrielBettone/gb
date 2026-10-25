@@ -32,8 +32,12 @@ export const LandingFooter: React.FC = () => {
           {/* Coluna 1: Marca & Resumo */}
           <div className="lg:col-span-4 space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-11 h-11 rounded-xl bg-white/10 text-[#D4AF37] flex items-center justify-center font-heading font-bold text-lg border border-[#D4AF37]/30 group-hover:scale-105 transition-transform">
-                GB
+              <div className="h-12 p-1.5 rounded-xl bg-white flex items-center justify-center border border-white/20 group-hover:scale-105 transition-transform">
+                <img
+                  src="/src/assets/logo-6927a.svg"
+                  alt="Gesso Bettone"
+                  className="h-full w-auto object-contain"
+                />
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="font-heading font-bold text-xl text-white tracking-tight">

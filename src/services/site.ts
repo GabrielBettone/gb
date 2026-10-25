@@ -117,6 +117,11 @@ export interface SiteSettings {
   exibir_depoimentos: boolean
   cidades_atendidas: string[]
   pagina_parceiros_ativa: boolean
+  arquivo_logo?: string
+  logo_url?: string
+  simulador_ativo?: boolean
+  simulador_exigir_login?: boolean
+  simulador_cota_padrao?: number
 }
 
 export interface SiteAnalyticsEvent {
@@ -857,6 +862,11 @@ const FALLBACK_SETTINGS: SiteSettings = {
 export async function obterConfiguracoes(): Promise<SiteSettings> {
   try {
     const record = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
+    const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+    const logoUrl = record.arquivo_logo
+      ? `${pbBase.replace(/\/+$/, '')}/api/files/${record.collectionId}/${record.id}/${record.arquivo_logo}`
+      : record.logo_url || ''
+
     return {
       id: record.id,
       chave: record.chave,
@@ -872,59 +882,88 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
         record.cidades_atendidas,
         FALLBACK_SETTINGS.cidades_atendidas,
       ),
+      arquivo_logo: record.arquivo_logo || '',
+      logo_url: logoUrl,
+      simulador_ativo: record.simulador_ativo !== false,
+      simulador_exigir_login: !!record.simulador_exigir_login,
+      simulador_cota_padrao: record.simulador_cota_padrao ?? 5,
     }
   } catch {
     return FALLBACK_SETTINGS
   }
 }
 
-export async function salvarConfiguracoes(settings: Partial<SiteSettings>): Promise<SiteSettings> {
+export async function salvarConfiguracoes(
+  settings: Partial<SiteSettings>,
+  arquivoLogo?: File | null,
+): Promise<SiteSettings> {
   let existingId: string | null = null
+  let existingRecord: any = null
   try {
-    const existing = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
-    existingId = existing.id
+    existingRecord = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
+    existingId = existingRecord.id
   } catch {
     /* intentionally ignored */
   }
 
-  const payload: any = {
-    chave: 'geral',
-    ...settings,
-  }
-  if (settings.cidades_atendidas !== undefined) {
-    payload.cidades_atendidas = JSON.stringify(settings.cidades_atendidas)
-  }
+  let resultRecord: any
 
-  if (existingId) {
-    const updated = await pb.collection('site_settings').update(existingId, payload)
-    return {
-      id: updated.id,
-      chave: updated.chave,
-      nome_site: updated.nome_site,
-      whatsapp_principal: updated.whatsapp_principal,
-      email_contato: updated.email_contato,
-      mensagem_orcamento: updated.mensagem_orcamento,
-      instagram: updated.instagram,
-      cnpj: updated.cnpj,
-      exibir_depoimentos: !!updated.exibir_depoimentos,
-      pagina_parceiros_ativa: !!updated.pagina_parceiros_ativa,
-      cidades_atendidas: parseJsonArray<string>(updated.cidades_atendidas),
+  if (arquivoLogo) {
+    const formData = new FormData()
+    formData.append('chave', 'geral')
+    Object.entries(settings).forEach(([key, val]) => {
+      if (val === undefined || val === null) return
+      if (key === 'cidades_atendidas') {
+        formData.append(key, JSON.stringify(val))
+      } else {
+        formData.append(key, String(val))
+      }
+    })
+    formData.append('arquivo_logo', arquivoLogo)
+
+    if (existingId) {
+      resultRecord = await pb.collection('site_settings').update(existingId, formData)
+    } else {
+      resultRecord = await pb.collection('site_settings').create(formData)
     }
   } else {
-    const created = await pb.collection('site_settings').create(payload)
-    return {
-      id: created.id,
-      chave: created.chave,
-      nome_site: created.nome_site,
-      whatsapp_principal: created.whatsapp_principal,
-      email_contato: created.email_contato,
-      mensagem_orcamento: created.mensagem_orcamento,
-      instagram: created.instagram,
-      cnpj: created.cnpj,
-      exibir_depoimentos: !!created.exibir_depoimentos,
-      pagina_parceiros_ativa: !!created.pagina_parceiros_ativa,
-      cidades_atendidas: parseJsonArray<string>(created.cidades_atendidas),
+    const payload: any = {
+      chave: 'geral',
+      ...settings,
     }
+    if (settings.cidades_atendidas !== undefined) {
+      payload.cidades_atendidas = JSON.stringify(settings.cidades_atendidas)
+    }
+
+    if (existingId) {
+      resultRecord = await pb.collection('site_settings').update(existingId, payload)
+    } else {
+      resultRecord = await pb.collection('site_settings').create(payload)
+    }
+  }
+
+  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const logoUrl = resultRecord.arquivo_logo
+    ? `${pbBase.replace(/\/+$/, '')}/api/files/${resultRecord.collectionId}/${resultRecord.id}/${resultRecord.arquivo_logo}`
+    : resultRecord.logo_url || ''
+
+  return {
+    id: resultRecord.id,
+    chave: resultRecord.chave,
+    nome_site: resultRecord.nome_site,
+    whatsapp_principal: resultRecord.whatsapp_principal,
+    email_contato: resultRecord.email_contato,
+    mensagem_orcamento: resultRecord.mensagem_orcamento,
+    instagram: resultRecord.instagram,
+    cnpj: resultRecord.cnpj,
+    exibir_depoimentos: !!resultRecord.exibir_depoimentos,
+    pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
+    cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
+    arquivo_logo: resultRecord.arquivo_logo,
+    logo_url: logoUrl,
+    simulador_ativo: resultRecord.simulador_ativo !== false,
+    simulador_exigir_login: !!resultRecord.simulador_exigir_login,
+    simulador_cota_padrao: resultRecord.simulador_cota_padrao ?? 5,
   }
 }
 

@@ -29,6 +29,7 @@ export const LandingNavbar: React.FC = () => {
     { label: 'Início', to: '/' },
     { label: 'Serviços', to: '/servicos' },
     { label: 'Portfólio', to: '/portfolio' },
+    { label: 'Simulador IA', to: '/simulador' },
     { label: 'Sobre nós', to: '/sobre' },
     { label: 'Contato', to: '/contato' },
   ]
@@ -81,16 +82,20 @@ export const LandingNavbar: React.FC = () => {
 
       {/* Barra de Navegação Principal */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
-        {/* Logo */}
+        {/* Logo Oficial */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-lg shadow-sm border border-[#D4AF37]/30 transition-transform group-hover:scale-105">
-            GB
+          <div className="h-12 w-auto max-w-[170px] flex items-center transition-transform group-hover:scale-105">
+            <img
+              src="/src/assets/logo-6927a.svg"
+              alt="Gesso Bettone"
+              className="h-12 w-auto object-contain"
+            />
           </div>
-          <div className="flex flex-col leading-tight">
-            <span className="font-heading font-bold text-lg sm:text-xl text-[#2C3E50] tracking-tight group-hover:text-[#1B2631]">
+          <div className="hidden sm:flex flex-col leading-tight">
+            <span className="font-heading font-bold text-base sm:text-lg text-[#2C3E50] tracking-tight group-hover:text-[#1B2631]">
               Gesso Bettone
             </span>
-            <span className="text-[11px] tracking-widest text-[#616F7D] uppercase font-semibold">
+            <span className="text-[10px] tracking-widest text-[#616F7D] uppercase font-semibold">
               Gesso • Drywall • Acabamentos
             </span>
           </div>
@@ -162,8 +167,12 @@ export const LandingNavbar: React.FC = () => {
             <SheetContent side="right" className="w-[300px] p-0 bg-white flex flex-col">
               <SheetHeader className="p-5 border-b border-[#E3E6EA] text-left">
                 <SheetTitle className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-base shadow-sm border border-[#D4AF37]/30">
-                    GB
+                  <div className="h-11 w-auto max-w-[140px] flex items-center">
+                    <img
+                      src="/src/assets/logo-6927a.svg"
+                      alt="Gesso Bettone"
+                      className="h-11 w-auto object-contain"
+                    />
                   </div>
                   <div className="flex flex-col leading-tight">
                     <span className="font-heading font-bold text-base text-[#2C3E50]">

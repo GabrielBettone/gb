@@ -10,8 +10,8 @@ import { Plus, X, Save, Check } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 export const SiteConfiguracoesPage: React.FC = () => {
-  // Seção lateral selecionada conforme o Print 1
-  const [secaoAtiva, setSecaoAtiva] = useState<'contato' | 'cidades'>('contato')
+  // Seção lateral selecionada
+  const [secaoAtiva, setSecaoAtiva] = useState<'contato' | 'identidade' | 'cidades'>('contato')
 
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -26,6 +26,11 @@ export const SiteConfiguracoesPage: React.FC = () => {
   const [instagram, setInstagram] = useState('https://www.instagram.com/gessobettone_saopedro')
   const [cnpj, setCnpj] = useState('53.242.055/0001-74')
   const [exibirDepoimentos, setExibirDepoimentos] = useState(true)
+
+  // Logo da empresa
+  const [logoAtual, setLogoAtual] = useState<string>('')
+  const [novoArquivoLogo, setNovoArquivoLogo] = useState<File | null>(null)
+  const [previewLogo, setPreviewLogo] = useState<string>('')
 
   // Cidades atendidas
   const [cidades, setCidades] = useState<string[]>([])
@@ -47,6 +52,9 @@ export const SiteConfiguracoesPage: React.FC = () => {
         setCnpj(cfg.cnpj || '53.242.055/0001-74')
         setExibirDepoimentos(cfg.exibir_depoimentos !== false)
         setCidades(cfg.cidades_atendidas || [])
+        if (cfg.logo_url) {
+          setLogoAtual(cfg.logo_url)
+        }
       })
       .finally(() => {
         if (isMounted) setLoading(false)
@@ -60,16 +68,23 @@ export const SiteConfiguracoesPage: React.FC = () => {
     e.preventDefault()
     setSalvando(true)
     try {
-      await salvarConfiguracoes({
-        nome_site: nomeSite,
-        whatsapp_principal: whatsappPrincipal,
-        email_contato: emailContato,
-        mensagem_orcamento: mensagemOrcamento,
-        instagram,
-        cnpj,
-        exibir_depoimentos: exibirDepoimentos,
-        cidades_atendidas: cidades,
-      })
+      const salvas = await salvarConfiguracoes(
+        {
+          nome_site: nomeSite,
+          whatsapp_principal: whatsappPrincipal,
+          email_contato: emailContato,
+          mensagem_orcamento: mensagemOrcamento,
+          instagram,
+          cnpj,
+          exibir_depoimentos: exibirDepoimentos,
+          cidades_atendidas: cidades,
+        },
+        novoArquivoLogo,
+      )
+      if (salvas.logo_url) {
+        setLogoAtual(salvas.logo_url)
+      }
+      setNovoArquivoLogo(null)
       toast({ title: 'Configurações salvas com sucesso!' })
     } catch {
       toast({ title: 'Erro ao salvar configurações', variant: 'destructive' })
@@ -123,6 +138,21 @@ export const SiteConfiguracoesPage: React.FC = () => {
 
             <button
               type="button"
+              onClick={() => setSecaoAtiva('identidade')}
+              className={`w-full text-left px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all relative ${
+                secaoAtiva === 'identidade'
+                  ? 'text-white bg-[#2C3E50]/80 pl-5'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {secaoAtiva === 'identidade' && (
+                <span className="absolute left-1.5 top-2 bottom-2 w-1 bg-[#D4AF37] rounded-full" />
+              )}
+              Logotipo da Empresa
+            </button>
+
+            <button
+              type="button"
               onClick={() => setSecaoAtiva('cidades')}
               className={`w-full text-left px-4 py-3.5 rounded-xl text-xs sm:text-sm font-semibold transition-all relative ${
                 secaoAtiva === 'cidades'
@@ -136,10 +166,13 @@ export const SiteConfiguracoesPage: React.FC = () => {
               Cidades atendidas
             </button>
 
-            {/* Simulador IA e Analytics listados para referência conforme o print */}
-            <div className="px-4 py-3 text-xs text-white/40 cursor-not-allowed">
-              Simulador de IA (em breve)
-            </div>
+            {/* Link para o controle do Simulador */}
+            <a
+              href="/painel/site/simulador"
+              className="block px-4 py-3 text-xs text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium"
+            >
+              Controles do Simulador IA →
+            </a>
             <a
               href="/painel/site"
               className="block px-4 py-3 text-xs text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
@@ -266,6 +299,97 @@ export const SiteConfiguracoesPage: React.FC = () => {
                   >
                     <Save className="w-4 h-4 mr-2" />
                     {salvando ? 'Salvando...' : 'SALVAR ALTERAÇÕES'}
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {secaoAtiva === 'identidade' && (
+              <form onSubmit={handleSalvar} className="space-y-6">
+                <div>
+                  <h2 className="font-heading text-xl sm:text-2xl font-bold text-[#2C3E50]">
+                    Logotipo Oficial da Empresa
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#616F7D] mt-1">
+                    Envie o logo da Gesso Bettone (SVG, PNG ou JPEG). Ele será utilizado nos
+                    cabeçalhos públicos, relatórios de orçamentos em PDF e documentos oficiais.
+                  </p>
+                </div>
+
+                {/* Exibição Atual */}
+                <div className="p-6 rounded-2xl bg-[#f8fafc] border border-[#DEE4EA] flex flex-col sm:flex-row items-center gap-6">
+                  <div className="w-40 h-28 bg-white rounded-xl border border-[#DEE4EA] p-3 flex items-center justify-center shadow-xs">
+                    {previewLogo || logoAtual ? (
+                      <img
+                        src={previewLogo || logoAtual}
+                        alt="Logo Bettone"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <img
+                        src="/src/assets/logo-6927a.svg"
+                        alt="Logo Padrão"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <h3 className="text-sm font-bold text-[#2C3E50]">
+                      {novoArquivoLogo
+                        ? 'Novo arquivo pronto para salvar'
+                        : logoAtual
+                          ? 'Logotipo customizado ativo'
+                          : 'Logotipo oficial padrão (Vetor SVG Bettone)'}
+                    </h3>
+                    <p className="text-xs text-[#616F7D] leading-relaxed">
+                      Recomendamos arquivos vetoriais (.SVG) ou imagens de alta resolução com fundo
+                      transparente (.PNG). Tamanho máximo: 10MB.
+                    </p>
+
+                    <div className="pt-2 flex items-center gap-3">
+                      <label className="cursor-pointer inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold shadow-xs transition-colors">
+                        <span>Escolher novo arquivo...</span>
+                        <input
+                          type="file"
+                          accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              setNovoArquivoLogo(file)
+                              setPreviewLogo(URL.createObjectURL(file))
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {novoArquivoLogo && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setNovoArquivoLogo(null)
+                            setPreviewLogo('')
+                          }}
+                          className="text-xs text-[#C4453C] hover:bg-[#FBEFEE]"
+                        >
+                          Cancelar alteração
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#DEE4EA]">
+                  <Button
+                    type="submit"
+                    disabled={salvando}
+                    className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs h-10 px-6 rounded-xl shadow-sm"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {salvando ? 'Salvando...' : 'SALVAR LOGOTIPO'}
                   </Button>
                 </div>
               </form>

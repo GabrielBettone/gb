@@ -6,6 +6,7 @@ import LandingCTA from '@/components/landing/LandingCTA'
 import LandingParceiros from '@/components/landing/LandingParceiros'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
   MessageCircle,
   ArrowLeft,
@@ -184,9 +185,9 @@ export const ProjetoDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado Esquerdo: Galeria e Visualizador de Fotos */}
           <div className="lg:col-span-8 space-y-4">
-            {/* Foto Ativa com controles */}
+            {/* Foto Ativa com controles e Marca d'água */}
             <div className="relative rounded-2xl overflow-hidden shadow-lg border border-[#E3E6EA] bg-black aspect-[16/10] group">
-              <img
+              <WatermarkedImage
                 src={projeto.galeria[activePhotoIndex] || projeto.imagemCapa}
                 alt={`${projeto.titulo} — foto ${activePhotoIndex + 1}`}
                 className="w-full h-full object-cover transition-all duration-300 cursor-pointer"
@@ -258,7 +259,7 @@ export const ProjetoDetailPage: React.FC = () => {
             <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
               <DialogContent className="max-w-4xl p-2 bg-black/95 border-none text-white flex flex-col items-center">
                 <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden">
-                  <img
+                  <WatermarkedImage
                     src={projeto.galeria[activePhotoIndex]}
                     alt={`${projeto.titulo} em tela cheia`}
                     className="max-w-full max-h-full object-contain"
@@ -341,7 +342,7 @@ export const ProjetoDetailPage: React.FC = () => {
                     to={`/portfolio/${outro.slug}`}
                     className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#E8EDF2] transition-colors border border-transparent hover:border-[#DEE4EA] group"
                   >
-                    <img
+                    <WatermarkedImage
                       src={outro.imagemCapa}
                       alt={outro.titulo}
                       className="w-14 h-14 rounded-lg object-cover flex-shrink-0"

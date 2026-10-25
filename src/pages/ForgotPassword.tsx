@@ -57,15 +57,18 @@ const ForgotPassword = () => {
     <div className="min-h-screen bg-[#f4f4f4] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-2xl shadow-md border border-[#D4AF37]/30 mb-3">
-            GB
+          <div className="h-20 w-auto p-2 rounded-2xl bg-white shadow-md border border-[#DEE4EA] mb-3 flex items-center justify-center">
+            <img
+              src="/src/assets/logo-6927a.svg"
+              alt="Gesso Bettone"
+              className="h-full w-auto object-contain"
+            />
           </div>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
             Gesso Bettone
           </h1>
-          <p className="text-sm text-[#616F7D] mt-1 font-sans">Análise de Vendas e Indicadores</p>
+          <p className="text-sm text-[#616F7D] mt-1 font-sans">Recuperação de Acesso</p>
         </div>
-
         <Card className="border-[#DEE4EA] shadow-sm rounded-xl bg-white">
           <CardHeader className="space-y-1">
             <CardTitle className="font-heading text-xl font-bold text-[#2C3E50]">

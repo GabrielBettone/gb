@@ -120,18 +120,22 @@ export const Layout: React.FC = () => {
           collapsed ? 'w-[72px]' : 'w-[260px]'
         }`}
       >
-        {/* Topo: Logo & Monograma */}
+        {/* Topo: Logo & Marca Oficial */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[#DEE4EA]">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-base shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
-              GB
+            <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs border border-[#DEE4EA] flex-shrink-0">
+              <img
+                src="/src/assets/logo-6927a.svg"
+                alt="Gesso Bettone"
+                className="w-full h-full object-contain"
+              />
             </div>
             {!collapsed && (
               <div className="flex flex-col leading-none truncate">
                 <span className="font-heading font-bold text-sm text-[#2C3E50] tracking-tight">
                   Gesso Bettone
                 </span>
-                <span className="text-[11px] text-[#616F7D] mt-0.5">Análise de Vendas</span>
+                <span className="text-[11px] text-[#616F7D] mt-0.5">Painel de Gestão</span>
               </div>
             )}
           </div>
@@ -299,14 +303,18 @@ export const Layout: React.FC = () => {
               <SheetContent side="left" className="w-[280px] p-0 bg-white">
                 <SheetHeader className="p-4 border-b border-[#DEE4EA]">
                   <SheetTitle className="flex items-center gap-3 text-left">
-                    <div className="w-9 h-9 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-sm shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
-                      GB
+                    <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs border border-[#DEE4EA] flex-shrink-0">
+                      <img
+                        src="/src/assets/logo-6927a.svg"
+                        alt="Gesso Bettone"
+                        className="w-full h-full object-contain"
+                      />
                     </div>
                     <div className="flex flex-col leading-none">
                       <span className="font-heading font-bold text-sm text-[#2C3E50]">
                         Gesso Bettone
                       </span>
-                      <span className="text-[11px] text-[#616F7D] mt-0.5">Análise de Vendas</span>
+                      <span className="text-[11px] text-[#616F7D] mt-0.5">Painel de Gestão</span>
                     </div>
                   </SheetTitle>
                 </SheetHeader>

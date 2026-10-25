@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import { Handshake, MessageCircle, ExternalLink, Sparkles } from 'lucide-react'
 import {
   listarParceiros,

@@ -379,7 +379,9 @@ export function imprimirOrcamentoPDF(
     <!-- HEADER -->
     <div class="header">
       <div class="logo-container">
-        <div class="logo-badge">GB</div>
+        <div class="logo-badge" style="background: transparent; border: none; box-shadow: none; width: auto; height: auto;">
+          <img src="/src/assets/logo-6927a.svg" alt="Gesso Bettone" style="height: 56px; max-width: 140px; object-fit: contain;" onerror="this.onerror=null; this.src='/src/assets/logo-gesso-bettone-eb5aa.png'" />
+        </div>
         <div>
           <h1 class="brand-title">GESSO BETTONE</h1>
           <p class="brand-sub">Comércio & Instalações de Gesso, Drywall e Acabamentos Finos</p>

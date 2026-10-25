@@ -166,7 +166,7 @@ class SimpleZipBuilder {
 
     parts.push(eocd)
 
-    return new Blob(parts, { type: 'application/zip' })
+    return new Blob(parts as unknown as BlobPart[], { type: 'application/zip' })
   }
 }
 

@@ -6,6 +6,7 @@ import LandingCTA from '@/components/landing/LandingCTA'
 import LandingParceiros from '@/components/landing/LandingParceiros'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
   MessageCircle,
   ArrowLeft,
@@ -199,7 +200,7 @@ export const ServicoDetailPage: React.FC = () => {
           {/* Lado Esquerdo: Galeria de Fotos */}
           <div className="lg:col-span-7 space-y-4">
             <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-black aspect-[16/10]">
-              <img
+              <WatermarkedImage
                 src={servico.galeria[activePhotoIndex] || servico.imagemPrincipal}
                 alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
                 className="w-full h-full object-cover transition-all duration-300"

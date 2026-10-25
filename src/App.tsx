@@ -17,6 +17,7 @@ import ProjetoDetailPage from '@/pages/landing/ProjetoDetailPage'
 import SobrePage from '@/pages/landing/SobrePage'
 import ContatoPage from '@/pages/landing/ContatoPage'
 import ParceirosPublicPage from '@/pages/landing/ParceirosPublicPage'
+import SimuladorPublicPage from '@/pages/landing/SimuladorPublicPage'
 
 // Páginas Autenticadas Internas
 import Index from '@/pages/Index'
@@ -31,6 +32,7 @@ import SitePortfolioPage from '@/pages/site/SitePortfolioPage'
 import SiteDepoimentosPage from '@/pages/site/SiteDepoimentosPage'
 import SiteParceirosPage from '@/pages/site/SiteParceirosPage'
 import SiteConfiguracoesPage from '@/pages/site/SiteConfiguracoesPage'
+import SiteSimuladorAdminPage from '@/pages/site/SiteSimuladorAdminPage'
 
 // Páginas de Autenticação
 import Login from '@/pages/Login'
@@ -66,6 +68,7 @@ const AppRoutes = () => {
         <Route path="/sobre" element={<SobrePage />} />
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/parceiros" element={<ParceirosPublicPage />} />
+        <Route path="/simulador" element={<SimuladorPublicPage />} />
       </Route>
 
       {/* 2. ROTAS PÚBLICAS DE AUTENTICAÇÃO */}
@@ -121,6 +124,7 @@ const AppRoutes = () => {
         <Route path="/painel/site/portfolio" element={<SitePortfolioPage />} />
         <Route path="/painel/site/depoimentos" element={<SiteDepoimentosPage />} />
         <Route path="/painel/site/parceiros" element={<SiteParceirosPage />} />
+        <Route path="/painel/site/simulador" element={<SiteSimuladorAdminPage />} />
         <Route path="/painel/site/configuracoes" element={<SiteConfiguracoesPage />} />
 
         {/* Alias de retrocompatibilidade para rotas internas antigas */}

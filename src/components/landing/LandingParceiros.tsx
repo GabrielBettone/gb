@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import { Handshake, MessageCircle, ExternalLink } from 'lucide-react'
 import {
   listarParceiros,
@@ -90,7 +91,7 @@ export const LandingParceiros: React.FC = () => {
               <div className="flex flex-col items-center">
                 <div className="w-20 h-20 rounded-xl bg-[#f4f4f4] border border-[#DEE4EA] p-3 flex items-center justify-center mb-4 overflow-hidden group-hover:scale-105 transition-transform">
                   {parceiro.logo ? (
-                    <img
+                    <WatermarkedImage
                       src={parceiro.logo}
                       alt={`Logo de ${parceiro.nome}`}
                       loading="lazy"

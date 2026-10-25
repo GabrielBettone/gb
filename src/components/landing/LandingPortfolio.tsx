@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import { PROJETOS as FALLBACK_PROJETOS } from '@/data/landingData'
 import { ArrowRight, Images, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
   listarPortfolio,
   listarCategorias,
-  SitePortfolioItem,
   registrarEventoAnalytics,
+  SitePortfolioItem,
+  SiteCategoria,
 } from '@/services/site'
-
 interface Props {
   limit?: number
   showFilter?: boolean
@@ -129,15 +130,15 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
               key={proj.slug}
               className="group bg-white rounded-xl border border-[#DEE4EA] overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col hover:border-[#2C3E50]/40"
             >
-              {/* Imagem de Capa com Hover Effect */}
+              {/* Imagem de Capa com Hover Effect e Marca d'água */}
               <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                <img
+                <WatermarkedImage
                   src={proj.imagem_capa}
                   alt={proj.titulo}
                   loading="lazy"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
                 {/* Tag Categoria */}
                 <div className="absolute top-3 left-3">
