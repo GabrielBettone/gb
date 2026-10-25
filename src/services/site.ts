@@ -25,6 +25,8 @@ export interface SiteServico {
   beneficios: string[]
   imagem_principal: string
   galeria: string[]
+  arquivo_principal?: string
+  arquivos_galeria?: string[]
   meta_title?: string
   meta_description?: string
   keywords?: string[]
@@ -43,6 +45,8 @@ export interface SitePortfolioItem {
   detalhes_tecnicos?: string[]
   imagem_capa: string
   galeria: string[]
+  arquivo_capa?: string
+  arquivos_galeria?: string[]
   fotos_count?: number
   destaque: boolean
   ativo: boolean
@@ -82,6 +86,7 @@ export interface SiteParceiro {
   papel?: string
   whatsapp?: string
   logo?: string
+  arquivo_logo?: string
   descricao?: string
   destaque: boolean
   ativo: boolean
@@ -162,6 +167,12 @@ export async function listarServicos(apenasAtivos = false): Promise<SiteServico[
       beneficios: parseJsonArray<string>(r.beneficios),
       imagem_principal: r.imagem_principal || '',
       galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
       meta_title: r.meta_title,
       meta_description: r.meta_description,
       keywords: parseJsonArray<string>(r.keywords),
@@ -190,6 +201,12 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
       beneficios: parseJsonArray<string>(record.beneficios),
       imagem_principal: record.imagem_principal || '',
       galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
       meta_title: record.meta_title,
       meta_description: record.meta_description,
       keywords: parseJsonArray<string>(record.keywords),
@@ -201,7 +218,41 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
   }
 }
 
-export async function criarServico(data: Partial<SiteServico>): Promise<SiteServico> {
+export async function criarServico(
+  data: Partial<SiteServico>,
+  arquivos?: { arquivo_principal?: File; arquivos_galeria?: File[] },
+): Promise<SiteServico> {
+  if (
+    arquivos &&
+    (arquivos.arquivo_principal ||
+      (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
+  ) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val === undefined || val === null) return
+      if (key === 'beneficios' || key === 'galeria' || key === 'keywords') {
+        formData.append(key, JSON.stringify(val))
+      } else {
+        formData.append(key, String(val))
+      }
+    })
+    if (arquivos.arquivo_principal) {
+      formData.append('arquivo_principal', arquivos.arquivo_principal)
+    }
+    if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+    }
+    const record = await pb.collection('site_services').create(formData)
+    return {
+      ...record,
+      beneficios: parseJsonArray<string>(record.beneficios),
+      galeria: parseJsonArray<string>(record.galeria),
+      keywords: parseJsonArray<string>(record.keywords),
+      arquivo_principal: record.arquivo_principal,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SiteServico
+  }
+
   const payload = {
     ...data,
     beneficios: JSON.stringify(data.beneficios || []),
@@ -220,7 +271,39 @@ export async function criarServico(data: Partial<SiteServico>): Promise<SiteServ
 export async function atualizarServico(
   id: string,
   data: Partial<SiteServico>,
+  arquivos?: { arquivo_principal?: File; arquivos_galeria?: File[] },
 ): Promise<SiteServico> {
+  if (
+    arquivos &&
+    (arquivos.arquivo_principal ||
+      (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
+  ) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val === undefined || val === null) return
+      if (key === 'beneficios' || key === 'galeria' || key === 'keywords') {
+        formData.append(key, JSON.stringify(val))
+      } else {
+        formData.append(key, String(val))
+      }
+    })
+    if (arquivos.arquivo_principal) {
+      formData.append('arquivo_principal', arquivos.arquivo_principal)
+    }
+    if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+    }
+    const record = await pb.collection('site_services').update(id, formData)
+    return {
+      ...record,
+      beneficios: parseJsonArray<string>(record.beneficios),
+      galeria: parseJsonArray<string>(record.galeria),
+      keywords: parseJsonArray<string>(record.keywords),
+      arquivo_principal: record.arquivo_principal,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SiteServico
+  }
+
   const payload: any = { ...data }
   if (data.beneficios !== undefined) payload.beneficios = JSON.stringify(data.beneficios)
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
@@ -314,6 +397,12 @@ export async function listarPortfolio(apenasAtivos = false): Promise<SitePortfol
       detalhes_tecnicos: parseJsonArray<string>(r.detalhes_tecnicos),
       imagem_capa: r.imagem_capa || '',
       galeria: parseJsonArray<string>(r.galeria),
+      arquivo_capa: r.arquivo_capa || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
       fotos_count: r.fotos_count || parseJsonArray<string>(r.galeria).length,
       destaque: !!r.destaque,
       ativo: !!r.ativo,
@@ -343,6 +432,12 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
       detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
       imagem_capa: record.imagem_capa || '',
       galeria: parseJsonArray<string>(record.galeria),
+      arquivo_capa: record.arquivo_capa || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
       fotos_count: record.fotos_count || parseJsonArray<string>(record.galeria).length,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
@@ -357,7 +452,39 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
   }
 }
 
-export async function criarProjeto(data: Partial<SitePortfolioItem>): Promise<SitePortfolioItem> {
+export async function criarProjeto(
+  data: Partial<SitePortfolioItem>,
+  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[] },
+): Promise<SitePortfolioItem> {
+  if (
+    arquivos &&
+    (arquivos.arquivo_capa || (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
+  ) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val === undefined || val === null) return
+      if (key === 'detalhes_tecnicos' || key === 'galeria') {
+        formData.append(key, JSON.stringify(val))
+      } else {
+        formData.append(key, String(val))
+      }
+    })
+    if (arquivos.arquivo_capa) {
+      formData.append('arquivo_capa', arquivos.arquivo_capa)
+    }
+    if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+    }
+    const record = await pb.collection('site_portfolio').create(formData)
+    return {
+      ...record,
+      detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_capa: record.arquivo_capa,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SitePortfolioItem
+  }
+
   const payload = {
     ...data,
     detalhes_tecnicos: JSON.stringify(data.detalhes_tecnicos || []),
@@ -374,7 +501,37 @@ export async function criarProjeto(data: Partial<SitePortfolioItem>): Promise<Si
 export async function atualizarProjeto(
   id: string,
   data: Partial<SitePortfolioItem>,
+  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[] },
 ): Promise<SitePortfolioItem> {
+  if (
+    arquivos &&
+    (arquivos.arquivo_capa || (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
+  ) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val === undefined || val === null) return
+      if (key === 'detalhes_tecnicos' || key === 'galeria') {
+        formData.append(key, JSON.stringify(val))
+      } else {
+        formData.append(key, String(val))
+      }
+    })
+    if (arquivos.arquivo_capa) {
+      formData.append('arquivo_capa', arquivos.arquivo_capa)
+    }
+    if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+    }
+    const record = await pb.collection('site_portfolio').update(id, formData)
+    return {
+      ...record,
+      detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_capa: record.arquivo_capa,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SitePortfolioItem
+  }
+
   const payload: any = { ...data }
   if (data.detalhes_tecnicos !== undefined)
     payload.detalhes_tecnicos = JSON.stringify(data.detalhes_tecnicos)
@@ -525,6 +682,7 @@ export async function listarParceiros(apenasAtivos = false): Promise<SiteParceir
       papel: r.papel,
       whatsapp: r.whatsapp,
       logo: r.logo,
+      arquivo_logo: r.arquivo_logo || '',
       descricao: r.descricao,
       destaque: !!r.destaque,
       ativo: !!r.ativo,
@@ -538,7 +696,32 @@ export async function listarParceiros(apenasAtivos = false): Promise<SiteParceir
   }
 }
 
-export async function criarParceiro(data: Partial<SiteParceiro>): Promise<SiteParceiro> {
+export async function criarParceiro(
+  data: Partial<SiteParceiro>,
+  arquivoLogo?: File,
+): Promise<SiteParceiro> {
+  if (arquivoLogo) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) formData.append(key, String(val))
+    })
+    formData.append('arquivo_logo', arquivoLogo)
+    const record = await pb.collection('site_partners').create(formData)
+    return {
+      id: record.id,
+      nome: record.nome,
+      categoria: record.categoria,
+      papel: record.papel,
+      whatsapp: record.whatsapp,
+      logo: record.logo,
+      arquivo_logo: record.arquivo_logo,
+      descricao: record.descricao,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+    }
+  }
+
   const record = await pb.collection('site_partners').create(data)
   return {
     id: record.id,
@@ -547,6 +730,7 @@ export async function criarParceiro(data: Partial<SiteParceiro>): Promise<SitePa
     papel: record.papel,
     whatsapp: record.whatsapp,
     logo: record.logo,
+    arquivo_logo: record.arquivo_logo,
     descricao: record.descricao,
     destaque: !!record.destaque,
     ativo: !!record.ativo,
@@ -557,7 +741,30 @@ export async function criarParceiro(data: Partial<SiteParceiro>): Promise<SitePa
 export async function atualizarParceiro(
   id: string,
   data: Partial<SiteParceiro>,
+  arquivoLogo?: File,
 ): Promise<SiteParceiro> {
+  if (arquivoLogo) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) formData.append(key, String(val))
+    })
+    formData.append('arquivo_logo', arquivoLogo)
+    const record = await pb.collection('site_partners').update(id, formData)
+    return {
+      id: record.id,
+      nome: record.nome,
+      categoria: record.categoria,
+      papel: record.papel,
+      whatsapp: record.whatsapp,
+      logo: record.logo,
+      arquivo_logo: record.arquivo_logo,
+      descricao: record.descricao,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+    }
+  }
+
   const record = await pb.collection('site_partners').update(id, data)
   return {
     id: record.id,
@@ -566,6 +773,7 @@ export async function atualizarParceiro(
     papel: record.papel,
     whatsapp: record.whatsapp,
     logo: record.logo,
+    arquivo_logo: record.arquivo_logo,
     descricao: record.descricao,
     destaque: !!record.destaque,
     ativo: !!record.ativo,

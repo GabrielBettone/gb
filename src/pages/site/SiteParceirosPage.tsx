@@ -50,6 +50,8 @@ import {
   Sliders,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import ImageUploader from '@/components/site/ImageUploader'
+import { resolverUrlMidia } from '@/lib/watermark'
 
 export const SiteParceirosPage: React.FC = () => {
   // Abas internas do módulo parceiros (Print 2)
@@ -96,6 +98,7 @@ export const SiteParceirosPage: React.FC = () => {
   const [pPapel, setPPapel] = useState('')
   const [pWhatsapp, setPWhatsapp] = useState('')
   const [pLogo, setPLogo] = useState('')
+  const [pArquivoLogoFile, setPArquivoLogoFile] = useState<File | undefined>()
   const [pDescricao, setPDescricao] = useState('')
   const [pDestaque, setPDestaque] = useState(false)
   const [pAtivo, setPAtivo] = useState(true)
@@ -174,6 +177,7 @@ export const SiteParceirosPage: React.FC = () => {
     setPPapel('')
     setPWhatsapp('5519981093379')
     setPLogo('')
+    setPArquivoLogoFile(undefined)
     setPDescricao('')
     setPDestaque(false)
     setPAtivo(true)
@@ -187,7 +191,8 @@ export const SiteParceirosPage: React.FC = () => {
     setPCategoria(p.categoria || '')
     setPPapel(p.papel || '')
     setPWhatsapp(p.whatsapp || '')
-    setPLogo(p.logo || '')
+    setPLogo(p.arquivo_logo || p.logo || '')
+    setPArquivoLogoFile(undefined)
     setPDescricao(p.descricao || '')
     setPDestaque(p.destaque)
     setPAtivo(p.ativo)
@@ -204,30 +209,37 @@ export const SiteParceirosPage: React.FC = () => {
 
     try {
       if (editandoParceiro) {
-        await atualizarParceiro(editandoParceiro.id, {
-          nome: pNome,
-          categoria: pCategoria,
-          papel: pPapel,
-          whatsapp: pWhatsapp,
-          logo: pLogo,
-          descricao: pDescricao,
-          destaque: pDestaque,
-          ativo: pAtivo,
-          ordem: Number(pOrdem),
-        })
+        await atualizarParceiro(
+          editandoParceiro.id,
+          {
+            nome: pNome,
+            categoria: pCategoria,
+            papel: pPapel,
+            whatsapp: pWhatsapp,
+            logo: pLogo.startsWith('blob:') ? '' : pLogo,
+            descricao: pDescricao,
+            destaque: pDestaque,
+            ativo: pAtivo,
+            ordem: Number(pOrdem),
+          },
+          pArquivoLogoFile,
+        )
         toast({ title: 'Parceiro atualizado!' })
       } else {
-        await criarParceiro({
-          nome: pNome,
-          categoria: pCategoria,
-          papel: pPapel,
-          whatsapp: pWhatsapp,
-          logo: pLogo,
-          descricao: pDescricao,
-          destaque: pDestaque,
-          ativo: pAtivo,
-          ordem: Number(pOrdem),
-        })
+        await criarParceiro(
+          {
+            nome: pNome,
+            categoria: pCategoria,
+            papel: pPapel,
+            whatsapp: pWhatsapp,
+            logo: pLogo.startsWith('blob:') ? '' : pLogo,
+            descricao: pDescricao,
+            destaque: pDestaque,
+            ativo: pAtivo,
+            ordem: Number(pOrdem),
+          },
+          pArquivoLogoFile,
+        )
         toast({ title: 'Parceiro cadastrado!' })
       }
       setModalParceiroOpen(false)
@@ -558,11 +570,16 @@ export const SiteParceirosPage: React.FC = () => {
                     <tr key={p.id} className="hover:bg-[#f9fafb] transition-colors">
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          {p.logo ? (
+                          {p.arquivo_logo || p.logo ? (
                             <img
-                              src={p.logo}
+                              src={
+                                p.arquivo_logo
+                                  ? resolverUrlMidia('site_partners', p.id, p.arquivo_logo)
+                                  : p.logo
+                              }
                               alt={p.nome}
-                              className="w-10 h-10 rounded-lg object-contain bg-[#f4f4f4] border border-[#DEE4EA] p-1"
+                              crossOrigin="anonymous"
+                              className="w-10 h-10 rounded-lg object-contain bg-white border border-[#DEE4EA] p-1"
                             />
                           ) : (
                             <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center font-bold text-[#616F7D]">
@@ -855,13 +872,35 @@ export const SiteParceirosPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#2C3E50]">URL do Logo</Label>
-              <Input
-                value={pLogo}
-                onChange={(e) => setPLogo(e.target.value)}
-                placeholder="https://..."
+            {/* Upload de Logo do Parceiro */}
+            <div className="space-y-3 bg-[#f8fafc] p-4 rounded-xl border border-[#DEE4EA]">
+              <ImageUploader
+                label="Logo do Parceiro (Imagem/Arquivo)"
+                helperText="Arquivo SVG, PNG ou JPG para o logo"
+                multiple={false}
+                values={pLogo ? [pLogo] : []}
+                collectionName="site_partners"
+                recordId={editandoParceiro?.id}
+                aspectRatioClass="aspect-square"
+                onChange={(vals, files) => {
+                  setPLogo(vals[0] || '')
+                  setPArquivoLogoFile(files?.[0])
+                }}
               />
+              <div className="pt-1">
+                <Label className="text-[11px] text-[#616F7D]">
+                  Ou informe uma URL externa para o logo:
+                </Label>
+                <Input
+                  className="mt-1 text-xs"
+                  value={pLogo.startsWith('blob:') ? '' : pLogo}
+                  onChange={(e) => {
+                    setPLogo(e.target.value)
+                    setPArquivoLogoFile(undefined)
+                  }}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">

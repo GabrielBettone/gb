@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, Star, ExternalLink, Images } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import ImageUploader from '@/components/site/ImageUploader'
+import { resolverUrlMidia } from '@/lib/watermark'
 
 export const SitePortfolioPage: React.FC = () => {
   const [projetos, setProjetos] = useState<SitePortfolioItem[]>([])
@@ -52,6 +54,11 @@ export const SitePortfolioPage: React.FC = () => {
   const [destaque, setDestaque] = useState(false)
   const [ativo, setAtivo] = useState(true)
   const [ordem, setOrdem] = useState(1)
+
+  // Arquivos físicos
+  const [arquivoCapaFile, setArquivoCapaFile] = useState<File | undefined>()
+  const [arquivosGaleriaFiles, setArquivosGaleriaFiles] = useState<File[]>([])
+  const [imagensGaleriaList, setImagensGaleriaList] = useState<string[]>([])
 
   const carregarDados = async () => {
     setLoading(true)
@@ -97,6 +104,9 @@ export const SitePortfolioPage: React.FC = () => {
     setImagemCapa('')
     setGaleriaStr('')
     setDetalhesStr('')
+    setArquivoCapaFile(undefined)
+    setArquivosGaleriaFiles([])
+    setImagensGaleriaList([])
     setDestaque(false)
     setAtivo(true)
     setOrdem(projetos.length + 1)
@@ -111,8 +121,17 @@ export const SitePortfolioPage: React.FC = () => {
     setSubtitulo(p.subtitulo || '')
     setCidade(p.cidade || 'São Pedro/SP')
     setDescricao(p.descricao)
-    setImagemCapa(p.imagem_capa)
+
+    // Prioriza arquivo nativo ou URL legada
+    const capaVal = p.arquivo_capa || p.imagem_capa || ''
+    setImagemCapa(capaVal)
+
+    const listaGaleria = [...(p.arquivos_galeria || []), ...(p.galeria || [])].filter(Boolean)
+    setImagensGaleriaList(listaGaleria)
     setGaleriaStr((p.galeria || []).join('\n'))
+
+    setArquivoCapaFile(undefined)
+    setArquivosGaleriaFiles([])
     setDetalhesStr((p.detalhes_tecnicos || []).join('\n'))
     setDestaque(p.destaque)
     setAtivo(p.ativo)
@@ -127,14 +146,15 @@ export const SitePortfolioPage: React.FC = () => {
       return
     }
 
-    const galeria = galeriaStr
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
+    const galeria = imagensGaleriaList.filter(
+      (url) => !url.startsWith('blob:') && (url.startsWith('http') || !url.includes('/')),
+    )
     const detalhesTecnicos = detalhesStr
       .split('\n')
       .map((l) => l.trim())
       .filter(Boolean)
+
+    const totalFotos = Math.max(1, imagensGaleriaList.length + arquivosGaleriaFiles.length)
 
     const payload: Partial<SitePortfolioItem> = {
       titulo,
@@ -143,21 +163,26 @@ export const SitePortfolioPage: React.FC = () => {
       subtitulo,
       cidade,
       descricao,
-      imagem_capa: imagemCapa,
+      imagem_capa: imagemCapa.startsWith('blob:') ? '' : imagemCapa,
       galeria,
-      fotos_count: galeria.length > 0 ? galeria.length : 1,
+      fotos_count: totalFotos,
       detalhes_tecnicos: detalhesTecnicos,
       destaque,
       ativo,
       ordem: Number(ordem),
     }
 
+    const arquivosEnvio = {
+      arquivo_capa: arquivoCapaFile,
+      arquivos_galeria: arquivosGaleriaFiles.length > 0 ? arquivosGaleriaFiles : undefined,
+    }
+
     try {
       if (editando) {
-        await atualizarProjeto(editando.id, payload)
+        await atualizarProjeto(editando.id, payload, arquivosEnvio)
         toast({ title: 'Projeto atualizado com sucesso!' })
       } else {
-        await criarProjeto(payload)
+        await criarProjeto(payload, arquivosEnvio)
         toast({ title: 'Projeto criado com sucesso!' })
       }
       setModalOpen(false)
@@ -241,10 +266,15 @@ export const SitePortfolioPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        {p.imagem_capa ? (
+                        {p.arquivo_capa || p.imagem_capa ? (
                           <img
-                            src={p.imagem_capa}
+                            src={
+                              p.arquivo_capa
+                                ? resolverUrlMidia('site_portfolio', p.id, p.arquivo_capa)
+                                : p.imagem_capa
+                            }
                             alt={p.titulo}
+                            crossOrigin="anonymous"
                             className="w-12 h-9 rounded-lg object-cover border border-[#DEE4EA]"
                           />
                         ) : (
@@ -435,24 +465,51 @@ export const SitePortfolioPage: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#2C3E50]">Foto de Capa (URL)</Label>
-              <Input
-                value={imagemCapa}
-                onChange={(e) => setImagemCapa(e.target.value)}
-                placeholder="https://..."
+            {/* Foto de Capa (Arquivo ou URL) */}
+            <div className="space-y-3 bg-[#f8fafc] p-4 rounded-xl border border-[#DEE4EA]">
+              <ImageUploader
+                label="Foto de Capa do Projeto"
+                helperText="Arquivo nativo ou URL legada"
+                multiple={false}
+                values={imagemCapa ? [imagemCapa] : []}
+                collectionName="site_portfolio"
+                recordId={editando?.id}
+                onChange={(vals, files) => {
+                  setImagemCapa(vals[0] || '')
+                  setArquivoCapaFile(files?.[0])
+                }}
               />
+              <div className="pt-1">
+                <Label className="text-[11px] text-[#616F7D]">
+                  Ou informe uma URL externa direta:
+                </Label>
+                <Input
+                  className="mt-1 text-xs"
+                  value={imagemCapa.startsWith('blob:') ? '' : imagemCapa}
+                  onChange={(e) => {
+                    setImagemCapa(e.target.value)
+                    setArquivoCapaFile(undefined)
+                  }}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#2C3E50]">
-                Galeria de Fotos (uma URL por linha)
-              </Label>
-              <Textarea
-                rows={3}
-                value={galeriaStr}
-                onChange={(e) => setGaleriaStr(e.target.value)}
-                placeholder="https://imagem1.jpg&#10;https://imagem2.jpg"
+            {/* Galeria de Fotos */}
+            <div className="space-y-3 bg-[#f8fafc] p-4 rounded-xl border border-[#DEE4EA]">
+              <ImageUploader
+                label="Galeria de Fotos do Projeto"
+                helperText="Envie múltiplos arquivos para a galeria da obra"
+                multiple={true}
+                values={imagensGaleriaList}
+                collectionName="site_portfolio"
+                recordId={editando?.id}
+                onChange={(vals, files) => {
+                  setImagensGaleriaList(vals)
+                  if (files && files.length > 0) {
+                    setArquivosGaleriaFiles((prev) => [...prev, ...files])
+                  }
+                }}
               />
             </div>
 

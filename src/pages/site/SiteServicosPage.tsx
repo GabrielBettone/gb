@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/select'
 import { Plus, Pencil, Trash2, Star, Eye, ExternalLink } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import ImageUploader from '@/components/site/ImageUploader'
+import { resolverUrlMidia } from '@/lib/watermark'
 
 export const SiteServicosPage: React.FC = () => {
   const [servicos, setServicos] = useState<SiteServico[]>([])
@@ -51,6 +53,11 @@ export const SiteServicosPage: React.FC = () => {
   const [imagemPrincipal, setImagemPrincipal] = useState('')
   const [galeriaStr, setGaleriaStr] = useState('')
   const [beneficiosStr, setBeneficiosStr] = useState('')
+
+  // Arquivos físicos selecionados
+  const [arquivoPrincipalFile, setArquivoPrincipalFile] = useState<File | undefined>()
+  const [arquivosGaleriaFiles, setArquivosGaleriaFiles] = useState<File[]>([])
+  const [imagensGaleriaList, setImagensGaleriaList] = useState<string[]>([])
 
   const carregarDados = async () => {
     setLoading(true)
@@ -82,6 +89,9 @@ export const SiteServicosPage: React.FC = () => {
     setImagemPrincipal('')
     setGaleriaStr('')
     setBeneficiosStr('')
+    setArquivoPrincipalFile(undefined)
+    setArquivosGaleriaFiles([])
+    setImagensGaleriaList([])
     setModalOpen(true)
   }
 
@@ -95,8 +105,18 @@ export const SiteServicosPage: React.FC = () => {
     setOrdem(s.ordem || 1)
     setDescricaoCurta(s.descricao_curta)
     setDescricaoLonga(s.descricao_longa)
-    setImagemPrincipal(s.imagem_principal)
+
+    // Prioriza arquivo nativo ou URL legada
+    const princVal = s.arquivo_principal || s.imagem_principal || ''
+    setImagemPrincipal(princVal)
+
+    // Combina galeria nativa + galeria legado
+    const listaGaleria = [...(s.arquivos_galeria || []), ...(s.galeria || [])].filter(Boolean)
+    setImagensGaleriaList(listaGaleria)
     setGaleriaStr((s.galeria || []).join('\n'))
+
+    setArquivoPrincipalFile(undefined)
+    setArquivosGaleriaFiles([])
     setBeneficiosStr((s.beneficios || []).join('\n'))
     setModalOpen(true)
   }
@@ -124,10 +144,9 @@ export const SiteServicosPage: React.FC = () => {
       return
     }
 
-    const galeria = galeriaStr
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
+    const galeria = imagensGaleriaList.filter(
+      (url) => !url.startsWith('blob:') && (url.startsWith('http') || !url.includes('/')),
+    )
     const beneficios = beneficiosStr
       .split('\n')
       .map((l) => l.trim())
@@ -142,17 +161,22 @@ export const SiteServicosPage: React.FC = () => {
       ordem: Number(ordem),
       descricao_curta: descricaoCurta,
       descricao_longa: descricaoLonga,
-      imagem_principal: imagemPrincipal,
+      imagem_principal: imagemPrincipal.startsWith('blob:') ? '' : imagemPrincipal,
       galeria,
       beneficios,
     }
 
+    const arquivosEnvio = {
+      arquivo_principal: arquivoPrincipalFile,
+      arquivos_galeria: arquivosGaleriaFiles.length > 0 ? arquivosGaleriaFiles : undefined,
+    }
+
     try {
       if (editando) {
-        await atualizarServico(editando.id, payload)
+        await atualizarServico(editando.id, payload, arquivosEnvio)
         toast({ title: 'Serviço atualizado com sucesso!' })
       } else {
-        await criarServico(payload)
+        await criarServico(payload, arquivosEnvio)
         toast({ title: 'Serviço criado com sucesso!' })
       }
       setModalOpen(false)
@@ -236,10 +260,15 @@ export const SiteServicosPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          {s.imagem_principal ? (
+                          {s.arquivo_principal || s.imagem_principal ? (
                             <img
-                              src={s.imagem_principal}
+                              src={
+                                s.arquivo_principal
+                                  ? resolverUrlMidia('site_services', s.id, s.arquivo_principal)
+                                  : s.imagem_principal
+                              }
                               alt={s.nome}
+                              crossOrigin="anonymous"
                               className="w-10 h-10 rounded-lg object-cover border border-[#DEE4EA]"
                             />
                           ) : (
@@ -425,24 +454,51 @@ export const SiteServicosPage: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#2C3E50]">Imagem Principal (URL)</Label>
-              <Input
-                value={imagemPrincipal}
-                onChange={(e) => setImagemPrincipal(e.target.value)}
-                placeholder="https://..."
+            {/* Upload de Imagem Principal (Arquivo ou URL) */}
+            <div className="space-y-3 bg-[#f8fafc] p-4 rounded-xl border border-[#DEE4EA]">
+              <ImageUploader
+                label="Foto / Capa Principal do Serviço"
+                helperText="Envie um arquivo ou use URL compatível"
+                multiple={false}
+                values={imagemPrincipal ? [imagemPrincipal] : []}
+                collectionName="site_services"
+                recordId={editando?.id}
+                onChange={(vals, files) => {
+                  setImagemPrincipal(vals[0] || '')
+                  setArquivoPrincipalFile(files?.[0])
+                }}
               />
+              <div className="pt-1">
+                <Label className="text-[11px] text-[#616F7D]">
+                  Ou informe uma URL externa direta:
+                </Label>
+                <Input
+                  className="mt-1 text-xs"
+                  value={imagemPrincipal.startsWith('blob:') ? '' : imagemPrincipal}
+                  onChange={(e) => {
+                    setImagemPrincipal(e.target.value)
+                    setArquivoPrincipalFile(undefined)
+                  }}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-[#2C3E50]">
-                Galeria de Fotos (uma URL por linha)
-              </Label>
-              <Textarea
-                rows={3}
-                value={galeriaStr}
-                onChange={(e) => setGaleriaStr(e.target.value)}
-                placeholder="https://imagem1.jpg&#10;https://imagem2.jpg"
+            {/* Upload de Galeria de Fotos */}
+            <div className="space-y-3 bg-[#f8fafc] p-4 rounded-xl border border-[#DEE4EA]">
+              <ImageUploader
+                label="Galeria de Fotos do Serviço"
+                helperText="Selecione múltiplos arquivos para a galeria"
+                multiple={true}
+                values={imagensGaleriaList}
+                collectionName="site_services"
+                recordId={editando?.id}
+                onChange={(vals, files) => {
+                  setImagensGaleriaList(vals)
+                  if (files && files.length > 0) {
+                    setArquivosGaleriaFiles((prev) => [...prev, ...files])
+                  }
+                }}
               />
             </div>
 

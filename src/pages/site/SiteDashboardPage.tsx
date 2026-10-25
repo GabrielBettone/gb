@@ -8,9 +8,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Users, Eye, MousePointerClick, MessageCircle, Bot, Activity } from 'lucide-react'
+import {
+  Users,
+  Eye,
+  MousePointerClick,
+  MessageCircle,
+  Bot,
+  Activity,
+  Download,
+  Loader2,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
+import { baixarTodasMidiasZip } from '@/services/siteMidiasDownload'
 
 export const SiteDashboardPage: React.FC = () => {
+  const [downloadingZip, setDownloadingZip] = useState(false)
+  const [progressoZip, setProgressoZip] = useState<{
+    atual: number
+    total: number
+    mensagem: string
+  } | null>(null)
   const [periodo, setPeriodo] = useState<'7' | '30' | '90'>('30')
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState({
@@ -53,25 +71,105 @@ export const SiteDashboardPage: React.FC = () => {
       <SiteTopNav />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Título e Seletor de Período */}
+        {/* Título, Seletor de Período e Botão Baixar Mídias */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-[#2C3E50]">Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs uppercase tracking-wider font-semibold text-[#616F7D]">
-              PERÍODO
-            </span>
-            <Select value={periodo} onValueChange={(val: any) => setPeriodo(val)}>
-              <SelectTrigger className="w-[170px] bg-white border-[#DEE4EA] text-xs font-medium text-[#2C3E50]">
-                <SelectValue placeholder="Selecione o período" />
-              </SelectTrigger>
-              <SelectContent className="bg-white text-xs">
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="90">Últimos 90 dias</SelectItem>
-              </SelectContent>
-            </Select>
+          <div>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold text-[#2C3E50]">
+              Dashboard
+            </h1>
+            <p className="text-xs text-[#616F7D] mt-0.5">
+              Gestão de conteúdo, métricas em tempo real e mídias originais do site.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Botão Baixar Mídias */}
+            <Button
+              type="button"
+              disabled={downloadingZip}
+              onClick={async () => {
+                setDownloadingZip(true)
+                try {
+                  toast({
+                    title: 'Iniciando download das mídias originais',
+                    description:
+                      'Empacotando pastas de Projetos, Serviços e Parceiros sem marca d água...',
+                  })
+                  await baixarTodasMidiasZip((prog) => {
+                    setProgressoZip(prog)
+                  })
+                  toast({
+                    title: 'Download concluído com sucesso!',
+                    description: 'O arquivo ZIP com todas as mídias originais foi gerado.',
+                  })
+                } catch (err: any) {
+                  toast({
+                    title: 'Erro ao baixar mídias',
+                    description: err.message || 'Verifique sua conexão.',
+                    variant: 'destructive',
+                  })
+                } finally {
+                  setDownloadingZip(false)
+                  setProgressoZip(null)
+                }
+              }}
+              className="bg-[#2C3E50] hover:bg-[#1B2631] text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm flex items-center gap-2"
+            >
+              {downloadingZip ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                  <span>
+                    Baixando ({progressoZip?.atual || 0}/{progressoZip?.total || '...'})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 text-[#D4AF37]" />
+                  <span>Baixar Mídias (ZIP)</span>
+                </>
+              )}
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wider font-semibold text-[#616F7D]">
+                PERÍODO
+              </span>
+              <Select value={periodo} onValueChange={(val: any) => setPeriodo(val)}>
+                <SelectTrigger className="w-[170px] bg-white border-[#DEE4EA] text-xs font-medium text-[#2C3E50]">
+                  <SelectValue placeholder="Selecione o período" />
+                </SelectTrigger>
+                <SelectContent className="bg-white text-xs">
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
+
+        {/* Barra de Progresso Durante Download de Mídias */}
+        {downloadingZip && progressoZip && (
+          <div className="bg-[#2C3E50] text-white p-4 rounded-2xl border border-[#D4AF37]/40 shadow-md space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                {progressoZip.mensagem}
+              </span>
+              <span className="font-mono text-[#D4AF37] font-bold">
+                {Math.round((progressoZip.atual / Math.max(progressoZip.total, 1)) * 100)}%
+              </span>
+            </div>
+            <div className="h-2 w-full bg-black/30 rounded-full overflow-hidden">
+              <div
+                style={{
+                  width: `${Math.max(4, Math.min(100, (progressoZip.atual / Math.max(progressoZip.total, 1)) * 100))}%`,
+                }}
+                className="h-full bg-[#D4AF37] transition-all duration-300"
+              />
+            </div>
+          </div>
+        )}
 
         {/* 6 Cards de Indicadores idênticos ao Print */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
