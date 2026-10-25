@@ -600,6 +600,48 @@ for delete to authenticated using (
   bucket_id in ('site-media', 'simulator-private') and public.is_admin()
 );
 
+-- SQL privileges are required in addition to RLS policies. The policies above
+-- restrict actual rows/operations; these grants make the Data API roles eligible
+-- to reach the tables in the first place.
+grant usage on schema public to anon, authenticated;
+grant execute on function public.is_admin() to anon, authenticated;
+
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.produtos to authenticated;
+grant select, insert, update, delete on public.clientes_grupos to authenticated;
+grant select, insert, update, delete on public.clientes to authenticated;
+grant select, insert, update, delete on public.orcamento_servicos to authenticated;
+grant select, insert, update, delete on public.metodos_pagamento to authenticated;
+grant select, insert, update, delete on public.orcamento_configuracoes to authenticated;
+grant select, insert, update, delete on public.orcamentos to authenticated;
+grant select, insert, update, delete on public.pagamentos_parcelas to authenticated;
+grant select, insert, update, delete on public.vendas to authenticated;
+grant select, insert, update, delete on public.regras_alerta to authenticated;
+grant select, insert, update, delete on public.alertas to authenticated;
+grant select, insert, update, delete on public.importacoes to authenticated;
+
+grant select on public.site_categories to anon, authenticated;
+grant insert, update, delete on public.site_categories to authenticated;
+grant select on public.site_services to anon, authenticated;
+grant insert, update, delete on public.site_services to authenticated;
+grant select on public.site_portfolio to anon, authenticated;
+grant insert, update, delete on public.site_portfolio to authenticated;
+grant select on public.site_testimonials to anon, authenticated;
+grant insert, update, delete on public.site_testimonials to authenticated;
+grant select on public.partner_categories to anon, authenticated;
+grant insert, update, delete on public.partner_categories to authenticated;
+grant select on public.site_partners to anon, authenticated;
+grant insert, update, delete on public.site_partners to authenticated;
+grant select, insert, update, delete on public.partner_clicks to anon, authenticated;
+grant select, insert, update, delete on public.site_settings to anon, authenticated;
+grant select, insert, update, delete on public.site_analytics_events to anon, authenticated;
+
+grant select, insert, update, delete on public.simulador_clientes to authenticated;
+grant select, insert, update, delete on public.simulador_historico to authenticated;
+
+grant select on storage.objects to anon, authenticated;
+grant insert, update, delete on storage.objects to authenticated;
+
 -- Keep updated timestamps aligned with the existing frontend field names.
 do $$
 declare
