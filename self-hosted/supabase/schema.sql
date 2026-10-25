@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   grupo TEXT REFERENCES public.clientes_grupos(id) ON DELETE SET NULL,
   metodo_pagamento TEXT REFERENCES public.metodos_pagamento(id) ON DELETE SET NULL,
   itens JSONB DEFAULT '[]'::jsonb,
+  itens_por_local JSONB DEFAULT '[]'::jsonb,
   subtotal NUMERIC DEFAULT 0,
   desconto NUMERIC DEFAULT 0,
   valor_total NUMERIC NOT NULL DEFAULT 0,
@@ -225,6 +226,9 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- Garante coluna itens_por_local caso a tabela já exista
+ALTER TABLE IF EXISTS public.orcamentos ADD COLUMN IF NOT EXISTS itens_por_local JSONB DEFAULT '[]'::jsonb;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orcamentos_numero ON public.orcamentos(numero);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_status ON public.orcamentos(status);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_cliente ON public.orcamentos(cliente);
@@ -238,7 +242,8 @@ CREATE TRIGGER trigger_orcamentos_updated_at
 -- 9. CONTAS A RECEBER (AGENDA DE PARCELAS)
 CREATE TABLE IF NOT EXISTS public.pagamentos_parcelas (
   id TEXT PRIMARY KEY DEFAULT ('parc_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
-  orcamento TEXT NOT NULL REFERENCES public.orcamentos(id) ON DELETE CASCADE,
+  orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE CASCADE,
+  orcamento_id TEXT,
   numero_parcela INTEGER NOT NULL,
   total_parcelas INTEGER NOT NULL,
   descricao TEXT,
@@ -253,6 +258,12 @@ CREATE TABLE IF NOT EXISTS public.pagamentos_parcelas (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Compatibilidade e colunas orcamento / orcamento_id com backfill mútuo
+ALTER TABLE IF EXISTS public.pagamentos_parcelas ADD COLUMN IF NOT EXISTS orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS public.pagamentos_parcelas ADD COLUMN IF NOT EXISTS orcamento_id TEXT;
+UPDATE public.pagamentos_parcelas SET orcamento = orcamento_id WHERE orcamento IS NULL AND orcamento_id IS NOT NULL;
+UPDATE public.pagamentos_parcelas SET orcamento_id = orcamento WHERE orcamento_id IS NULL AND orcamento IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_parcelas_orcamento ON public.pagamentos_parcelas(orcamento);
 CREATE INDEX IF NOT EXISTS idx_parcelas_status ON public.pagamentos_parcelas(status);
@@ -272,10 +283,14 @@ CREATE TABLE IF NOT EXISTS public.vendas (
   canal TEXT NOT NULL,
   cidade TEXT,
   valor NUMERIC NOT NULL,
+  itens JSONB DEFAULT '[]'::jsonb,
   orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Garante coluna itens em vendas caso a tabela já exista
+ALTER TABLE IF EXISTS public.vendas ADD COLUMN IF NOT EXISTS itens JSONB DEFAULT '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_vendas_data ON public.vendas(data);
 CREATE INDEX IF NOT EXISTS idx_vendas_produto ON public.vendas(produto);
@@ -367,6 +382,7 @@ CREATE TABLE IF NOT EXISTS public.site_services (
   nome TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   categoria TEXT NOT NULL,
+  categorias JSONB DEFAULT '[]'::jsonb,
   destaque BOOLEAN DEFAULT false,
   ativo BOOLEAN DEFAULT true,
   ordem INTEGER DEFAULT 0,
@@ -383,6 +399,14 @@ CREATE TABLE IF NOT EXISTS public.site_services (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Garante coluna categorias e backfill a partir da coluna categoria legado
+ALTER TABLE IF EXISTS public.site_services ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT '[]'::jsonb;
+UPDATE public.site_services
+  SET categorias = jsonb_build_array(categoria)
+  WHERE (categorias IS NULL OR categorias = '[]'::jsonb)
+    AND categoria IS NOT NULL
+    AND categoria <> '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_site_services_slug ON public.site_services(slug);
 CREATE INDEX IF NOT EXISTS idx_site_services_destaque ON public.site_services(destaque);
@@ -421,6 +445,7 @@ CREATE TABLE IF NOT EXISTS public.site_portfolio (
   titulo TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
   categoria TEXT NOT NULL,
+  categorias JSONB DEFAULT '[]'::jsonb,
   subtitulo TEXT,
   cidade TEXT,
   descricao TEXT,
@@ -441,6 +466,14 @@ CREATE TABLE IF NOT EXISTS public.site_portfolio (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+-- Garante coluna categorias e backfill a partir da coluna categoria legado
+ALTER TABLE IF EXISTS public.site_portfolio ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT '[]'::jsonb;
+UPDATE public.site_portfolio
+  SET categorias = jsonb_build_array(categoria)
+  WHERE (categorias IS NULL OR categorias = '[]'::jsonb)
+    AND categoria IS NOT NULL
+    AND categoria <> '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_site_portfolio_slug ON public.site_portfolio(slug);
 CREATE INDEX IF NOT EXISTS idx_site_portfolio_destaque ON public.site_portfolio(destaque);
@@ -872,3 +905,15 @@ CREATE POLICY "simulador_auth_all" ON storage.objects
   FOR ALL TO authenticated
   USING (bucket_id = 'simulador')
   WITH CHECK (bucket_id = 'simulador');
+
+-- ============================================================================
+-- 17. GRANTS DE PERMISSÃO E PRIVILÉGIOS (Idempotente)
+-- ============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;

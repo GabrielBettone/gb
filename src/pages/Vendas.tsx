@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { GlobalFilters } from '@/components/GlobalFilters'
 import { useFilters } from '@/contexts/FilterContext'
-import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 import { useRealtime } from '@/hooks/use-realtime'
-import type { Venda, Produto, CanalVenda } from '@/types'
+import type { Venda, Produto, CanalVenda, ItemVenda } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -56,6 +57,8 @@ import {
   MapPin,
   Calendar,
   Layers,
+  Pencil,
+  Package,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -82,14 +85,15 @@ export const Vendas: React.FC = () => {
   const [vendaToDelete, setVendaToDelete] = useState<Venda | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Formulário Nova Venda
+  // Formulário Nova / Edição de Venda
+  const [editandoVenda, setEditandoVenda] = useState<Venda | null>(null)
+  const [itensLinhas, setItensLinhas] = useState<ItemVenda[]>([])
   const [formData, setFormData] = useState({
     data: new Date().toISOString().substring(0, 10),
     cliente: '',
-    produto: '',
     canal: 'WhatsApp' as CanalVenda,
     cidade: 'São Pedro',
-    valor: '',
+    valorManual: '',
   })
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({})
 
@@ -98,11 +102,11 @@ export const Vendas: React.FC = () => {
   const carregarDados = useCallback(async () => {
     try {
       const [vendasRes, produtosRes] = await Promise.all([
-        pb.collection<Venda>('vendas').getFullList({
+        dataAdapter.getFullList<Venda>('vendas', {
           sort: '-data',
           expand: 'produto',
         }),
-        pb.collection<Produto>('produtos').getFullList({
+        dataAdapter.getFullList<Produto>('produtos', {
           sort: 'nome',
         }),
       ])
@@ -123,6 +127,38 @@ export const Vendas: React.FC = () => {
   useRealtime<Venda>('vendas', () => {
     carregarDados()
   })
+
+  // Parse de itens de uma venda (compatibilidade com vendas antigas)
+  const extrairItensVenda = useCallback(
+    (v: Venda): ItemVenda[] => {
+      if (v.itens) {
+        if (Array.isArray(v.itens) && v.itens.length > 0) {
+          return v.itens
+        }
+        if (typeof v.itens === 'string') {
+          try {
+            const parsed = JSON.parse(v.itens)
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed
+          } catch {
+            // fallback
+          }
+        }
+      }
+      // Venda legada sem itens: mapeia produto/valor legado
+      const prodEncontrado = produtos.find((p) => p.id === v.produto)
+      const nomeProd = v.expand?.produto?.nome || prodEncontrado?.nome || 'Serviço de Gesso'
+      return [
+        {
+          produto_id: v.produto,
+          nome: nomeProd,
+          quantidade: 1,
+          valor_unitario: v.valor || 0,
+          total: v.valor || 0,
+        },
+      ]
+    },
+    [produtos],
+  )
 
   // Calcula datas de filtro
   const { dataInicioFiltro, dataFimFiltro } = useMemo(() => {
@@ -255,16 +291,18 @@ export const Vendas: React.FC = () => {
       return
     }
 
-    const headers = ['Data', 'Cliente', 'Produto', 'Canal', 'Cidade', 'Valor (R$)']
+    const headers = ['Data', 'Cliente', 'Itens/Produtos', 'Canal', 'Cidade', 'Valor Total (R$)']
     const rows = vendasOrdenadas.map((v) => {
       const dataFormatada = new Date(v.data).toLocaleDateString('pt-BR')
-      const prodNome =
-        v.expand?.produto?.nome || produtos.find((p) => p.id === v.produto)?.nome || ''
+      const itensDaVenda = extrairItensVenda(v)
+      const resumoItens = itensDaVenda
+        .map((it) => `${it.quantidade}x ${it.nome} (R$ ${it.total.toFixed(2)})`)
+        .join(' | ')
       const valorStr = v.valor ? v.valor.toFixed(2).replace('.', ',') : '0,00'
       return [
         `"${dataFormatada}"`,
         `"${v.cliente.replace(/"/g, '""')}"`,
-        `"${prodNome.replace(/"/g, '""')}"`,
+        `"${resumoItens.replace(/"/g, '""')}"`,
         `"${v.canal}"`,
         `"${(v.cidade || '').replace(/"/g, '""')}"`,
         `"${valorStr}"`,
@@ -290,64 +328,162 @@ export const Vendas: React.FC = () => {
     })
   }
 
-  // Máscara e parse de moeda
-  const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '')
-    if (!raw) {
-      setFormData((prev) => ({ ...prev, valor: '' }))
-      return
-    }
-    const valFloat = (parseInt(raw, 10) / 100).toFixed(2)
-    const formatted = valFloat.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.')
-    setFormData((prev) => ({ ...prev, valor: formatted }))
+  // Adiciona linha de item na venda
+  const adicionarLinhaItem = () => {
+    const prodPadrao = produtos[0]
+    setItensLinhas((prev) => [
+      ...prev,
+      {
+        produto_id: prodPadrao?.id || '',
+        nome: prodPadrao?.nome || 'Serviço de Gesso',
+        quantidade: 1,
+        valor_unitario: prodPadrao?.preco_base || 0,
+        total: prodPadrao?.preco_base || 0,
+      },
+    ])
   }
 
-  const validateNovaVenda = () => {
+  // Atualiza campo de uma linha
+  const atualizarLinhaItem = (index: number, campo: keyof ItemVenda, valor: any) => {
+    setItensLinhas((prev) => {
+      const copy = [...prev]
+      const linha = { ...copy[index] }
+
+      if (campo === 'produto_id') {
+        linha.produto_id = valor
+        const achado = produtos.find((p) => p.id === valor)
+        if (achado) {
+          linha.nome = achado.nome
+          if (!linha.valor_unitario) {
+            linha.valor_unitario = achado.preco_base || 0
+          }
+        }
+      } else if (campo === 'nome') {
+        linha.nome = valor
+      } else if (campo === 'quantidade') {
+        const q = Math.max(0.01, parseFloat(valor) || 0)
+        linha.quantidade = q
+      } else if (campo === 'valor_unitario') {
+        const vu = Math.max(0, parseFloat(valor) || 0)
+        linha.valor_unitario = vu
+      }
+
+      linha.total = Number((linha.quantidade * linha.valor_unitario).toFixed(2))
+      copy[index] = linha
+      return copy
+    })
+  }
+
+  // Remove uma linha
+  const removerLinhaItem = (index: number) => {
+    setItensLinhas((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Total somado das linhas
+  const totalItens = useMemo(() => {
+    return itensLinhas.reduce((acc, it) => acc + (it.total || 0), 0)
+  }, [itensLinhas])
+
+  const abrirNovaVenda = () => {
+    setEditandoVenda(null)
+    const prodPadrao = produtos[0]
+    setItensLinhas([
+      {
+        produto_id: prodPadrao?.id || '',
+        nome: prodPadrao?.nome || 'Serviço de Gesso',
+        quantidade: 1,
+        valor_unitario: prodPadrao?.preco_base || 0,
+        total: prodPadrao?.preco_base || 0,
+      },
+    ])
+    setFormData({
+      data: new Date().toISOString().substring(0, 10),
+      cliente: '',
+      canal: 'WhatsApp',
+      cidade: 'São Pedro',
+      valorManual: '',
+    })
+    setFormErrors({})
+    setNovaVendaOpen(true)
+  }
+
+  const abrirEdicaoVenda = (venda: Venda) => {
+    setEditandoVenda(venda)
+    const itensExistentes = extrairItensVenda(venda)
+    setItensLinhas(itensExistentes)
+    const dataIso = venda.data
+      ? venda.data.substring(0, 10)
+      : new Date().toISOString().substring(0, 10)
+    setFormData({
+      data: dataIso,
+      cliente: venda.cliente || '',
+      canal: venda.canal || 'WhatsApp',
+      cidade: venda.cidade || 'São Pedro',
+      valorManual: '',
+    })
+    setFormErrors({})
+    setNovaVendaOpen(true)
+  }
+
+  const validateVenda = () => {
     const errs: { [key: string]: string } = {}
     if (!formData.data) errs.data = 'Data é obrigatória'
     if (!formData.cliente.trim()) errs.cliente = 'Nome do cliente é obrigatório'
-    if (!formData.produto) errs.produto = 'Selecione um produto'
     if (!formData.canal) errs.canal = 'Selecione o canal de venda'
-    if (!formData.valor) errs.valor = 'Informe o valor da venda'
+    if (itensLinhas.length === 0) {
+      errs.itens = 'Adicione ao menos um produto/item na venda'
+    } else {
+      const temInvalido = itensLinhas.some((it) => !it.nome || it.quantidade <= 0)
+      if (temInvalido) {
+        errs.itens = 'Todos os itens precisam de produto válido e quantidade > 0'
+      }
+    }
     setFormErrors(errs)
     return Object.keys(errs).length === 0
   }
 
-  const handleCreateVenda = async (e: React.FormEvent) => {
+  const handleSaveVenda = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateNovaVenda()) return
+    if (!validateVenda()) return
 
     setSavingVenda(true)
     try {
-      const cleanValor = parseFloat(formData.valor.replace(/\./g, '').replace(',', '.'))
-      await pb.collection('vendas').create({
+      const valorFinal = Number(totalItens.toFixed(2))
+      const produtoPrincipalId =
+        itensLinhas[0]?.produto_id || (produtos.length > 0 ? produtos[0].id : '')
+
+      const payload = {
         data: `${formData.data} 12:00:00.000Z`,
         cliente: formData.cliente.trim(),
-        produto: formData.produto,
+        produto: produtoPrincipalId,
         canal: formData.canal,
         cidade: formData.cidade.trim() || 'São Pedro',
-        valor: cleanValor,
-      })
+        valor: valorFinal,
+        itens: itensLinhas,
+      }
 
-      toast({
-        title: 'Venda registrada!',
-        description: 'A nova venda foi salva e os indicadores já foram atualizados.',
-      })
+      if (editandoVenda) {
+        await dataAdapter.update('vendas', editandoVenda.id, payload)
+        toast({
+          title: 'Venda atualizada!',
+          description: 'As alterações na venda e itens foram salvas.',
+        })
+      } else {
+        await dataAdapter.create('vendas', payload)
+        toast({
+          title: 'Venda registrada!',
+          description: 'A nova venda foi salva com múltiplos itens.',
+        })
+      }
+
       setNovaVendaOpen(false)
-      setFormData({
-        data: new Date().toISOString().substring(0, 10),
-        cliente: '',
-        produto: '',
-        canal: 'WhatsApp',
-        cidade: 'São Pedro',
-        valor: '',
-      })
+      setEditandoVenda(null)
       carregarDados()
     } catch (err: unknown) {
       const eObj = err as { message?: string }
       toast({
         variant: 'destructive',
-        title: 'Erro ao registrar venda',
+        title: 'Erro ao salvar venda',
         description: eObj?.message || 'Verifique as informações fornecidas.',
       })
     } finally {
@@ -359,7 +495,7 @@ export const Vendas: React.FC = () => {
     if (!vendaToDelete) return
     setDeleting(true)
     try {
-      await pb.collection('vendas').delete(vendaToDelete.id)
+      await dataAdapter.delete('vendas', vendaToDelete.id)
       toast({
         title: 'Venda excluída',
         description: 'O registro foi removido com sucesso.',
@@ -420,12 +556,7 @@ export const Vendas: React.FC = () => {
 
             <Button
               size="sm"
-              onClick={() => {
-                if (produtos.length > 0 && !formData.produto) {
-                  setFormData((prev) => ({ ...prev, produto: produtos[0].id }))
-                }
-                setNovaVendaOpen(true)
-              }}
+              onClick={abrirNovaVenda}
               className="h-10 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold shadow-sm"
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -480,12 +611,12 @@ export const Vendas: React.FC = () => {
                   className="cursor-pointer text-xs font-semibold text-[#22272A] py-3 select-none"
                 >
                   <div className="flex items-center gap-1">
-                    Produto
+                    Itens / Produtos
                     {sortField === 'produto' ? (
                       sortAsc ? (
-                        <ArrowUp className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                        <ArrowUp className="w-3.5 h-3.5 text-[#2C3E50]" />
                       ) : (
-                        <ArrowDown className="w-3.5 h-3.5 text-[#1C4E3D]" />
+                        <ArrowDown className="w-3.5 h-3.5 text-[#2C3E50]" />
                       )
                     ) : (
                       <ArrowUpDown className="w-3.5 h-3.5 text-[#8A94A0]" />
@@ -567,16 +698,14 @@ export const Vendas: React.FC = () => {
                 </TableRow>
               ) : (
                 vendasPaginadas.map((venda) => {
-                  const prodNome =
-                    venda.expand?.produto?.nome ||
-                    produtos.find((p) => p.id === venda.produto)?.nome ||
-                    'Produto'
+                  const itensV = extrairItensVenda(venda)
                   const dataFormatada = new Date(venda.data).toLocaleDateString('pt-BR')
 
                   return (
                     <TableRow
                       key={venda.id}
-                      className="hover:bg-[#F6F7F9]/80 group transition-colors"
+                      className="hover:bg-[#F6F7F9]/80 group transition-colors cursor-pointer"
+                      onClick={() => abrirEdicaoVenda(venda)}
                     >
                       <TableCell className="text-xs text-[#5B6470] py-3 font-mono">
                         {dataFormatada}
@@ -584,7 +713,28 @@ export const Vendas: React.FC = () => {
                       <TableCell className="text-xs font-semibold text-[#22272A] py-3">
                         {venda.cliente}
                       </TableCell>
-                      <TableCell className="text-xs text-[#22272A] py-3">{prodNome}</TableCell>
+                      <TableCell className="text-xs text-[#22272A] py-3">
+                        <div className="flex flex-col gap-0.5 max-w-[260px]">
+                          {itensV.slice(0, 2).map((it, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 truncate">
+                              <Badge
+                                variant="outline"
+                                className="border-[#DEE4EA] text-[10px] px-1 py-0 h-4 font-mono"
+                              >
+                                {it.quantidade}x
+                              </Badge>
+                              <span className="truncate text-xs text-[#2C3E50] font-medium">
+                                {it.nome}
+                              </span>
+                            </div>
+                          ))}
+                          {itensV.length > 2 && (
+                            <span className="text-[10px] text-[#8A94A0]">
+                              +{itensV.length - 2} outro(s) item(ns)
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs py-3">
                         <span className="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8EDF2] text-[#2C3E50]">
                           {venda.canal}
@@ -596,16 +746,27 @@ export const Vendas: React.FC = () => {
                       <TableCell className="text-xs font-bold text-[#2C3E50] text-right py-3 font-mono">
                         {formatMoeda(venda.valor)}
                       </TableCell>
-                      <TableCell className="text-center py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setVendaToDelete(venda)}
-                          className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#C4453C] hover:bg-[#FBEFEE] opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Excluir venda"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                      <TableCell className="text-center py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => abrirEdicaoVenda(venda)}
+                            className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#2C3E50] hover:bg-[#DEE4EA] opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Editar venda"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setVendaToDelete(venda)}
+                            className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#C4453C] hover:bg-[#FBEFEE] opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Excluir venda"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -628,10 +789,7 @@ export const Vendas: React.FC = () => {
             </div>
           ) : (
             vendasPaginadas.map((venda) => {
-              const prodNome =
-                venda.expand?.produto?.nome ||
-                produtos.find((p) => p.id === venda.produto)?.nome ||
-                'Produto'
+              const itensV = extrairItensVenda(venda)
               const dataFormatada = new Date(venda.data).toLocaleDateString('pt-BR')
 
               return (
@@ -639,7 +797,10 @@ export const Vendas: React.FC = () => {
                   key={venda.id}
                   className="rounded-xl border border-[#E3E6EA] bg-white p-4 shadow-sm"
                 >
-                  <div className="flex items-start justify-between">
+                  <div
+                    className="flex items-start justify-between cursor-pointer"
+                    onClick={() => abrirEdicaoVenda(venda)}
+                  >
                     <div>
                       <h4 className="font-bold text-sm text-[#22272A]">{venda.cliente}</h4>
                       <div className="flex items-center gap-1.5 text-xs text-[#5B6470] mt-0.5">
@@ -652,22 +813,48 @@ export const Vendas: React.FC = () => {
                     </span>
                   </div>
 
+                  <div className="mt-2.5 pt-2 text-xs space-y-1">
+                    {itensV.slice(0, 3).map((it, idx) => (
+                      <div key={idx} className="flex justify-between text-[#5B6470]">
+                        <span>
+                          {it.quantidade}x {it.nome}
+                        </span>
+                        <span className="font-mono text-[#2C3E50]">{formatMoeda(it.total)}</span>
+                      </div>
+                    ))}
+                    {itensV.length > 3 && (
+                      <span className="text-[10px] text-[#8A94A0]">
+                        +{itensV.length - 3} outro(s) item(ns)
+                      </span>
+                    )}
+                  </div>
+
                   <div className="mt-3 pt-3 border-t border-[#E3E6EA] flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8EDF2] text-[#2C3E50]">
                         {venda.canal}
                       </span>
-                      <span className="text-[#5B6470] truncate max-w-[140px]">{prodNome}</span>
+                      <span className="text-[#5B6470]">{venda.cidade || 'São Pedro'}</span>
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setVendaToDelete(venda)}
-                      className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#C4453C]"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => abrirEdicaoVenda(venda)}
+                        className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#2C3E50]"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setVendaToDelete(venda)}
+                        className="h-7 w-7 p-0 text-[#8A94A0] hover:text-[#C4453C]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               )
@@ -712,21 +899,21 @@ export const Vendas: React.FC = () => {
         )}
       </div>
 
-      {/* MODAL NOVA VENDA */}
+      {/* MODAL NOVA / EDITAR VENDA COM MÚLTIPLOS ITENS */}
       <Dialog open={novaVendaOpen} onOpenChange={setNovaVendaOpen}>
-        <DialogContent className="max-w-md bg-white border-[#E3E6EA] rounded-xl p-6">
+        <DialogContent className="max-w-3xl bg-white border-[#E3E6EA] rounded-xl p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50] flex items-center gap-2">
-              <Plus className="w-5 h-5 text-[#D4AF37]" />
-              Lançar Nova Venda
-            </DialogTitle>{' '}
+              <Package className="w-5 h-5 text-[#D4AF37]" />
+              {editandoVenda ? 'Editar Venda' : 'Lançar Nova Venda com Múltiplos Itens'}
+            </DialogTitle>
             <DialogDescription className="text-xs text-[#5B6470]">
-              Insira os dados da ordem de serviço ou pedido manual
+              Adicione produtos/serviços do catálogo, quantidades e valores por linha.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateVenda} className="space-y-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
+          <form onSubmit={handleSaveVenda} className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-[#22272A]">Data *</Label>
                 <Input
@@ -737,56 +924,19 @@ export const Vendas: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-semibold text-[#22272A]">Valor (R$) *</Label>
-                <div className="relative">
-                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#8A94A0]">
-                    R$
-                  </span>
-                  <Input
-                    type="text"
-                    placeholder="0,00"
-                    value={formData.valor}
-                    onChange={handleValorChange}
-                    className={`pl-8 ${formErrors.valor ? 'border-destructive' : ''}`}
-                  />
-                </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs font-semibold text-[#22272A]">Cliente *</Label>
+                <Input
+                  type="text"
+                  placeholder="Ex: Construtora Alfa ou Residencial Silva"
+                  value={formData.cliente}
+                  onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                  className={formErrors.cliente ? 'border-destructive' : ''}
+                />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-[#22272A]">Cliente *</Label>
-              <Input
-                type="text"
-                placeholder="Ex: Construtora Alfa ou Resid. Silva"
-                value={formData.cliente}
-                onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
-                className={formErrors.cliente ? 'border-destructive' : ''}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-[#22272A]">Produto / Serviço *</Label>
-              <Select
-                value={formData.produto}
-                onValueChange={(val) => setFormData({ ...formData, produto: val })}
-              >
-                <SelectTrigger
-                  className={`text-xs ${formErrors.produto ? 'border-destructive' : ''}`}
-                >
-                  <SelectValue placeholder="Selecione o produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {produtos.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-[#22272A]">Canal de Venda *</Label>
                 <Select
@@ -817,6 +967,136 @@ export const Vendas: React.FC = () => {
               </div>
             </div>
 
+            {/* SEÇÃO: ITENS / PRODUTOS DA VENDA */}
+            <div className="space-y-2 pt-2 border-t border-[#E3E6EA]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-bold text-[#2C3E50]">
+                    Produtos e Serviços da Venda ({itensLinhas.length})
+                  </Label>
+                  <p className="text-[11px] text-[#5B6470]">
+                    Selecione produtos cadastrados ou informe itens sob medida.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={adicionarLinhaItem}
+                  className="h-8 text-xs border-[#D4AF37] text-[#2C3E50] hover:bg-[#D4AF37]/10 font-bold"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1 text-[#D4AF37]" />+ Adicionar produto
+                </Button>
+              </div>
+
+              {formErrors.itens && (
+                <p className="text-xs text-red-600 font-semibold">{formErrors.itens}</p>
+              )}
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {itensLinhas.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="p-3 bg-[#f8fafc] border border-[#DEE4EA] rounded-xl grid grid-cols-12 gap-2 items-center"
+                  >
+                    {/* Seletor de Produto */}
+                    <div className="col-span-12 sm:col-span-5 space-y-1">
+                      <Label className="text-[11px] text-[#616F7D]">Produto / Serviço *</Label>
+                      <Select
+                        value={item.produto_id || 'manual'}
+                        onValueChange={(val) => {
+                          if (val === 'manual') {
+                            atualizarLinhaItem(idx, 'produto_id', '')
+                          } else {
+                            atualizarLinhaItem(idx, 'produto_id', val)
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectValue placeholder="Selecione o produto" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[220px]">
+                          {produtos.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="text-xs">
+                              {p.nome} {p.preco_base ? `(R$ ${p.preco_base.toFixed(2)})` : ''}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="manual" className="text-xs font-medium text-[#2C3E50]">
+                            Outro item / Descrição livre
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {!item.produto_id && (
+                        <Input
+                          placeholder="Nome do produto ou serviço..."
+                          value={item.nome}
+                          onChange={(e) => atualizarLinhaItem(idx, 'nome', e.target.value)}
+                          className="h-7 text-xs bg-white mt-1"
+                        />
+                      )}
+                    </div>
+
+                    {/* Quantidade */}
+                    <div className="col-span-4 sm:col-span-2 space-y-1">
+                      <Label className="text-[11px] text-[#616F7D]">Qtd *</Label>
+                      <Input
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={item.quantidade}
+                        onChange={(e) => atualizarLinhaItem(idx, 'quantidade', e.target.value)}
+                        className="h-8 text-xs bg-white text-right font-mono"
+                      />
+                    </div>
+
+                    {/* Valor Unitário */}
+                    <div className="col-span-4 sm:col-span-2 space-y-1">
+                      <Label className="text-[11px] text-[#616F7D]">Unitário (R$)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.valor_unitario}
+                        onChange={(e) => atualizarLinhaItem(idx, 'valor_unitario', e.target.value)}
+                        className="h-8 text-xs bg-white text-right font-mono"
+                      />
+                    </div>
+
+                    {/* Total da Linha */}
+                    <div className="col-span-3 sm:col-span-2 space-y-1 text-right">
+                      <Label className="text-[11px] text-[#616F7D]">Total Linha</Label>
+                      <div className="h-8 flex items-center justify-end font-bold text-xs font-mono text-[#2C3E50]">
+                        {formatMoeda(item.total)}
+                      </div>
+                    </div>
+
+                    {/* Remover */}
+                    <div className="col-span-1 sm:col-span-1 flex items-end justify-center pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => removerLinhaItem(idx)}
+                        disabled={itensLinhas.length <= 1}
+                        className="p-1.5 text-[#8A94A0] hover:text-[#C4453C] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                        title="Remover linha"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totalizador da Venda */}
+              <div className="flex items-center justify-between p-3 bg-[#2C3E50]/5 rounded-xl border border-[#2C3E50]/15">
+                <span className="text-xs font-bold text-[#2C3E50] uppercase tracking-wide">
+                  Total Geral da Venda:
+                </span>
+                <span className="font-heading text-lg font-bold text-[#2C3E50] font-mono">
+                  {formatMoeda(totalItens)}
+                </span>
+              </div>
+            </div>
+
             <DialogFooter className="pt-4 border-t border-[#E3E6EA]">
               <Button
                 type="button"
@@ -838,8 +1118,10 @@ export const Vendas: React.FC = () => {
                     <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                     Salvando...
                   </>
+                ) : editandoVenda ? (
+                  'Salvar alterações'
                 ) : (
-                  'Salvar venda'
+                  'Registrar venda'
                 )}
               </Button>
             </DialogFooter>

@@ -68,7 +68,8 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
 
   const filtered = servicos.filter((s) => {
     if (filter === 'Todos') return true
-    return s.categoria === filter
+    const lista = s.categorias && s.categorias.length > 0 ? s.categorias : [s.categoria]
+    return lista.includes(filter)
   })
 
   const displayed = limit ? filtered.slice(0, limit) : filtered
@@ -161,12 +162,18 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
                       Destaque
                     </Badge>
                   )}
-                  <Badge
-                    variant="secondary"
-                    className="bg-black/60 backdrop-blur text-white text-[10px] font-medium border-none"
-                  >
-                    {servico.categoria}
-                  </Badge>
+                  {(servico.categorias && servico.categorias.length > 0
+                    ? servico.categorias
+                    : [servico.categoria]
+                  ).map((catNome, i) => (
+                    <Badge
+                      key={i}
+                      variant="secondary"
+                      className="bg-black/60 backdrop-blur text-white text-[10px] font-medium border-none"
+                    >
+                      {catNome}
+                    </Badge>
+                  ))}
                 </div>
               </div>
 

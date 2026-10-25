@@ -14,10 +14,19 @@ export interface Produto extends RecordModel {
 
 export type CanalVenda = 'WhatsApp' | 'E-mail' | 'Instagram' | 'Loja física'
 
+export interface ItemVenda {
+  produto_id?: string
+  nome: string
+  quantidade: number
+  valor_unitario: number
+  total: number
+}
+
 export interface Venda extends RecordModel {
   data: string
   cliente: string
   produto: string
+  itens?: ItemVenda[] | string
   expand?: {
     produto?: Produto
     orcamento?: Orcamento
@@ -47,6 +56,15 @@ export interface ItemOrcamento {
   // Para cálculo por largura × comprimento
   largura?: number
   comprimento?: number
+}
+
+export interface ItemPorLocalOrcamento {
+  local: string
+  servico: string
+  servico_id?: string
+  metragem: number
+  valor: number
+  total: number
 }
 
 export interface ClienteGrupo extends RecordModel {
@@ -110,6 +128,7 @@ export type StatusParcela = 'a_pagar' | 'paga' | 'cancelada'
 
 export interface PagamentoParcela extends RecordModel {
   orcamento: string
+  orcamento_id?: string
   numero_parcela: number
   total_parcelas: number
   descricao?: string
@@ -147,6 +166,7 @@ export interface Orcamento extends RecordModel {
     metodo_pagamento?: MetodoPagamento
   }
   itens?: ItemOrcamento[] | string
+  itens_por_local?: ItemPorLocalOrcamento[] | string
   subtotal?: number
   desconto?: number
   valor_total: number

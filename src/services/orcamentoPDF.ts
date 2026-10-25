@@ -1,5 +1,5 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
-import { parseItens } from '@/services/orcamentos'
+import { parseItens, parseItensPorLocal } from '@/services/orcamentos'
 import { parseCompromisso } from '@/services/orcamentoModulo'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import logoSvgDefault from '@/assets/logo-6927a.svg'
@@ -103,6 +103,7 @@ export async function imprimirOrcamentoPDF(
   }
 
   const itens = parseItens(orcamento.itens)
+  const itensPorLocal = parseItensPorLocal(orcamento.itens_por_local)
   const compromisso = config?.nosso_compromisso
     ? parseCompromisso(config.nosso_compromisso)
     : [
@@ -498,9 +499,49 @@ export async function imprimirOrcamentoPDF(
       </div>
     </div>
 
-    <!-- TABELA DE SERVIÇOS & ITENS -->
+    <!-- TABELA DE ITENS POR LOCAL / AMBIENTE -->
+    ${
+      itensPorLocal.length > 0
+        ? `
     <div class="table-container">
-      <div class="section-title">Detalhamento dos Serviços e Materiais</div>
+      <div class="section-title">Detalhamento por Ambiente / Local</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 22%;">Local</th>
+            <th style="width: 38%;">Serviço / Descrição</th>
+            <th class="text-center" style="width: 12%;">Metragem</th>
+            <th class="text-right" style="width: 14%;">Valor</th>
+            <th class="text-right" style="width: 14%;">Total Linha</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itensPorLocal
+            .map(
+              (loc) => `
+            <tr>
+              <td><strong style="color: #2C3E50;">${loc.local}</strong></td>
+              <td><div class="item-desc">${loc.servico}</div></td>
+              <td class="text-center">${loc.metragem} m²</td>
+              <td class="text-right">${formatMoeda(loc.valor)}</td>
+              <td class="text-right" style="font-weight: 700; color: #2C3E50;">${formatMoeda(loc.total)}</td>
+            </tr>
+          `,
+            )
+            .join('')}
+        </tbody>
+      </table>
+    </div>
+    `
+        : ''
+    }
+
+    <!-- TABELA DE SERVIÇOS & ITENS GERAIS -->
+    ${
+      itens.length > 0
+        ? `
+    <div class="table-container">
+      <div class="section-title">Itens e Serviços Gerais</div>
       <table>
         <thead>
           <tr>
@@ -529,6 +570,9 @@ export async function imprimirOrcamentoPDF(
         </tbody>
       </table>
     </div>
+    `
+        : ''
+    }
 
     <!-- VALOR À VISTA E A PRAZO LADO A LADO -->
     <div class="pricing-box">

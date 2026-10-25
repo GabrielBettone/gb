@@ -19,7 +19,12 @@ import {
   Printer,
   CreditCard,
 } from 'lucide-react'
-import { ETAPAS_CONFIG, getEtapaConfig, parseItens } from '@/services/orcamentos'
+import {
+  ETAPAS_CONFIG,
+  getEtapaConfig,
+  parseItens,
+  parseItensPorLocal,
+} from '@/services/orcamentos'
 import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
@@ -54,6 +59,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
   const config = getEtapaConfig(orcamento.status)
 
   const itens = parseItens(orcamento.itens)
+  const itensPorLocal = parseItensPorLocal(orcamento.itens_por_local)
 
   const formatData = (d?: string) => {
     if (!d) return 'Não definida'
@@ -220,40 +226,83 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
             )}
           </div>
 
+          {/* Tabela de Itens por Local / Ambiente */}
+          {itensPorLocal.length > 0 && (
+            <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-3">
+              <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
+                Detalhamento por Ambiente / Local ({itensPorLocal.length})
+              </h4>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#F6F7F9] text-[#5B6470] border-b border-[#E3E6EA]">
+                    <tr>
+                      <th className="py-2 px-3 font-semibold">Local</th>
+                      <th className="py-2 px-3 font-semibold">Serviço / Descrição</th>
+                      <th className="py-2 px-3 text-center font-semibold">Metragem</th>
+                      <th className="py-2 px-3 text-right font-semibold">Valor Unit.</th>
+                      <th className="py-2 px-3 text-right font-semibold">Total Linha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E3E6EA]">
+                    {itensPorLocal.map((linha, idx) => (
+                      <tr key={idx} className="hover:bg-[#F6F7F9]/50">
+                        <td className="py-2 px-3 font-bold text-[#2C3E50]">{linha.local}</td>
+                        <td className="py-2 px-3 text-[#22272A]">{linha.servico}</td>
+                        <td className="py-2 px-3 text-center font-mono font-medium">
+                          {linha.metragem} m²
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono">
+                          {formatMoeda(linha.valor)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-[#2C3E50]">
+                          {formatMoeda(linha.total)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Itens do Orçamento */}
-          <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-3">
-            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
-              Itens e Serviços Orçados ({itens.length})
-            </h4>
+          {itens.length > 0 && (
+            <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-3">
+              <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
+                Itens e Serviços Gerais ({itens.length})
+              </h4>
 
-            <div className="space-y-2">
-              {itens.map((it, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2.5 bg-[#F6F7F9] rounded-lg text-xs border border-[#E3E6EA]"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-[#22272A]">{it.descricao}</span>
-                    <span className="text-[11px] text-[#5B6470]">
-                      {it.quantidade} {it.unidade || 'un'} x {formatMoeda(it.valor_unitario)}
-                    </span>
+              <div className="space-y-2">
+                {itens.map((it, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-2.5 bg-[#F6F7F9] rounded-lg text-xs border border-[#E3E6EA]"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-[#22272A]">{it.descricao}</span>
+                      <span className="text-[11px] text-[#5B6470]">
+                        {it.quantidade} {it.unidade || 'un'} x {formatMoeda(it.valor_unitario)}
+                      </span>
+                    </div>
+                    <span className="font-bold text-[#2C3E50]">{formatMoeda(it.valor_total)}</span>
                   </div>
-                  <span className="font-bold text-[#2C3E50]">{formatMoeda(it.valor_total)}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            <div className="pt-2 border-t border-[#E3E6EA] flex justify-between text-xs text-[#5B6470]">
-              <span>Subtotal: {formatMoeda(orcamento.subtotal)}</span>
-              {Boolean(orcamento.desconto) && (
-                <span className="text-red-600">Desconto: -{formatMoeda(orcamento.desconto)}</span>
-              )}
-              <span className="font-bold text-[#2C3E50] text-sm">
-                Total: {formatMoeda(orcamento.valor_total)}
-              </span>
+              <div className="pt-2 border-t border-[#E3E6EA] flex justify-between text-xs text-[#5B6470]">
+                <span>Subtotal: {formatMoeda(orcamento.subtotal)}</span>
+                {Boolean(orcamento.desconto) && (
+                  <span className="text-red-600">Desconto: -{formatMoeda(orcamento.desconto)}</span>
+                )}
+                <span className="font-bold text-[#2C3E50] text-sm">
+                  Total: {formatMoeda(orcamento.valor_total)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Observações */}
           {orcamento.observacoes && (

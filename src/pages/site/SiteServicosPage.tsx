@@ -51,6 +51,7 @@ export const SiteServicosPage: React.FC = () => {
   const [nome, setNome] = useState('')
   const [slug, setSlug] = useState('')
   const [categoria, setCategoria] = useState('Residencial')
+  const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<string[]>(['Residencial'])
   const [destaque, setDestaque] = useState(false)
   const [ativo, setAtivo] = useState(true)
   const [ordem, setOrdem] = useState(1)
@@ -86,7 +87,9 @@ export const SiteServicosPage: React.FC = () => {
     setEditando(null)
     setNome('')
     setSlug('')
-    setCategoria(categorias[0]?.nome || 'Residencial')
+    const catPadrao = categorias[0]?.nome || 'Residencial'
+    setCategoria(catPadrao)
+    setCategoriasSelecionadas([catPadrao])
     setDestaque(false)
     setAtivo(true)
     setOrdem(servicos.length + 1)
@@ -105,7 +108,14 @@ export const SiteServicosPage: React.FC = () => {
     setEditando(s)
     setNome(s.nome)
     setSlug(s.slug)
-    setCategoria(s.categoria)
+    const lista =
+      s.categorias && s.categorias.length > 0
+        ? s.categorias
+        : s.categoria
+          ? [s.categoria]
+          : ['Residencial']
+    setCategoria(lista[0] || 'Residencial')
+    setCategoriasSelecionadas(lista)
     setDestaque(s.destaque)
     setAtivo(s.ativo)
     setOrdem(s.ordem || 1)
@@ -142,8 +152,9 @@ export const SiteServicosPage: React.FC = () => {
         const matchLonga = (s.descricao_longa || '').toLowerCase().includes(termo)
         if (!matchNome && !matchCurta && !matchLonga) return false
       }
-      if (filtroCategoria !== 'todas' && s.categoria !== filtroCategoria) {
-        return false
+      if (filtroCategoria !== 'todas') {
+        const itemCats = s.categorias && s.categorias.length > 0 ? s.categorias : [s.categoria]
+        if (!itemCats.includes(filtroCategoria)) return false
       }
       if (filtroStatus === 'ativos' && !s.ativo) return false
       if (filtroStatus === 'inativos' && s.ativo) return false
@@ -190,10 +201,14 @@ export const SiteServicosPage: React.FC = () => {
       .map((l) => l.trim())
       .filter(Boolean)
 
+    const finalCategorias =
+      categoriasSelecionadas.length > 0 ? categoriasSelecionadas : [categoria || 'Residencial']
+
     const payload: Partial<SiteServico> = {
       nome,
       slug,
-      categoria,
+      categoria: finalCategorias[0],
+      categorias: finalCategorias,
       destaque,
       ativo,
       ordem: Number(ordem),
@@ -399,12 +414,20 @@ export const SiteServicosPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <Badge
-                          variant="outline"
-                          className="border-[#DEE4EA] text-[#2C3E50] text-[11px]"
-                        >
-                          {s.categoria}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {(s.categorias && s.categorias.length > 0
+                            ? s.categorias
+                            : [s.categoria]
+                          ).map((catNome, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="border-[#DEE4EA] text-[#2C3E50] text-[11px]"
+                            >
+                              {catNome}
+                            </Badge>
+                          ))}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4">
                         {s.destaque ? (
@@ -507,32 +530,78 @@ export const SiteServicosPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#2C3E50]">Categoria</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
-                  <SelectTrigger className="bg-white text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white text-xs">
-                    {categorias.map((c) => (
-                      <SelectItem key={c.id} value={c.nome}>
-                        {c.nome}
-                      </SelectItem>
-                    ))}
-                    {!categorias.some((c) => c.nome === 'Residencial') && (
-                      <SelectItem value="Residencial">Residencial</SelectItem>
-                    )}
-                    {!categorias.some((c) => c.nome === 'Fachadas') && (
-                      <SelectItem value="Fachadas">Fachadas</SelectItem>
-                    )}
-                    {!categorias.some((c) => c.nome === 'Comercial') && (
-                      <SelectItem value="Comercial">Comercial</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-[#2C3E50]">
+                Categorias do Serviço (selecione uma ou mais) *
+              </Label>
+              <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-[#DEE4EA] bg-[#f8fafc]">
+                {categorias.map((c) => {
+                  const sel = categoriasSelecionadas.includes(c.nome)
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setCategoriasSelecionadas((prev) => {
+                          if (prev.includes(c.nome)) {
+                            if (prev.length <= 1) return prev // manter pelo menos 1
+                            const updated = prev.filter((x) => x !== c.nome)
+                            setCategoria(updated[0])
+                            return updated
+                          } else {
+                            const updated = [...prev, c.nome]
+                            setCategoria(updated[0])
+                            return updated
+                          }
+                        })
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                        sel
+                          ? 'bg-[#2C3E50] text-[#D4AF37] border-[#2C3E50]'
+                          : 'bg-white text-[#616F7D] border-[#DEE4EA] hover:border-[#2C3E50]'
+                      }`}
+                    >
+                      {sel ? '✓ ' : '+ '}
+                      {c.nome}
+                    </button>
+                  )
+                })}
+                {categorias.length === 0 &&
+                  ['Residencial', 'Comercial', 'Fachadas'].map((fallbackNome) => {
+                    const sel = categoriasSelecionadas.includes(fallbackNome)
+                    return (
+                      <button
+                        key={fallbackNome}
+                        type="button"
+                        onClick={() => {
+                          setCategoriasSelecionadas((prev) => {
+                            if (prev.includes(fallbackNome)) {
+                              if (prev.length <= 1) return prev
+                              const updated = prev.filter((x) => x !== fallbackNome)
+                              setCategoria(updated[0])
+                              return updated
+                            } else {
+                              const updated = [...prev, fallbackNome]
+                              setCategoria(updated[0])
+                              return updated
+                            }
+                          })
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                          sel
+                            ? 'bg-[#2C3E50] text-[#D4AF37] border-[#2C3E50]'
+                            : 'bg-white text-[#616F7D] border-[#DEE4EA] hover:border-[#2C3E50]'
+                        }`}
+                      >
+                        {sel ? '✓ ' : '+ '}
+                        {fallbackNome}
+                      </button>
+                    )
+                  })}
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#2C3E50]">Ordem de exibição</Label>
                 <Input

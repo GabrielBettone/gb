@@ -3,6 +3,7 @@ import type {
   Produto,
   CanalVenda,
   ItemOrcamento,
+  ItemPorLocalOrcamento,
   StatusOrcamento,
   Orcamento,
   Cliente,
@@ -115,8 +116,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   const [observacoes, setObservacoes] = useState('')
   const [desconto, setDesconto] = useState<string>('0')
 
-  // Itens da tabela
+  // Itens da tabela e Itens por Local
   const [itens, setItens] = useState<ItemOrcamento[]>([])
+  const [itensPorLocal, setItensPorLocal] = useState<ItemPorLocalOrcamento[]>([])
 
   // Modal rápido de novo cliente inline
   const [modalNovoClienteOpen, setModalNovoClienteOpen] = useState(false)
@@ -192,6 +194,12 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           ? JSON.parse(orcamentoParaEditar.itens)
           : []
 
+      const parsedLocais = Array.isArray(orcamentoParaEditar.itens_por_local)
+        ? orcamentoParaEditar.itens_por_local
+        : typeof orcamentoParaEditar.itens_por_local === 'string'
+          ? JSON.parse(orcamentoParaEditar.itens_por_local)
+          : []
+
       setItens(
         parsedItens.length > 0
           ? parsedItens
@@ -205,6 +213,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               },
             ],
       )
+      setItensPorLocal(parsedLocais)
     } else {
       gerarProximoNumeroOrcamento().then((num) => setNumeroPrevisto(num))
       setClienteId('novo')
@@ -235,6 +244,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           unidade: 'm²',
           valor_unitario: 120,
           valor_total: 120,
+        },
+      ])
+      setItensPorLocal([
+        {
+          local: 'Sala',
+          servico: 'Forro de gesso',
+          metragem: 20,
+          valor: 120,
+          total: 2400,
         },
       ])
     }
@@ -291,8 +309,11 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     )
   }
 
-  // Cálculos de subtotal, desconto e total a prazo
-  const subtotal = itens.reduce((acc, it) => acc + (it.valor_total || 0), 0)
+  // Cálculos de subtotal (considera itens por local quando presentes)
+  const subtotalLocais = itensPorLocal.reduce((acc, it) => acc + (it.total || 0), 0)
+  const subtotalItens = itens.reduce((acc, it) => acc + (it.valor_total || 0), 0)
+  const subtotal = itensPorLocal.length > 0 ? subtotalLocais : subtotalItens
+
   const descontoNum = Math.max(0, parseFloat(desconto.replace(',', '.')) || 0)
   const valorAPrazo = Math.max(0, subtotal - descontoNum)
 
@@ -305,6 +326,55 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       : valorAPrazo
 
   const condicoesPrazo = formatarCondicoesPrazo(metodoAtual, valorAPrazo)
+
+  // Gerenciamento dos itens por local
+  const handleAddLinhaLocal = () => {
+    const servicosDoGrupo = servicosPrecoList.filter((s) => !grupoId || s.grupo === grupoId)
+    const primeiro = servicosDoGrupo[0]
+    setItensPorLocal((prev) => [
+      ...prev,
+      {
+        local: prev.length === 0 ? 'Sala' : prev.length === 1 ? 'Banheiro' : 'Ambiente',
+        servico: primeiro?.nome || 'Forro de gesso',
+        servico_id: primeiro?.id,
+        metragem: 10,
+        valor: primeiro?.preco_unitario || 120,
+        total: (primeiro?.preco_unitario || 120) * 10,
+      },
+    ])
+  }
+
+  const handleRemoveLinhaLocal = (index: number) => {
+    setItensPorLocal((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleLinhaLocalChange = (
+    index: number,
+    campo: keyof ItemPorLocalOrcamento,
+    valor: any,
+  ) => {
+    setItensPorLocal((prev) => {
+      const novos = [...prev]
+      const linha = { ...novos[index], [campo]: valor }
+
+      if (campo === 'servico_id') {
+        const serv = servicosPrecoList.find((s) => s.id === valor)
+        if (serv) {
+          linha.servico = serv.nome
+          linha.valor = serv.preco_unitario
+        }
+      }
+
+      if (campo === 'metragem' || campo === 'valor' || campo === 'servico_id') {
+        const m = Math.max(0, parseFloat(String(linha.metragem)) || 0)
+        const v = Math.max(0, parseFloat(String(linha.valor)) || 0)
+        linha.total = Math.round(m * v * 100) / 100
+      }
+
+      novos[index] = linha
+      return novos
+    })
+  }
 
   // Gerenciamento dos itens
   const handleAddItem = () => {
@@ -425,11 +495,11 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       return
     }
 
-    if (itens.length === 0) {
+    if (itens.length === 0 && itensPorLocal.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Nenhum item adicionado',
-        description: 'Adicione pelo menos um serviço ao orçamento.',
+        description: 'Adicione pelo menos um serviço ou item por local ao orçamento.',
       })
       return
     }
@@ -459,6 +529,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         status,
         produto_principal: produtoPrincipal || produtos[0]?.id,
         itens,
+        itens_por_local: itensPorLocal,
         subtotal,
         desconto: descontoNum,
         valor_total: valorAPrazo,
@@ -756,12 +827,163 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               </div>
             </div>
 
-            {/* SEÇÃO 2: ITENS DO ORÇAMENTO (CÁLCULO POR ÁREA OU LARGURA × COMPRIMENTO) */}
+            {/* SEÇÃO 2A: ITENS POR LOCAL / AMBIENTE (NOVA FUNCIONALIDADE) */}
+            <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                    2. Detalhamento por Local / Ambiente ({itensPorLocal.length})
+                  </h3>
+                  <p className="text-[11px] text-[#616F7D] mt-0.5">
+                    Ex: Sala | Forro de gesso | Metragem | Valor | Total da linha
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddLinhaLocal}
+                  className="h-8 text-xs text-[#2C3E50] border-[#D4AF37] hover:bg-[#D4AF37]/15 font-bold"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1 text-[#D4AF37]" />+ Adicionar linha
+                </Button>
+              </div>
+
+              <div className="space-y-2.5">
+                {itensPorLocal.map((linha, idx) => {
+                  const servicosDoGrupo = servicosPrecoList.filter(
+                    (s) => !grupoId || s.grupo === grupoId,
+                  )
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 bg-[#f8fafc] rounded-xl border border-[#DEE4EA] grid grid-cols-12 gap-2 items-end"
+                    >
+                      {/* Local / Ambiente */}
+                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Local / Ambiente *</Label>
+                        <Input
+                          placeholder="Ex: Sala, Banheiro, Quarto..."
+                          value={linha.local}
+                          onChange={(e) => handleLinhaLocalChange(idx, 'local', e.target.value)}
+                          className="h-8 text-xs bg-white font-medium text-[#2C3E50]"
+                        />
+                      </div>
+
+                      {/* Serviço / Descrição */}
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Serviço / Descrição *</Label>
+                        <div className="space-y-1">
+                          {servicosDoGrupo.length > 0 ? (
+                            <Select
+                              value={linha.servico_id || 'manual'}
+                              onValueChange={(val) => {
+                                if (val === 'manual') {
+                                  handleLinhaLocalChange(idx, 'servico_id', '')
+                                } else {
+                                  handleLinhaLocalChange(idx, 'servico_id', val)
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs bg-white">
+                                <SelectValue placeholder="Selecione o serviço" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {servicosDoGrupo.map((s) => (
+                                  <SelectItem key={s.id} value={s.id} className="text-xs">
+                                    {s.nome} ({formatMoeda(s.preco_unitario)}/{s.unidade})
+                                  </SelectItem>
+                                ))}
+                                <SelectItem
+                                  value="manual"
+                                  className="text-xs font-medium text-[#2C3E50]"
+                                >
+                                  Outro / Descrição livre
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : null}
+                          {(!linha.servico_id || servicosDoGrupo.length === 0) && (
+                            <Input
+                              placeholder="Ex: Forro de gesso RU tabicado"
+                              value={linha.servico}
+                              onChange={(e) =>
+                                handleLinhaLocalChange(idx, 'servico', e.target.value)
+                              }
+                              className="h-8 text-xs bg-white"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Metragem */}
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Metragem (m²)</Label>
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0.01"
+                          placeholder="Ex: 25.5"
+                          value={linha.metragem}
+                          onChange={(e) => handleLinhaLocalChange(idx, 'metragem', e.target.value)}
+                          className="h-8 text-xs bg-white text-center font-mono font-semibold"
+                        />
+                      </div>
+
+                      {/* Valor Unitário */}
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Valor Unit. (R$)</Label>
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="0,00"
+                          value={linha.valor}
+                          onChange={(e) => handleLinhaLocalChange(idx, 'valor', e.target.value)}
+                          className="h-8 text-xs bg-white text-right font-mono"
+                        />
+                      </div>
+
+                      {/* Total da Linha & Ação Excluir */}
+                      <div className="col-span-4 sm:col-span-1 flex items-center justify-end gap-1">
+                        <div className="text-right">
+                          <span className="text-[10px] text-[#8A94A0] block">Total</span>
+                          <span className="font-bold text-xs font-mono text-[#2C3E50] block">
+                            {formatMoeda(linha.total)}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveLinhaLocal(idx)}
+                          className="h-8 w-6 p-0 text-[#C4453C] hover:bg-[#FBEFEE]"
+                          title="Remover linha"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {itensPorLocal.length === 0 && (
+                  <div className="p-4 rounded-xl border border-dashed border-[#DEE4EA] text-center text-xs text-[#8A94A0]">
+                    Nenhum ambiente adicionado. Clique em &quot;+ Adicionar linha&quot; para
+                    discriminar por cômodo (Sala, Banheiro, etc.).
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SEÇÃO 2B: ITENS ADICIONAIS / CATÁLOGO COMPLETO */}
             <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-4 shadow-xs">
               <div className="flex items-center justify-between">
                 <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
-                  2. Itens & Serviços ({itens.length})
+                  2. Itens Gerais / Adicionais ({itens.length})
                 </h3>
                 <Button
                   type="button"

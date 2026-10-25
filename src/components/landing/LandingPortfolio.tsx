@@ -70,7 +70,8 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
 
   const filtered = projetos.filter((p) => {
     if (filter === 'Todos') return true
-    return p.categoria === filter
+    const lista = p.categorias && p.categorias.length > 0 ? p.categorias : [p.categoria]
+    return lista.includes(filter)
   })
 
   const displayed = limit ? filtered.slice(0, limit) : filtered
@@ -142,10 +143,18 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
                 {/* Tag Categoria */}
-                <div className="absolute top-3 left-3">
-                  <Badge className="bg-[#2C3E50] text-white text-[11px] font-semibold border-none shadow-xs">
-                    {proj.categoria}
-                  </Badge>
+                <div className="absolute top-3 left-3 flex flex-wrap gap-1">
+                  {(proj.categorias && proj.categorias.length > 0
+                    ? proj.categorias
+                    : [proj.categoria]
+                  ).map((cNome, idx) => (
+                    <Badge
+                      key={idx}
+                      className="bg-[#2C3E50] text-white text-[11px] font-semibold border-none shadow-xs"
+                    >
+                      {cNome}
+                    </Badge>
+                  ))}
                 </div>
 
                 {/* Quantidade de Fotos e Vídeos */}

@@ -75,6 +75,22 @@ export function parseItens(itens: ItemOrcamento[] | string | undefined): ItemOrc
 }
 
 /**
+ * Normaliza os itens por local do orçamento
+ */
+export function parseItensPorLocal(
+  itens: ItemPorLocalOrcamento[] | string | undefined,
+): ItemPorLocalOrcamento[] {
+  if (!itens) return []
+  if (Array.isArray(itens)) return itens
+  try {
+    const parsed = JSON.parse(itens)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+/**
  * Gera o próximo número sequencial de orçamento no formato ORC-YYYY-XXXX
  */
 export async function gerarProximoNumeroOrcamento(): Promise<string> {
@@ -118,10 +134,11 @@ export async function listarOrcamentos(): Promise<Orcamento[]> {
     expand: 'produto_principal,cliente_cadastrado,grupo,metodo_pagamento',
   })
 
-  // Normaliza campo itens
+  // Normaliza campos itens e itens_por_local
   return records.map((r) => ({
     ...r,
     itens: parseItens(r.itens),
+    itens_por_local: parseItensPorLocal(r.itens_por_local),
   }))
 }
 
@@ -142,6 +159,7 @@ export interface CriarOrcamentoDTO {
   valor_a_prazo?: number
   exibir_cnpj?: boolean
   itens: ItemOrcamento[]
+  itens_por_local?: ItemPorLocalOrcamento[]
   subtotal: number
   desconto: number
   valor_total: number
@@ -170,6 +188,7 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     valor_a_prazo: dados.valor_a_prazo ?? null,
     exibir_cnpj: dados.exibir_cnpj ?? true,
     itens: dados.itens,
+    itens_por_local: dados.itens_por_local || [],
     subtotal: dados.subtotal,
     desconto: dados.desconto,
     valor_total: dados.valor_total,
@@ -223,6 +242,7 @@ export async function atualizarOrcamento(
   if (dados.valor_a_prazo !== undefined) payload.valor_a_prazo = dados.valor_a_prazo
   if (dados.exibir_cnpj !== undefined) payload.exibir_cnpj = dados.exibir_cnpj
   if (dados.itens !== undefined) payload.itens = dados.itens
+  if (dados.itens_por_local !== undefined) payload.itens_por_local = dados.itens_por_local
   if (dados.subtotal !== undefined) payload.subtotal = dados.subtotal
   if (dados.desconto !== undefined) payload.desconto = dados.desconto
   if (dados.valor_total !== undefined) payload.valor_total = dados.valor_total
@@ -291,6 +311,7 @@ export async function atualizarOrcamento(
   return {
     ...updated,
     itens: parseItens(updated.itens),
+    itens_por_local: parseItensPorLocal(updated.itens_por_local),
   }
 }
 
@@ -305,7 +326,7 @@ export async function atualizarOrcamento(
 export async function cancelarParcelasEmAberto(orcamentoId: string): Promise<number> {
   try {
     const parcelas = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
-      filter: `orcamento = '${orcamentoId}'`,
+      filter: `orcamento = '${orcamentoId}' || orcamento_id = '${orcamentoId}'`,
     })
 
     const abertas = parcelas.filter((p) => p.status === 'a_pagar')
@@ -370,6 +391,7 @@ export async function atualizarStatusOrcamento(
     orcamento: {
       ...updated,
       itens: parseItens(updated.itens),
+      itens_por_local: parseItensPorLocal(updated.itens_por_local),
     },
     parcelasEstornadas,
   }
@@ -398,6 +420,7 @@ export async function atualizarDatasGantt(
   return {
     ...updated,
     itens: parseItens(updated.itens),
+    itens_por_local: parseItensPorLocal(updated.itens_por_local),
   }
 }
 
@@ -432,7 +455,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
   try {
     // 1. Verifica se já existem parcelas para este orçamento
     const existentes = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
-      filter: `orcamento = '${orcamento.id}'`,
+      filter: `orcamento = '${orcamento.id}' || orcamento_id = '${orcamento.id}'`,
     })
 
     const parcelasPagas = existentes.filter((p) => p.status === 'paga')
@@ -481,6 +504,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
         const proximoNumero = existentes.length + 1
         await dataAdapter.create('pagamentos_parcelas', {
           orcamento: orcamento.id,
+          orcamento_id: orcamento.id,
           numero_parcela: proximoNumero,
           total_parcelas: proximoNumero,
           descricao: 'Complemento / Saldo adicional de alteração de orçamento',
@@ -529,6 +553,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
       // 1 Parcela: Valor com desconto à vista
       await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
+        orcamento_id: orcamento.id,
         numero_parcela: 1,
         total_parcelas: 1,
         descricao: 'Pagamento à vista com desconto',
@@ -543,6 +568,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
 
       await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
+        orcamento_id: orcamento.id,
         numero_parcela: 1,
         total_parcelas: 2,
         descricao: 'Entrada na assinatura/início da obra',
@@ -558,6 +584,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
 
       await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
+        orcamento_id: orcamento.id,
         numero_parcela: 2,
         total_parcelas: 2,
         descricao: 'Saldo final na entrega e vistoria da obra',
@@ -575,6 +602,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(
           i === n ? Math.round((valorTotal - valorParcela * (n - 1)) * 100) / 100 : valorParcela
         await dataAdapter.create('pagamentos_parcelas', {
           orcamento: orcamento.id,
+          orcamento_id: orcamento.id,
           numero_parcela: i,
           total_parcelas: n,
           descricao: `Parcela ${i}/${n} - Cartão / Boleto`,
