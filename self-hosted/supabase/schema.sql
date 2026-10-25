@@ -274,6 +274,27 @@ CREATE TRIGGER trigger_pagamentos_parcelas_updated_at
   BEFORE UPDATE ON public.pagamentos_parcelas
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
+-- DEDUPLICAÇÃO IDEMPOTENTE DE PARCELAS DUPLICADAS:
+-- Mantém a parcela mais recente de cada combinação (orcamento, numero_parcela, valor_previsto)
+-- e cancela as parcelas em aberto duplicadas que foram geradas por transições repetidas.
+WITH ranking AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY COALESCE(orcamento, orcamento_id), numero_parcela, valor_previsto
+      ORDER BY
+        CASE WHEN status = 'paga' THEN 1 WHEN status = 'a_pagar' THEN 2 ELSE 3 END,
+        created_at DESC,
+        id DESC
+    ) as rn
+  FROM public.pagamentos_parcelas
+)
+UPDATE public.pagamentos_parcelas p
+SET status = 'cancelada',
+    observacoes_baixa = COALESCE(p.observacoes_baixa, '') || ' [Duplicata cancelada automaticamente]'
+FROM ranking r
+WHERE p.id = r.id AND r.rn > 1 AND p.status != 'paga';
+
 -- 10. TABELA DE VENDAS (vinculada aos produtos e orçamentos)
 CREATE TABLE IF NOT EXISTS public.vendas (
   id TEXT PRIMARY KEY DEFAULT ('vnd_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
@@ -401,6 +422,7 @@ CREATE TABLE IF NOT EXISTS public.site_services (
 );
 
 -- Garante coluna categorias e backfill a partir da coluna categoria legado
+ALTER TABLE IF EXISTS public.site_settings ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_services ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT '[]'::jsonb;
 UPDATE public.site_services
   SET categorias = jsonb_build_array(categoria)
@@ -583,6 +605,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   pagina_parceiros_ativa BOOLEAN DEFAULT true,
   arquivo_logo TEXT,
   logo_url TEXT,
+  google_site_verification TEXT,
   simulador_ativo BOOLEAN DEFAULT true,
   simulador_exigir_login BOOLEAN DEFAULT false,
   simulador_cota_padrao INTEGER DEFAULT 5,

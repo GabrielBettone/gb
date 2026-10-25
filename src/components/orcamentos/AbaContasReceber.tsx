@@ -4,6 +4,7 @@ import {
   listarParcelasPagamento,
   darBaixaParcela,
   estornarBaixaParcela,
+  excluirParcela,
 } from '@/services/orcamentoModulo'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,7 +37,18 @@ import {
   CreditCard,
   Building,
   TrendingUp,
+  Trash2,
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 
 interface AbaContasReceberProps {
@@ -64,6 +76,10 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
   const [formaPagamento, setFormaPagamento] = useState<string>('PIX')
   const [observacoesBaixa, setObservacoesBaixa] = useState<string>('')
   const [salvandoBaixa, setSalvandoBaixa] = useState(false)
+
+  // Modal de Exclusão Manual de Parcela
+  const [parcelaParaExcluir, setParcelaParaExcluir] = useState<PagamentoParcela | null>(null)
+  const [excluindoParcela, setExcluindoParcela] = useState(false)
 
   const carregar = async () => {
     setLoading(true)
@@ -144,6 +160,29 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
         title: 'Erro ao estornar baixa',
         description: err?.message,
       })
+    }
+  }
+
+  const handleConfirmarExclusao = async () => {
+    if (!parcelaParaExcluir) return
+    setExcluindoParcela(true)
+    try {
+      await excluirParcela(parcelaParaExcluir.id)
+      toast({
+        title: 'Parcela removida com sucesso!',
+        description: `Linha de conciliação do orçamento ${parcelaParaExcluir.expand?.orcamento?.numero || ''} foi excluída.`,
+      })
+      setParcelaParaExcluir(null)
+      carregar()
+      if (onAtualizarOrcamentos) onAtualizarOrcamentos()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao remover parcela',
+        description: err?.message,
+      })
+    } finally {
+      setExcluindoParcela(false)
     }
   }
 
@@ -486,26 +525,38 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        {p.status === 'a_pagar' ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {p.status === 'a_pagar' ? (
+                            <Button
+                              size="sm"
+                              onClick={() => abrirModalBaixa(p)}
+                              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs h-7 px-3 shadow-xs"
+                            >
+                              Dar baixa
+                            </Button>
+                          ) : p.status === 'paga' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEstornar(p)}
+                              className="text-xs h-7 border-[#DEE4EA] text-[#616F7D] hover:text-[#C4453C]"
+                              title="Estornar baixa bancária"
+                            >
+                              <RotateCcw className="w-3 h-3 mr-1" />
+                              Estornar
+                            </Button>
+                          ) : null}
+
                           <Button
+                            variant="ghost"
                             size="sm"
-                            onClick={() => abrirModalBaixa(p)}
-                            className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs h-7 px-3 shadow-xs"
+                            onClick={() => setParcelaParaExcluir(p)}
+                            className="text-xs h-7 w-7 p-0 text-[#8A94A0] hover:text-red-600 hover:bg-red-50"
+                            title="Remover linha de conciliação / parcela"
                           >
-                            Dar baixa
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
-                        ) : p.status === 'paga' ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEstornar(p)}
-                            className="text-xs h-7 border-[#DEE4EA] text-[#616F7D] hover:text-[#C4453C]"
-                            title="Estornar baixa bancária"
-                          >
-                            <RotateCcw className="w-3 h-3 mr-1" />
-                            Estornar
-                          </Button>
-                        ) : null}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -658,6 +709,52 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* DIÁLOGO DE CONFIRMAÇÃO DE EXCLUSÃO MANUAL */}
+      <AlertDialog
+        open={Boolean(parcelaParaExcluir)}
+        onOpenChange={(open) => !open && setParcelaParaExcluir(null)}
+      >
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#2C3E50]">
+              Remover linha de conciliação de pagamentos?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-[#616F7D] space-y-2">
+              <p>
+                Você está prestes a remover permanentemente a parcela{' '}
+                <strong>
+                  {parcelaParaExcluir?.numero_parcela}/{parcelaParaExcluir?.total_parcelas}
+                </strong>{' '}
+                no valor de <strong>{formatMoeda(parcelaParaExcluir?.valor_previsto || 0)}</strong>{' '}
+                referente ao orçamento{' '}
+                <strong>
+                  {parcelaParaExcluir?.expand?.orcamento?.numero || 'Sem identificador'}
+                </strong>{' '}
+                ({parcelaParaExcluir?.expand?.orcamento?.cliente || 'Sem cliente'}).
+              </p>
+              <p className="text-red-600 font-semibold">
+                Essa ação é ideal para limpar linhas duplicadas e não pode ser desfeita.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindoParcela} className="text-xs">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmarExclusao()
+              }}
+              disabled={excluindoParcela}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
+            >
+              {excluindoParcela ? 'Removendo...' : 'Sim, remover linha'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

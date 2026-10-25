@@ -362,6 +362,13 @@ export async function atualizarStatusOrcamento(
   novoStatus: StatusOrcamento,
 ): Promise<{ orcamento: Orcamento; parcelasEstornadas: number }> {
   const agoraIso = new Date().toISOString()
+  let orcamentoAntes: Orcamento | null = null
+  try {
+    orcamentoAntes = await dataAdapter.getOne<Orcamento>('orcamentos', id)
+  } catch {
+    /* ignore */
+  }
+
   const payload: Record<string, any> = {
     status: novoStatus,
   }
@@ -373,17 +380,23 @@ export async function atualizarStatusOrcamento(
   const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
   let parcelasEstornadas = 0
 
-  // Se voltou para etapa preliminar ou cancelamento, estorna as parcelas em aberto
+  // Se saiu de 'Concluídos' para qualquer outra etapa não concluída,
+  // ou se voltou para etapa preliminar ou cancelamento, cancela as parcelas em aberto
+  const statusAnterior = (orcamentoAntes?.status || '').trim()
+  const saiuDeConcluidos = statusAnterior === 'Concluídos' && novoStatus !== 'Concluídos'
+
   const etapasPreliminares = [
     'Orçamentos a realizar',
     'Aguardando aprovação',
     'Cancelado',
     'Cancelados',
   ]
-  if (etapasPreliminares.includes(novoStatus)) {
+
+  if (saiuDeConcluidos || etapasPreliminares.includes(novoStatus)) {
     parcelasEstornadas = await cancelarParcelasEmAberto(id)
   }
 
+  // Gera parcelas APENAS se não existirem (já é idempotente, mas aqui evitamos re-gerar se apenas transitou)
   if (
     novoStatus === 'Aprovados aguardando início' ||
     novoStatus === 'Trabalhos iniciados' ||
@@ -469,9 +482,29 @@ export async function gerarAgendaPagamentoSeNaoExistir(
 
     const parcelasPagas = existentes.filter((p) => p.status === 'paga')
     const parcelasAbertas = existentes.filter((p) => p.status === 'a_pagar')
+    const parcelasCanceladas = existentes.filter((p) => p.status === 'cancelada')
 
+    // Se já existem parcelas e não foi forçado recálculo:
+    // Se temos parcelas ativas (pagas ou a pagar), não faz nada para não duplicar.
+    // Se só haviam parcelas canceladas (por exemplo porque o orçamento saiu de Concluídos e agora voltou),
+    // reativamos as canceladas ao invés de criar linhas duplicadas!
     if (existentes.length > 0 && !forcarRecalculo) {
-      return // Já possui parcelas cadastradas e não foi solicitado recálculo
+      if (parcelasPagas.length > 0 || parcelasAbertas.length > 0) {
+        return // Já possui parcelas ativas e não foi solicitado recálculo
+      }
+
+      if (parcelasCanceladas.length > 0) {
+        // Reativa as parcelas canceladas previamente, evitando criar novas linhas
+        for (const p of parcelasCanceladas) {
+          await dataAdapter.update('pagamentos_parcelas', p.id, {
+            status: 'a_pagar',
+            observacoes_baixa:
+              'Parcela reativada ao avançar etapa do orçamento em ' +
+              new Date().toLocaleDateString('pt-BR'),
+          })
+        }
+        return
+      }
     }
 
     // Se é para recalcular e já temos parcelas

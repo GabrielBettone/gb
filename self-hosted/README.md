@@ -238,5 +238,40 @@ supabase functions deploy site-midias-inventario
 - [ ] Cadastro de teste de um novo orçamento e cliente realizado com sucesso.
 - [ ] Site público exibindo seções de Serviços, Portfólio, Sobre e Contato.
 
+## Limpeza de Linhas Duplicadas na Conciliação de Pagamentos
+
+Se houver parcelas repetidas do mesmo orçamento geradas por transições repetidas no Kanban, execute o script SQL idempotente abaixo no **SQL Editor** do Supabase:
+
+```sql
+WITH ranking AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY COALESCE(orcamento, orcamento_id), numero_parcela, valor_previsto
+      ORDER BY
+        CASE WHEN status = 'paga' THEN 1 WHEN status = 'a_pagar' THEN 2 ELSE 3 END,
+        created_at DESC,
+        id DESC
+    ) as rn
+  FROM public.pagamentos_parcelas
+)
+UPDATE public.pagamentos_parcelas p
+SET status = 'cancelada',
+    observacoes_baixa = COALESCE(p.observacoes_baixa, '') || ' [Duplicata cancelada automaticamente]'
+FROM ranking r
+WHERE p.id = r.id AND r.rn > 1 AND p.status != 'paga';
+```
+
+## Como Submeter o Sitemap ao Google Search Console
+
+1. Acesse o [Google Search Console](https://search.google.com/search-console).
+2. Adicione a propriedade com o seu domínio (ex: `https://gessobettone.com.br`).
+3. Para verificação por tag HTML:
+   - Copie o código da tag (o valor de `content="SEU_CODIGO"` ou a tag completa).
+   - No painel administrativo em **/painel/site** (aba *Configurações*), cole no campo **Código de verificação do Google (Google Search Console)** e clique em Salvar.
+4. No menu lateral do Search Console, clique em **Sitemaps**.
+5. No campo *Adicionar um novo sitemap*, digite `sitemap.xml` e clique em **Enviar**.
+6. O Google fará a leitura periódica do sitemap contendo as páginas institucionais, serviços, portfólio e parceiros.
+
 ---
 *Gesso Bettone — Soluções sob medida em Gesso e Drywall.*
