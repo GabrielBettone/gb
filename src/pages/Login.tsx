@@ -28,7 +28,27 @@ const Login = () => {
   const location = useLocation()
   const { toast } = useToast()
 
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/painel'
+  React.useEffect(() => {
+    try {
+      const expiredMsg = sessionStorage.getItem('bettone_session_expired_message')
+      const searchParams = new URLSearchParams(location.search)
+      if (expiredMsg || searchParams.get('expired') === '1') {
+        sessionStorage.removeItem('bettone_session_expired_message')
+        toast({
+          variant: 'destructive',
+          title: 'Sessão expirada',
+          description: expiredMsg || 'Sua sessão expirou. Faça login novamente.',
+        })
+      }
+    } catch {
+      // ignore
+    }
+  }, [location.search, toast])
+
+  const from =
+    (location.state as { from?: { pathname?: string } })?.from?.pathname ||
+    new URLSearchParams(location.search).get('redirect') ||
+    '/painel'
 
   const validate = () => {
     const errs: { email?: string; password?: string } = {}

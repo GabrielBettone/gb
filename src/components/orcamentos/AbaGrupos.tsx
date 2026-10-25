@@ -97,13 +97,19 @@ export const AbaGrupos: React.FC<AbaGruposProps> = ({ grupos, onAtualizar }) => 
       onAtualizar()
     } catch (err: any) {
       console.error('Erro ao salvar grupo:', err)
-      const msg =
-        err?.message?.includes('Failed to') || !err?.message
+      const rawMsg = err?.message || ''
+      const isExpired =
+        rawMsg.toLowerCase().includes('jwt expired') ||
+        rawMsg.toLowerCase().includes('sessão expirou') ||
+        rawMsg.toLowerCase().includes('invalid jwt')
+      const msg = isExpired
+        ? 'Sua sessão expirou. Faça login novamente.'
+        : rawMsg.includes('Failed to') || !rawMsg
           ? 'Não foi possível salvar o grupo. Verifique a conexão com o banco e tente novamente.'
-          : err.message
+          : rawMsg
       toast({
         variant: 'destructive',
-        title: 'Erro ao salvar grupo',
+        title: isExpired ? 'Sessão expirada' : 'Erro ao salvar grupo',
         description: msg,
       })
     } finally {

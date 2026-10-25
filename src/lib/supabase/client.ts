@@ -30,6 +30,21 @@ export class SupabaseRequestError extends Error {
     this.details = payload.details
     this.hint = payload.hint
   }
+
+  get isJwtExpired(): boolean {
+    const msg = (this.message || '').toLowerCase()
+    const desc = (this.details || '').toLowerCase()
+    const code = (this.code || '').toUpperCase()
+    return (
+      this.status === 401 ||
+      code === 'PGRST301' ||
+      code === 'PGRST302' ||
+      msg.includes('jwt expired') ||
+      msg.includes('token is expired') ||
+      msg.includes('invalid jwt') ||
+      desc.includes('jwt expired')
+    )
+  }
 }
 
 export interface SupabaseFilter {
@@ -132,9 +147,13 @@ async function parseError(response: Response): Promise<SupabaseRequestError> {
   )
 }
 
-async function request<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
+async function executeFetch<T>(
+  path: string,
+  init: RequestInit = {},
+  tokenToUse?: string,
+): Promise<T> {
   const { url } = getConfiguration()
-  const headers = getHeaders(accessToken, init.headers)
+  const headers = getHeaders(tokenToUse, init.headers)
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
@@ -152,6 +171,67 @@ async function request<T>(path: string, init: RequestInit = {}, accessToken?: st
   const text = await response.text()
   if (!text) return undefined as T
   return JSON.parse(text) as T
+}
+
+async function request<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
+  // 1. Tentar resolver preventivamente um token válido antes do disparo
+  let effectiveToken = accessToken
+  let canAutoRefresh = true
+
+  try {
+    const { supabaseAuth } = await import('./auth')
+    if (supabaseAuth.isAuthenticated()) {
+      // Se não passou token explícito ou passou o token da sessão atual
+      if (!effectiveToken || effectiveToken === supabaseAuth.getToken()) {
+        const validToken = await supabaseAuth.getValidToken()
+        if (validToken) {
+          effectiveToken = validToken
+        }
+      }
+    } else {
+      canAutoRefresh = false
+    }
+  } catch {
+    // Se falhar importação do auth, segue com o token recebido
+  }
+
+  try {
+    return await executeFetch<T>(path, init, effectiveToken)
+  } catch (err: any) {
+    // 2. Se a requisição falhar com erro de JWT expirado / 401, tenta renovar e repetir 1 vez
+    const isSupabaseErr = err instanceof SupabaseRequestError
+    const isExpired =
+      (isSupabaseErr && err.isJwtExpired) ||
+      err?.status === 401 ||
+      (typeof err?.message === 'string' &&
+        (err.message.toLowerCase().includes('jwt expired') ||
+          err.message.toLowerCase().includes('invalid jwt') ||
+          err.message.toLowerCase().includes('pgrst301')))
+
+    if (isExpired && canAutoRefresh) {
+      try {
+        const { supabaseAuth } = await import('./auth')
+        if (supabaseAuth.isAuthenticated()) {
+          const newToken = await supabaseAuth.refreshToken()
+          if (newToken) {
+            // Repetir a requisição original de forma transparente com o novo token
+            return await executeFetch<T>(path, init, newToken)
+          } else {
+            // Se o refresh falhou (refresh_token revogado/inválido), desloga limpo
+            supabaseAuth.handleSessionExpired('Sua sessão expirou. Faça login novamente.')
+            throw new Error('Sua sessão expirou. Faça login novamente.')
+          }
+        }
+      } catch (refreshErr: any) {
+        if (refreshErr?.message?.includes('Sua sessão expirou')) {
+          throw refreshErr
+        }
+        console.warn('Falha durante repetição de requisição com token renovado:', refreshErr)
+      }
+    }
+
+    throw err
+  }
 }
 
 function buildQuery(options: SupabaseSelectOptions = {}): URLSearchParams {

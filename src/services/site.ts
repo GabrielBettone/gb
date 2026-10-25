@@ -253,13 +253,13 @@ export async function criarServico(
   }
 
   if (isSelfHostedSupabase()) {
-    const token = supabaseAuth.getToken()
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
     const ts = Date.now()
     if (arquivos?.arquivo_principal) {
       const ext = arquivos.arquivo_principal.name.split('.').pop() || 'jpg'
       const path = `services/principal_${ts}.${ext}`
       await supabaseUpload('public-media', path, arquivos.arquivo_principal, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivos.arquivo_principal.type,
         upsert: true,
       })
@@ -276,7 +276,7 @@ export async function criarServico(
         const ext = file.name.split('.').pop() || 'jpg'
         const path = `services/galeria_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -346,7 +346,7 @@ export async function atualizarServico(
   const payload: any = { ...data }
 
   if (isSelfHostedSupabase()) {
-    const token = supabaseAuth.getToken()
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
     const ts = Date.now()
     if (data.beneficios !== undefined) payload.beneficios = data.beneficios
     if (data.galeria !== undefined) payload.galeria = data.galeria
@@ -356,7 +356,7 @@ export async function atualizarServico(
       const ext = arquivos.arquivo_principal.name.split('.').pop() || 'jpg'
       const path = `services/principal_${id}_${ts}.${ext}`
       await supabaseUpload('public-media', path, arquivos.arquivo_principal, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivos.arquivo_principal.type,
         upsert: true,
       })
@@ -373,7 +373,7 @@ export async function atualizarServico(
         const ext = file.name.split('.').pop() || 'jpg'
         const path = `services/galeria_${id}_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -650,14 +650,14 @@ export async function criarProjeto(
   }
 
   if (isSelfHostedSupabase()) {
-    const token = supabaseAuth.getToken()
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
     const ts = Date.now()
 
     if (arquivos?.arquivo_capa) {
       const ext = arquivos.arquivo_capa.name.split('.').pop() || 'jpg'
       const path = `portfolio/capa_${ts}.${ext}`
       await supabaseUpload('public-media', path, arquivos.arquivo_capa, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivos.arquivo_capa.type,
         upsert: true,
       })
@@ -673,7 +673,7 @@ export async function criarProjeto(
         const ext = file.name.split('.').pop() || 'jpg'
         const path = `portfolio/galeria_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -693,7 +693,7 @@ export async function criarProjeto(
         const ext = file.name.split('.').pop() || 'mp4'
         const path = `portfolio/videos_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -771,7 +771,7 @@ export async function atualizarProjeto(
   const payload: any = { ...data }
 
   if (isSelfHostedSupabase()) {
-    const token = supabaseAuth.getToken()
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
     const ts = Date.now()
     if (data.detalhes_tecnicos !== undefined) payload.detalhes_tecnicos = data.detalhes_tecnicos
     if (data.galeria !== undefined) payload.galeria = data.galeria
@@ -781,7 +781,7 @@ export async function atualizarProjeto(
       const ext = arquivos.arquivo_capa.name.split('.').pop() || 'jpg'
       const path = `portfolio/capa_${id}_${ts}.${ext}`
       await supabaseUpload('public-media', path, arquivos.arquivo_capa, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivos.arquivo_capa.type,
         upsert: true,
       })
@@ -798,7 +798,7 @@ export async function atualizarProjeto(
         const ext = file.name.split('.').pop() || 'jpg'
         const path = `portfolio/galeria_${id}_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -819,7 +819,7 @@ export async function atualizarProjeto(
         const ext = file.name.split('.').pop() || 'mp4'
         const path = `portfolio/videos_${id}_${ts}_${i}.${ext}`
         await supabaseUpload('public-media', path, file, {
-          accessToken: token,
+          accessToken: token || undefined,
           contentType: file.type,
           upsert: true,
         })
@@ -1049,11 +1049,11 @@ export async function criarParceiro(
   if (isSelfHostedSupabase()) {
     const payload: any = { ...data }
     if (arquivoLogo) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const ext = arquivoLogo.name.split('.').pop() || 'jpg'
       const path = `parceiros/logo_${Date.now()}.${ext}`
       await supabaseUpload('public-media', path, arquivoLogo, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivoLogo.type,
         upsert: true,
       })
@@ -1122,11 +1122,11 @@ export async function atualizarParceiro(
   if (isSelfHostedSupabase()) {
     const payload: any = { ...data }
     if (arquivoLogo) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const ext = arquivoLogo.name.split('.').pop() || 'jpg'
       const path = `parceiros/logo_${id}_${Date.now()}.${ext}`
       await supabaseUpload('public-media', path, arquivoLogo, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivoLogo.type,
         upsert: true,
       })
@@ -1327,11 +1327,11 @@ export async function salvarConfiguracoes(
     }
 
     if (arquivoLogo) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const ext = arquivoLogo.name.split('.').pop() || 'png'
       const path = `config/logo_${Date.now()}.${ext}`
       await supabaseUpload('public-media', path, arquivoLogo, {
-        accessToken: token,
+        accessToken: token || undefined,
         contentType: arquivoLogo.type,
         upsert: true,
       })

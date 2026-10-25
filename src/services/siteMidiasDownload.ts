@@ -27,7 +27,7 @@ export interface MidiaInventarioResponse {
 export async function obterInventarioMidias(): Promise<MidiaInventarioResponse> {
   if (isSelfHostedSupabase()) {
     const { url, publicKey } = getSupabaseConfig()
-    const token = supabaseAuth.getToken()
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
     const functionUrl = `${url}/functions/v1/site-midias-inventario`
 
     const res = await fetch(functionUrl, {

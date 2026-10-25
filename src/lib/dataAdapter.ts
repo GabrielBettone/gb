@@ -114,13 +114,13 @@ export const dataAdapter = {
           })
         : undefined
 
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const records = await supabaseSelect<any>(collection, {
         filters,
         order,
         limit: options.limit,
         offset: options.offset,
-        accessToken: token,
+        accessToken: token || undefined,
       })
 
       // Expansão leve para compatibilidade com PB (ex: expand: 'grupo')
@@ -135,7 +135,7 @@ export const dataAdapter = {
               try {
                 const grupos = await supabaseSelect<any>('clientes_grupos', {
                   filters: [{ column: 'id', operator: 'in', value: grupoIds }],
-                  accessToken: token,
+                  accessToken: token || undefined,
                 })
                 const grupoMap = new Map(grupos.map((g) => [g.id, g]))
                 records.forEach((r) => {
@@ -166,11 +166,11 @@ export const dataAdapter = {
    */
   async getOne<T = any>(collection: string, id: string): Promise<T> {
     if (isSelfHostedSupabase()) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const results = await supabaseSelect<T>(collection, {
         filters: [{ column: 'id', operator: 'eq', value: id }],
         limit: 1,
-        accessToken: token,
+        accessToken: token || undefined,
       })
       if (!results || results.length === 0) {
         throw new Error(`Registro ${id} não encontrado em ${collection}.`)
@@ -187,11 +187,11 @@ export const dataAdapter = {
   async getFirstListItem<T = any>(collection: string, filterStr: string): Promise<T> {
     if (isSelfHostedSupabase()) {
       const filters = parsePbFilterToSupabase(filterStr)
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       const results = await supabaseSelect<T>(collection, {
         filters,
         limit: 1,
-        accessToken: token,
+        accessToken: token || undefined,
       })
       if (!results || results.length === 0) {
         throw new Error(`Nenhum registro encontrado para o filtro: ${filterStr}`)
@@ -207,7 +207,7 @@ export const dataAdapter = {
    */
   async create<T = any>(collection: string, data: Record<string, any> | FormData): Promise<T> {
     if (isSelfHostedSupabase()) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       let payload: Record<string, any> = {}
 
       if (data instanceof FormData) {
@@ -228,7 +228,7 @@ export const dataAdapter = {
       }
 
       const results = await supabaseInsert<T>(collection, payload, {
-        accessToken: token,
+        accessToken: token || undefined,
         returning: 'representation',
       })
       return results[0]
@@ -246,7 +246,7 @@ export const dataAdapter = {
     data: Record<string, any> | FormData,
   ): Promise<T> {
     if (isSelfHostedSupabase()) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       let payload: Record<string, any> = {}
 
       if (data instanceof FormData) {
@@ -267,7 +267,7 @@ export const dataAdapter = {
         collection,
         [{ column: 'id', operator: 'eq', value: id }],
         payload,
-        { accessToken: token, returning: 'representation' },
+        { accessToken: token || undefined, returning: 'representation' },
       )
       return results[0]
     }
@@ -280,9 +280,9 @@ export const dataAdapter = {
    */
   async delete(collection: string, id: string): Promise<boolean> {
     if (isSelfHostedSupabase()) {
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
       await supabaseDelete(collection, [{ column: 'id', operator: 'eq', value: id }], {
-        accessToken: token,
+        accessToken: token || undefined,
       })
       return true
     }
@@ -296,8 +296,8 @@ export const dataAdapter = {
    */
   async uploadFile(bucket: string, path: string, file: File | Blob): Promise<string> {
     if (isSelfHostedSupabase()) {
-      const token = supabaseAuth.getToken()
-      await supabaseUpload(bucket, path, file, { accessToken: token, upsert: true })
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+      await supabaseUpload(bucket, path, file, { accessToken: token || undefined, upsert: true })
       return supabaseGetPublicUrl(bucket, path)
     }
 
@@ -317,7 +317,7 @@ export const dataAdapter = {
       const payload: Record<string, unknown> = {}
       const bucketName = collection.includes('simulador') ? 'simulador' : 'public-media'
       const timestamp = Date.now()
-      const token = supabaseAuth.getToken()
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
 
       for (const [key, val] of formData.entries()) {
         const isFileOrBlob =
@@ -329,7 +329,7 @@ export const dataAdapter = {
           const storagePath = `${collection}/${id || 'new'}_${timestamp}_${cleanName}`
 
           await supabaseUpload(bucketName, storagePath, fileObj, {
-            accessToken: token,
+            accessToken: token || undefined,
             contentType: fileObj.type || 'application/octet-stream',
             upsert: true,
           })
