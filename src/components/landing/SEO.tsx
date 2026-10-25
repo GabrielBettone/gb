@@ -81,7 +81,6 @@ export const SEO: React.FC<SEOProps> = ({
       document.head.appendChild(canonicalLink)
     }
     canonicalLink.setAttribute('href', fullCanonical)
-
     // 6. JSON-LD
     const jsonLdId = 'structured-data-jsonld'
     let scriptTag = document.getElementById(jsonLdId) as HTMLScriptElement | null
@@ -102,6 +101,7 @@ export const SEO: React.FC<SEOProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [title, description, canonical, ogType, ogImage, keywords, jsonLd])
 
+  // Cleanup canonical / tags if necessary
   return null
 }
 

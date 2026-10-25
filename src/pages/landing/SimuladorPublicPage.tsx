@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
 import WatermarkedImage from '@/components/landing/WatermarkedImage'
@@ -7,7 +8,6 @@ import {
   Upload,
   Image as ImageIcon,
   CheckCircle2,
-  AlertTriangle,
   Lock,
   Phone,
   RefreshCw,
@@ -207,30 +207,9 @@ export const SimuladorPublicPage: React.FC = () => {
     )
   }
 
+  // Quando o simulador estiver desativado nas configurações, redireciona para a home pública
   if (config?.simulador_ativo === false) {
-    return (
-      <div className="min-h-screen bg-[#f4f4f4] py-16 px-4">
-        <div className="max-w-xl mx-auto bg-white rounded-2xl border border-[#DEE4EA] p-8 text-center space-y-4 shadow-sm">
-          <div className="w-16 h-16 rounded-full bg-[#f4f4f4] text-[#2C3E50] flex items-center justify-center mx-auto">
-            <AlertTriangle className="w-8 h-8 text-[#D4AF37]" />
-          </div>
-          <h1 className="font-heading text-2xl font-bold text-[#2C3E50]">
-            Simulador Temporariamente Indisponível
-          </h1>
-          <p className="text-sm text-[#616F7D] leading-relaxed">
-            O simulador inteligente de ambientes da Gesso Bettone está passando por uma manutenção
-            programada ou foi desativado temporariamente pela nossa equipe técnica.
-          </p>
-          <div className="pt-4">
-            <Button asChild className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold">
-              <a href="https://wa.me/5519981093379" target="_blank" rel="noopener noreferrer">
-                Solicitar orçamento diretamente no WhatsApp
-              </a>
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
+    return <Navigate to="/" replace />
   }
 
   return (

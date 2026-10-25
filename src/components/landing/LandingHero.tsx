@@ -2,7 +2,15 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { WHATSAPP_LINK } from '@/data/landingData'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, ArrowRight, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'
+import {
+  MessageCircle,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Sparkles,
+} from 'lucide-react'
+import { obterConfiguracoes, SiteSettings } from '@/services/site'
 
 interface HeroSlide {
   image: string
@@ -57,8 +65,10 @@ const HERO_SLIDES: HeroSlide[] = [
 
 export const LandingHero: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
 
   useEffect(() => {
+    obterConfiguracoes().then(setSettings)
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)
     }, 5500)
@@ -138,6 +148,20 @@ export const LandingHero: React.FC = () => {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
+
+            {settings?.simulador_ativo !== false && (
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="border-[#D4AF37]/50 text-[#D4AF37] bg-white/5 hover:bg-[#D4AF37]/20 hover:text-white font-medium text-base h-12 px-5 rounded-xl transition-all"
+              >
+                <Link to="/simulador">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Simulador IA
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
 

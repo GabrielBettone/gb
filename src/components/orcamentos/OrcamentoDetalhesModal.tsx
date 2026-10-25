@@ -73,9 +73,9 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
     })
   }
 
-  const handleImprimir = () => {
+  const handleImprimir = async () => {
     if (orcamento) {
-      imprimirOrcamentoPDF(orcamento, configGeral)
+      await imprimirOrcamentoPDF(orcamento, configGeral)
     }
   }
 

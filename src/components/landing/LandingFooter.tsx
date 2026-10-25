@@ -104,6 +104,13 @@ export const LandingFooter: React.FC = () => {
                   Portfólio de Obras
                 </Link>
               </li>
+              {settings?.simulador_ativo !== false && (
+                <li>
+                  <Link to="/simulador" className="hover:text-[#D4AF37] transition-colors">
+                    Simulador IA
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/sobre" className="hover:text-[#D4AF37] transition-colors">
                   Sobre a Gesso Bettone

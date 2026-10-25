@@ -89,7 +89,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
   const abrirNovo = () => {
     setEditando(null)
     setNome('')
-    setGrupoId(grupos[0]?.id || '')
+    setGrupoId('todos')
     setModoCalculo('area')
     setUnidade('m²')
     setPrecoUnitario('120')
@@ -136,6 +136,34 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
           ativo,
         })
         toast({ title: 'Serviço atualizado com sucesso!' })
+      } else if (grupoId === 'todos') {
+        // Criar o item em TODOS os grupos existentes como registros independentes
+        if (grupos.length === 0) {
+          toast({
+            variant: 'destructive',
+            title: 'Nenhum grupo cadastrado',
+            description: 'Cadastre ao menos um grupo de clientes antes de criar serviços.',
+          })
+          setSalvando(false)
+          return
+        }
+
+        const promessas = grupos.map((g) =>
+          criarOrcamentoServico({
+            nome: nome.trim(),
+            grupo: g.id,
+            modo_calculo: modoCalculo,
+            unidade: unidade.trim(),
+            preco_unitario: precoNum,
+            descricao_pdf: descricaoPdf.trim(),
+            ativo,
+          }),
+        )
+        await Promise.all(promessas)
+        toast({
+          title: 'Serviço criado em todos os grupos!',
+          description: `Item adicionado individualmente em ${grupos.length} tabela(s) de preços. Cada grupo pode ser editado separadamente.`,
+        })
       } else {
         await criarOrcamentoServico({
           nome: nome.trim(),
@@ -404,6 +432,11 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
                     <SelectValue placeholder="Selecione o grupo" />
                   </SelectTrigger>
                   <SelectContent>
+                    {!editando && (
+                      <SelectItem value="todos" className="text-xs font-semibold text-[#D4AF37]">
+                        ✨ Todos os Grupos (criar em todas as tabelas)
+                      </SelectItem>
+                    )}
                     {grupos.map((g) => (
                       <SelectItem key={g.id} value={g.id} className="text-xs">
                         {g.nome} {g.padrao ? '(Padrão)' : ''}

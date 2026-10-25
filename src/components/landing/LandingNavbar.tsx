@@ -32,7 +32,7 @@ export const LandingNavbar: React.FC = () => {
     { label: 'Início', to: '/' },
     { label: 'Serviços', to: '/servicos' },
     { label: 'Portfólio', to: '/portfolio' },
-    { label: 'Simulador IA', to: '/simulador' },
+    ...(settings?.simulador_ativo !== false ? [{ label: 'Simulador IA', to: '/simulador' }] : []),
     { label: 'Sobre nós', to: '/sobre' },
     { label: 'Contato', to: '/contato' },
   ]

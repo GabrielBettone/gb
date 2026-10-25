@@ -1,11 +1,100 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { parseItens } from '@/services/orcamentos'
 import { parseCompromisso } from '@/services/orcamentoModulo'
+import logoSvgDefault from '@/assets/logo-6927a.svg'
+import logoPngFallback from '@/assets/logo-gesso-bettone-eb5aa.png'
 
-export function imprimirOrcamentoPDF(
+/**
+ * Resolve uma URL para endereço absoluto no navegador.
+ */
+function toAbsoluteUrl(url: string): string {
+  if (!url) return ''
+  try {
+    return new URL(url, window.location.origin).href
+  } catch {
+    return url
+  }
+}
+
+/**
+ * Converte uma URL de imagem (SVG, PNG, JPG, WebP) em base64 Data URL,
+ * aguardando o carregamento antes de retornar para garantir exibição imediata e confiável no popup/impressão.
+ */
+async function carregarImagemDataUrl(url: string): Promise<string> {
+  const absUrl = toAbsoluteUrl(url)
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth || img.width || 300
+        canvas.height = img.naturalHeight || img.height || 100
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(absUrl)
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const dataUrl = canvas.toDataURL('image/png')
+        resolve(dataUrl)
+      } catch {
+        // Se houver restrição de tainted canvas (CORS), resolve com a URL absoluta já carregada com sucesso
+        resolve(absUrl)
+      }
+    }
+    img.onerror = (e) => reject(e)
+    img.src = absUrl
+  })
+}
+
+/**
+ * Resolve o logotipo oficial para o cabeçalho do orçamento:
+ * 1. Usa config.logo_url (se configurado);
+ * 2. Se falhar ou não houver, usa SVG oficial importado pelo Vite;
+ * 3. Fallback final garantido com PNG oficial logo-gesso-bettone-eb5aa.png.
+ */
+async function resolverLogoDataUrl(config?: OrcamentoConfiguracao | null): Promise<string> {
+  const fallbackPngAbs = toAbsoluteUrl(logoPngFallback)
+  const defaultSvgAbs = toAbsoluteUrl(logoSvgDefault)
+
+  // 1. Tentar logo customizado da configuração se houver
+  if (config?.logo_url && config.logo_url.trim()) {
+    try {
+      const dataUrl = await carregarImagemDataUrl(config.logo_url.trim())
+      if (dataUrl) return dataUrl
+    } catch (err) {
+      console.warn('Falha ao carregar logo configurado, aplicando fallback:', err)
+    }
+  }
+
+  // 2. Tentar SVG oficial
+  try {
+    const dataUrl = await carregarImagemDataUrl(defaultSvgAbs)
+    if (dataUrl) return dataUrl
+  } catch {
+    // se o canvas/navegador não renderizar SVG via canvas, tenta o PNG oficial
+  }
+
+  // 3. Fallback oficial PNG garantido
+  try {
+    const dataUrl = await carregarImagemDataUrl(fallbackPngAbs)
+    if (dataUrl) return dataUrl
+  } catch {
+    /* fallback para URL absoluta direta */
+  }
+
+  return fallbackPngAbs
+}
+
+export async function imprimirOrcamentoPDF(
   orcamento: Orcamento,
   config?: OrcamentoConfiguracao | null,
-): void {
+): Promise<void> {
+  // Carrega e valida o logotipo ANTES de renderizar o HTML da janela
+  const logoDataUrl = await resolverLogoDataUrl(config)
+  const pngFallbackAbs = toAbsoluteUrl(logoPngFallback)
+
   const janela = window.open('', '_blank', 'width=900,height=1000')
   if (!janela) {
     alert('Por favor, permita pop-ups para gerar e imprimir o PDF do orçamento.')
@@ -381,10 +470,10 @@ export function imprimirOrcamentoPDF(
       <div class="logo-container">
         <div class="logo-badge" style="background: transparent; border: none; box-shadow: none; width: auto; height: auto; display: flex; align-items: center;">
           <img
-            src="${config?.logo_url || '/src/assets/logo-6927a.svg'}"
+            src="${logoDataUrl}"
             alt="Gesso Bettone"
-            style="height: 56px; max-width: 160px; object-fit: contain;"
-            onerror="this.onerror=null; this.src='/src/assets/logo-gesso-bettone-eb5aa.png'"
+            style="height: 58px; max-width: 180px; object-fit: contain; display: block;"
+            onerror="if (this.src !== '${pngFallbackAbs}') { this.src = '${pngFallbackAbs}'; }"
           />
         </div>
         <div>

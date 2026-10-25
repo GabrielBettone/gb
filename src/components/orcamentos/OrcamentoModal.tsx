@@ -497,7 +497,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   }
 
   // Dispara impressão do PDF diretamente do modal
-  const handleExportarPDF = () => {
+  const handleExportarPDF = async () => {
     const fakeOrcamento: Orcamento = {
       id: orcamentoParaEditar?.id || 'temp',
       collectionId: '',
@@ -527,7 +527,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         metodo_pagamento: metodosList.find((m) => m.id === metodoPagamentoId),
       },
     }
-    imprimirOrcamentoPDF(fakeOrcamento, configGeral)
+    await imprimirOrcamentoPDF(fakeOrcamento, configGeral)
   }
 
   return (

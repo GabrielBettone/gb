@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { WHATSAPP_LINK, WHATSAPP_NUMBER, WHATSAPP_DEFAULT_TEXT } from '@/data/landingData'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, PhoneCall, Sparkles } from 'lucide-react'
-import { obterConfiguracoes, registrarEventoAnalytics } from '@/services/site'
+import { MessageCircle, PhoneCall, Sparkles, Wand2 } from 'lucide-react'
+import { obterConfiguracoes, registrarEventoAnalytics, SiteSettings } from '@/services/site'
 
 interface Props {
   titulo?: string
   subtitulo?: string
   botaoTexto?: string
   servicoContexto?: string
+  mostrarSimuladorCTA?: boolean
 }
 
 export const LandingCTA: React.FC<Props> = ({
@@ -16,12 +18,15 @@ export const LandingCTA: React.FC<Props> = ({
   subtitulo = 'Entre em contato com a Gesso Bettone para solicitar um orçamento sob medida, tirar dúvidas técnicas ou agendar uma visita na sua obra.',
   botaoTexto = 'Quero um orçamento',
   servicoContexto,
+  mostrarSimuladorCTA = false,
 }) => {
   const [zapNumber, setZapNumber] = useState(WHATSAPP_NUMBER)
   const [defaultMsg, setDefaultMsg] = useState(WHATSAPP_DEFAULT_TEXT)
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
 
   useEffect(() => {
     obterConfiguracoes().then((cfg) => {
+      setSettings(cfg)
       if (cfg.whatsapp_principal) setZapNumber(cfg.whatsapp_principal)
       if (cfg.mensagem_orcamento) setDefaultMsg(cfg.mensagem_orcamento)
     })
@@ -69,6 +74,21 @@ export const LandingCTA: React.FC<Props> = ({
               {botaoTexto}
             </a>
           </Button>
+
+          {mostrarSimuladorCTA && settings?.simulador_ativo !== false && (
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="w-full sm:w-auto border-[#D4AF37]/50 text-[#D4AF37] bg-white/5 hover:bg-[#D4AF37]/20 hover:text-white font-medium text-base h-12 px-6 rounded-xl transition-all"
+            >
+              <Link to="/simulador">
+                <Wand2 className="w-4 h-4 mr-2" />
+                Simular com IA
+              </Link>
+            </Button>
+          )}
+
           <Button
             asChild
             variant="outline"
