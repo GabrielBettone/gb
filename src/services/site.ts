@@ -146,20 +146,232 @@ export interface SiteAnalyticsEvent {
   created?: string
 }
 
-// Helpers para parser de JSON seguro
-function parseJsonArray<T>(val: any, fallback: T[] = []): T[] {
-  if (!val) return fallback
-  if (Array.isArray(val)) return val
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
   try {
-    const parsed = JSON.parse(val)
-    return Array.isArray(parsed) ? parsed : fallback
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
   } catch {
-    return fallback
+    return null
+  }
+}
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      keywords: parseJsonArray<string>(r.keywords),
+      created: r.created,
+      updated: r.updated,
+    }))
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
   }
 }
 
-// --- SERVIÇOS DO SITE ---
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      keywords: parseJsonArray<string>(r.keywords),
+      created: r.created,
+      updated: r.updated,
+    }))
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
 
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
         meta_title: r.meta_title,
         meta_description: r.meta_description,
         keywords: parseJsonArray<string>(r.keywords),
@@ -209,6 +421,659 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
     return null
   }
 }
+=======
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      keywords: parseJsonArray<string>(r.keywords),
+      created: r.created,
+      updated: r.updated,
+    }))
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      keywords: parseJsonArray<string>(r.keywords),
+      created: r.created,
+      updated: r.updated,
+    }))
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(r.galeria),
+      arquivo_principal: r.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(r.arquivos_galeria)
+        ? r.arquivos_galeria
+        : r.arquivos_galeria
+          ? [r.arquivos_galeria]
+          : [],
+      meta_title: r.meta_title,
+      meta_description: r.meta_description,
+      keywords: parseJsonArray<string>(r.keywords),
+      created: r.created,
+      updated: r.updated,
+    }))
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+=======
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+      ativo: !!r.ativo,
+      ordem: r.ordem,
+      descricao_curta: r.descricao_curta || '',
+      descricao_longa: r.descricao_longa || '',
+      beneficios: parseJsonArray<string>(r.beneficios),
+      imagem_principal: r.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function criarServico(
+=======
+// Helpers para parser de JSON seguro
+function parseJsonArray<T>(val: any, fallback: T[] = []): T[] {
+  if (!val) return fallback
+  if (Array.isArray(val)) return val
+  try {
+    const parsed = JSON.parse(val)
+    return Array.isArray(parsed) ? parsed : fallback
+  } catch {
+    return fallback
+  }
+}
+
+// --- SERVIÇOS DO SITE ---
+
+export async function listarServicos(apenasAtivos = false): Promise<SiteServico[]> {
+  try {
+    const filter = apenasAtivos ? 'ativo = true' : ''
+    const records = await dataAdapter.getFullList<any>('site_services', {
+      filter,
+      sort: '-destaque,ordem,created',
+    })
+    return records.map((r) => {
+      const catsParsed = parseJsonArray<string>(r.categorias)
+      const listaCategorias =
+        catsParsed.length > 0 ? catsParsed : r.categoria ? [r.categoria] : []
+      return {
+        id: r.id,
+        nome: r.nome,
+        slug: r.slug,
+        categoria: r.categoria || listaCategorias[0] || '',
+        categorias: listaCategorias,
+        destaque: !!r.destaque,
+        ativo: !!r.ativo,
+        ordem: r.ordem,
+        descricao_curta: r.descricao_curta || '',
+        descricao_longa: r.descricao_longa || '',
+        beneficios: parseJsonArray<string>(r.beneficios),
+        imagem_principal: r.imagem_principal || '',
+        galeria: parseJsonArray<string>(r.galeria),
+        arquivo_principal: r.arquivo_principal || '',
+        arquivos_galeria: Array.isArray(r.arquivos_galeria)
+          ? r.arquivos_galeria
+          : r.arquivos_galeria
+            ? [r.arquivos_galeria]
+            : [],
+        meta_title: r.meta_title,
+        meta_description: r.meta_description,
+        keywords: parseJsonArray<string>(r.keywords),
+        created: r.created,
+        updated: r.updated,
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao listar servicos:', err)
+    return []
+  }
+}
+
+export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function criarServico(
 =======
 export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
   try {
