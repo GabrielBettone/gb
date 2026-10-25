@@ -1,6 +1,7 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { parseItens } from '@/services/orcamentos'
 import { parseCompromisso } from '@/services/orcamentoModulo'
+import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import logoSvgDefault from '@/assets/logo-6927a.svg'
 import logoPngFallback from '@/assets/logo-gesso-bettone-eb5aa.png'
 
@@ -131,24 +132,12 @@ export async function imprimirOrcamentoPDF(
   const valorTotal = orcamento.valor_total || 0
   const valorAVista = orcamento.valor_a_vista || valorTotal
   const valorAPrazo = orcamento.valor_a_prazo || valorTotal
-  const metodoNome = orcamento.expand?.metodo_pagamento?.nome || 'Condição padrão'
+  const metodoObj = orcamento.expand?.metodo_pagamento
+  const metodoNome = metodoObj?.nome || 'Condição padrão'
+  const percentualDescAVista = metodoObj?.desconto_a_vista || 0
 
-  // Condições do método
-  const condicoesMetodo: string[] = []
-  if (orcamento.expand?.metodo_pagamento?.condicoes) {
-    const raw = orcamento.expand.metodo_pagamento.condicoes
-    if (Array.isArray(raw)) {
-      condicoesMetodo.push(...raw)
-    } else if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) condicoesMetodo.push(...parsed)
-        else condicoesMetodo.push(raw)
-      } catch {
-        condicoesMetodo.push(raw)
-      }
-    }
-  }
+  // Condições do método calculadas com valores reais, sem menção a desconto
+  const condicoesMetodo = formatarCondicoesPrazo(metodoObj, valorAPrazo)
 
   const html = `
 <!DOCTYPE html>
@@ -545,20 +534,23 @@ export async function imprimirOrcamentoPDF(
     <!-- VALOR À VISTA E A PRAZO LADO A LADO -->
     <div class="pricing-box">
       <div class="price-card a-vista">
-        <div class="price-card-title">Opção 1 • Pagamento À Vista</div>
+        <div class="price-card-title">VALOR À VISTA${percentualDescAVista > 0 ? ` (COM ${percentualDescAVista}% DE DESCONTO)` : ''}</div>
         <div class="price-value">${formatMoeda(valorAVista)}</div>
         <div class="price-conditions">
-          ${orcamento.desconto ? `Desconto de ${formatMoeda(orcamento.desconto)} aplicado.<br/>` : ''}
-          Quitação no ato do fechamento / início da obra via PIX ou transferência imediata.
+          ${
+            valorAPrazo > valorAVista
+              ? `Economia de ${formatMoeda(valorAPrazo - valorAVista)} para pagamento no PIX / Transferência imediata.`
+              : 'Quitação no ato do fechamento / início da obra via PIX ou transferência imediata.'
+          }
         </div>
       </div>
 
       <div class="price-card a-prazo">
-        <div class="price-card-title">Opção 2 • Pagamento a Prazo</div>
+        <div class="price-card-title">VALOR A PRAZO</div>
         <div class="price-value">${formatMoeda(valorAPrazo)}</div>
         <div class="price-conditions">
-          <strong>Método:</strong> ${metodoNome}<br/>
-          ${condicoesMetodo.length > 0 ? condicoesMetodo.join(' • ') : 'Parcelamento conforme acordado com a equipe comercial.'}
+          <div style="font-weight: 600; color: #2C3E50; margin-bottom: 2px;">${metodoNome}</div>
+          ${condicoesMetodo.length > 0 ? condicoesMetodo.join('<br/>') : 'Parcelamento conforme acordado com a equipe comercial.'}
         </div>
       </div>
     </div>

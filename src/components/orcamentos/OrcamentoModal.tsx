@@ -56,6 +56,7 @@ import {
   criarCliente,
 } from '@/services/orcamentoModulo'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
+import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import { useToast } from '@/hooks/use-toast'
 
 interface OrcamentoModalProps {
@@ -298,6 +299,8 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     percentualDescAVista > 0
       ? Math.round(valorAPrazo * (1 - percentualDescAVista / 100) * 100) / 100
       : valorAPrazo
+
+  const condicoesPrazo = formatarCondicoesPrazo(metodoAtual, valorAPrazo)
 
   // Gerenciamento dos itens
   const handleAddItem = () => {
@@ -920,31 +923,31 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl border-2 border-emerald-600 bg-emerald-50/50 space-y-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 block">
-                    Valor À Vista (com {percentualDescAVista}% de desconto)
+                    VALOR À VISTA
+                    {percentualDescAVista > 0 ? ` (COM ${percentualDescAVista}% DE DESCONTO)` : ''}
                   </span>
                   <div className="text-2xl font-bold text-emerald-800">
                     {formatMoeda(valorAVista)}
                   </div>
                   <p className="text-[11px] text-emerald-700">
-                    Economia de {formatMoeda(valorAPrazo - valorAVista)} para pagamento no PIX /
-                    Transferência imediata.
+                    {valorAPrazo > valorAVista
+                      ? `Economia de ${formatMoeda(valorAPrazo - valorAVista)} para pagamento no PIX / Transferência imediata.`
+                      : 'Pagamento no PIX / Transferência imediata.'}
                   </p>
                 </div>
 
                 <div className="p-4 rounded-xl border border-[#DEE4EA] bg-[#f8fafc] space-y-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#2C3E50] block">
-                    Valor a Prazo ({metodoAtual?.nome || 'Condição padrão'})
+                    VALOR A PRAZO
                   </span>
                   <div className="text-2xl font-bold text-[#2C3E50]">
                     {formatMoeda(valorAPrazo)}
                   </div>
-                  <p className="text-[11px] text-[#616F7D]">
-                    {metodoAtual?.numero_parcelas
-                      ? `Em até ${metodoAtual.numero_parcelas}x de ${formatMoeda(
-                          valorAPrazo / metodoAtual.numero_parcelas,
-                        )} conforme condições.`
-                      : 'Parcelamento padrão da obra.'}
-                  </p>
+                  <div className="text-[11px] text-[#616F7D] space-y-0.5">
+                    {condicoesPrazo.map((cond, i) => (
+                      <p key={i}>{cond}</p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

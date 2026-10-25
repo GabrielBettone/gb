@@ -22,6 +22,7 @@ import {
 import { ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
 import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
+import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 
 interface OrcamentoDetalhesModalProps {
   orcamento: Orcamento | null
@@ -73,6 +74,12 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
     })
   }
 
+  const valorAPrazo = orcamento.valor_a_prazo ?? orcamento.valor_total ?? 0
+  const valorAVista = orcamento.valor_a_vista ?? valorAPrazo
+  const metodoAtual = orcamento.expand?.metodo_pagamento
+  const percentualDescAVista = metodoAtual?.desconto_a_vista || 0
+  const condicoesPrazo = formatarCondicoesPrazo(metodoAtual, valorAPrazo)
+
   const handleImprimir = async () => {
     if (orcamento) {
       await imprimirOrcamentoPDF(orcamento, configGeral)
@@ -111,6 +118,43 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
         </DialogHeader>
 
         <div className="p-6 space-y-5 bg-[#FBFBFC]">
+          {/* SEÇÃO VALORES DO ORÇAMENTO: À VISTA VS. A PRAZO */}
+          <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-3 shadow-xs">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+              Valores do Orçamento: À Vista vs. A Prazo
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border-2 border-emerald-600 bg-emerald-50/50 space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 block">
+                  VALOR À VISTA
+                  {percentualDescAVista > 0 ? ` (COM ${percentualDescAVista}% DE DESCONTO)` : ''}
+                </span>
+                <div className="text-2xl font-bold text-emerald-800">
+                  {formatMoeda(valorAVista)}
+                </div>
+                <p className="text-[11px] text-emerald-700">
+                  {valorAPrazo > valorAVista
+                    ? `Economia de ${formatMoeda(valorAPrazo - valorAVista)} para pagamento no PIX / Transferência imediata.`
+                    : 'Pagamento no PIX / Transferência imediata.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-[#DEE4EA] bg-[#f8fafc] space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#2C3E50] block">
+                  VALOR A PRAZO
+                </span>
+                <div className="text-2xl font-bold text-[#2C3E50]">{formatMoeda(valorAPrazo)}</div>
+                <div className="text-[11px] text-[#616F7D] space-y-0.5">
+                  {condicoesPrazo.map((cond, i) => (
+                    <p key={i}>{cond}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Informações Gerais */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-4 rounded-xl border border-[#E3E6EA]">
             <div className="flex items-center gap-2.5 text-xs text-[#5B6470]">
