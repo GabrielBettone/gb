@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-25T00:46:54.950Z",
+  "generatedAt": "2026-10-25T01:13:24.520Z",
   "collections": [
     {
       "name": "users",
@@ -814,6 +814,24 @@
         {
           "name": "arquivos_galeria",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivos_videos",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "videos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "videos_count",
+          "type": "number",
           "required": false,
           "system": false
         }

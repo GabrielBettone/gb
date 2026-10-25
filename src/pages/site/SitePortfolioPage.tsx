@@ -37,6 +37,7 @@ import {
   Star,
   ExternalLink,
   Images,
+  Film,
   Search,
   X,
   ChevronDown,
@@ -413,10 +414,21 @@ export const SitePortfolioPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[#616F7D]">
-                      <span className="inline-flex items-center gap-1">
-                        <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        {p.fotos_count || p.galeria?.length || 0}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1" title="Fotos">
+                          <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          {p.fotos_count || p.galeria?.length || 0}
+                        </span>
+                        {(p.videos_count || p.videos?.length || 0) > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[#2C3E50]"
+                            title="Vídeos"
+                          >
+                            <Film className="w-3.5 h-3.5 text-[#2C3E50]" />
+                            {p.videos_count || p.videos?.length}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 px-4">
                       {p.destaque ? (

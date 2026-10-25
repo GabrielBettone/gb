@@ -48,6 +48,9 @@ export interface SitePortfolioItem {
   arquivo_capa?: string
   arquivos_galeria?: string[]
   fotos_count?: number
+  arquivos_videos?: string[]
+  videos?: string[]
+  videos_count?: number
   destaque: boolean
   ativo: boolean
   ordem?: number
@@ -409,6 +412,13 @@ export async function listarPortfolio(apenasAtivos = false): Promise<SitePortfol
           ? [r.arquivos_galeria]
           : [],
       fotos_count: r.fotos_count || parseJsonArray<string>(r.galeria).length,
+      arquivos_videos: Array.isArray(r.arquivos_videos)
+        ? r.arquivos_videos
+        : r.arquivos_videos
+          ? [r.arquivos_videos]
+          : [],
+      videos: parseJsonArray<string>(r.videos),
+      videos_count: r.videos_count || parseJsonArray<string>(r.videos).length,
       destaque: !!r.destaque,
       ativo: !!r.ativo,
       ordem: r.ordem,
@@ -444,6 +454,13 @@ export async function obterProjetoPorId(id: string): Promise<SitePortfolioItem |
           ? [record.arquivos_galeria]
           : [],
       fotos_count: record.fotos_count || parseJsonArray<string>(record.galeria).length,
+      arquivos_videos: Array.isArray(record.arquivos_videos)
+        ? record.arquivos_videos
+        : record.arquivos_videos
+          ? [record.arquivos_videos]
+          : [],
+      videos: parseJsonArray<string>(record.videos),
+      videos_count: record.videos_count || parseJsonArray<string>(record.videos).length,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
@@ -478,6 +495,13 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
           ? [record.arquivos_galeria]
           : [],
       fotos_count: record.fotos_count || parseJsonArray<string>(record.galeria).length,
+      arquivos_videos: Array.isArray(record.arquivos_videos)
+        ? record.arquivos_videos
+        : record.arquivos_videos
+          ? [record.arquivos_videos]
+          : [],
+      videos: parseJsonArray<string>(record.videos),
+      videos_count: record.videos_count || parseJsonArray<string>(record.videos).length,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
@@ -493,16 +517,19 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
 
 export async function criarProjeto(
   data: Partial<SitePortfolioItem>,
-  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[] },
+  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[]; arquivos_videos?: File[] },
 ): Promise<SitePortfolioItem> {
-  if (
+  const hasFiles =
     arquivos &&
-    (arquivos.arquivo_capa || (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
-  ) {
+    (arquivos.arquivo_capa ||
+      (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) ||
+      (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0))
+
+  if (hasFiles) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val === undefined || val === null) return
-      if (key === 'detalhes_tecnicos' || key === 'galeria') {
+      if (key === 'detalhes_tecnicos' || key === 'galeria' || key === 'videos') {
         formData.append(key, JSON.stringify(val))
       } else {
         formData.append(key, String(val))
@@ -513,43 +540,53 @@ export async function criarProjeto(
     }
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
       arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+    }
+    if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
+      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
     }
     const record = await pb.collection('site_portfolio').create(formData)
     return {
       ...record,
       detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
       galeria: parseJsonArray<string>(record.galeria),
+      videos: parseJsonArray<string>(record.videos),
       arquivo_capa: record.arquivo_capa,
       arquivos_galeria: record.arquivos_galeria || [],
+      arquivos_videos: record.arquivos_videos || [],
     } as unknown as SitePortfolioItem
   }
 
-  const payload = {
+  const payload: any = {
     ...data,
     detalhes_tecnicos: JSON.stringify(data.detalhes_tecnicos || []),
     galeria: JSON.stringify(data.galeria || []),
+    videos: JSON.stringify(data.videos || []),
   }
   const record = await pb.collection('site_portfolio').create(payload)
   return {
     ...record,
     detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
     galeria: parseJsonArray<string>(record.galeria),
+    videos: parseJsonArray<string>(record.videos),
   } as unknown as SitePortfolioItem
 }
 
 export async function atualizarProjeto(
   id: string,
   data: Partial<SitePortfolioItem>,
-  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[] },
+  arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[]; arquivos_videos?: File[] },
 ): Promise<SitePortfolioItem> {
-  if (
+  const hasFiles =
     arquivos &&
-    (arquivos.arquivo_capa || (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0))
-  ) {
+    (arquivos.arquivo_capa ||
+      (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) ||
+      (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0))
+
+  if (hasFiles) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val === undefined || val === null) return
-      if (key === 'detalhes_tecnicos' || key === 'galeria') {
+      if (key === 'detalhes_tecnicos' || key === 'galeria' || key === 'videos') {
         formData.append(key, JSON.stringify(val))
       } else {
         formData.append(key, String(val))
@@ -561,13 +598,18 @@ export async function atualizarProjeto(
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
       arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
     }
+    if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
+      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
+    }
     const record = await pb.collection('site_portfolio').update(id, formData)
     return {
       ...record,
       detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
       galeria: parseJsonArray<string>(record.galeria),
+      videos: parseJsonArray<string>(record.videos),
       arquivo_capa: record.arquivo_capa,
       arquivos_galeria: record.arquivos_galeria || [],
+      arquivos_videos: record.arquivos_videos || [],
     } as unknown as SitePortfolioItem
   }
 
@@ -575,12 +617,14 @@ export async function atualizarProjeto(
   if (data.detalhes_tecnicos !== undefined)
     payload.detalhes_tecnicos = JSON.stringify(data.detalhes_tecnicos)
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
+  if (data.videos !== undefined) payload.videos = JSON.stringify(data.videos)
 
   const record = await pb.collection('site_portfolio').update(id, payload)
   return {
     ...record,
     detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
     galeria: parseJsonArray<string>(record.galeria),
+    videos: parseJsonArray<string>(record.videos),
   } as unknown as SitePortfolioItem
 }
 

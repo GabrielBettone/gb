@@ -16,17 +16,18 @@ export interface ServicoItem {
 export interface ProjetoItem {
   slug: string
   titulo: string
-  categoria: 'Residencial' | 'Comercial' | 'Fachadas'
+  categoria: string
   subtitulo?: string
+  cidade?: string
   descricao: string
   detalhesTecnicos?: string[]
   fotosCount: number
   imagemCapa: string
   galeria: string[]
+  videos?: string[]
   metaTitle: string
   metaDescription: string
 }
-
 export interface ParceiroItem {
   nome: string
   papel?: string
@@ -665,6 +666,9 @@ export const PROJETOS: ProjetoItem[] = [
       'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F106a7cc6ffcd34c002bf77921e15824d.jpg',
       'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F5e10734b3ecad47a6b9653ed09c28dd6.jpg',
       'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F99c56de1ee9ebb01f25008713d4f3ed4.jpg',
+    ],
+    videos: [
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     ],
     metaTitle: 'Projeto Comercial Clínica Dra. Camila Ferraz | Gesso Bettone',
     metaDescription:

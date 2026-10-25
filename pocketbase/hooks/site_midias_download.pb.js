@@ -43,8 +43,22 @@ routerAdd(
             const fn = galeriaArquivos[g]
             itensProjetos.push({
               pasta: pasta,
-              nome_arquivo: 'foto_' + (g + 1) + '_' + fn,
+              nome_arquivo: 'midia_' + (g + 1) + '_' + fn,
               url: '/api/files/' + p.collection().id + '/' + p.id + '/' + fn,
+              tipo: 'arquivo_nativo',
+            })
+          }
+        }
+
+        // Galeria de Vídeos nativos (arquivos_videos)
+        const videosArquivos = p.getStringSlice('arquivos_videos')
+        if (videosArquivos && videosArquivos.length > 0) {
+          for (let v = 0; v < videosArquivos.length; v++) {
+            const vFn = videosArquivos[v]
+            itensProjetos.push({
+              pasta: pasta,
+              nome_arquivo: 'video_' + (v + 1) + '_' + vFn,
+              url: '/api/files/' + p.collection().id + '/' + p.id + '/' + vFn,
               tipo: 'arquivo_nativo',
             })
           }
@@ -57,10 +71,29 @@ routerAdd(
             for (let u = 0; u < galeriaUrls.length; u++) {
               const urlItem = galeriaUrls[u]
               if (urlItem && typeof urlItem === 'string' && urlItem.startsWith('http')) {
+                const ext = urlItem.includes('.mp4') ? '.mp4' : '.jpg'
                 itensProjetos.push({
                   pasta: pasta,
-                  nome_arquivo: 'foto_antiga_' + (u + 1) + '.jpg',
+                  nome_arquivo: 'midia_antiga_' + (u + 1) + ext,
                   url: urlItem,
+                  tipo: 'url_externa',
+                })
+              }
+            }
+          }
+        } catch (_) {}
+
+        // Vídeos legado (campo videos)
+        try {
+          const videosUrls = JSON.parse(p.getString('videos'))
+          if (Array.isArray(videosUrls)) {
+            for (let vu = 0; vu < videosUrls.length; vu++) {
+              const vUrl = videosUrls[vu]
+              if (vUrl && typeof vUrl === 'string' && vUrl.startsWith('http')) {
+                itensProjetos.push({
+                  pasta: pasta,
+                  nome_arquivo: 'video_antigo_' + (vu + 1) + '.mp4',
+                  url: vUrl,
                   tipo: 'url_externa',
                 })
               }

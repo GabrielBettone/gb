@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { PROJETOS as FALLBACK_PROJETOS } from '@/data/landingData'
-import { ArrowRight, Images, Sparkles } from 'lucide-react'
+import { ArrowRight, Images, Sparkles, Film } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
@@ -48,12 +48,13 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
               imagem_capa: p.imagemCapa,
               galeria: p.galeria,
               fotos_count: p.fotosCount,
+              videos_count: p.videos?.length || 0,
+              videos: p.videos || [],
               destaque: true,
               ativo: true,
             })),
           )
         }
-
         if (cats.length > 0) {
           setCategorias(['Todos', ...cats.map((c) => c.nome)])
         }
@@ -147,10 +148,18 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
                   </Badge>
                 </div>
 
-                {/* Quantidade de Fotos */}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs backdrop-blur font-medium">
-                  <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>{proj.fotos_count || proj.galeria?.length || 0} fotos</span>
+                {/* Quantidade de Fotos e Vídeos */}
+                <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                  {(proj.videos_count || proj.videos?.length || 0) > 0 && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/70 text-white text-[11px] backdrop-blur font-medium">
+                      <Film className="w-3 h-3 text-[#D4AF37]" />
+                      <span>{proj.videos_count || proj.videos?.length}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs backdrop-blur font-medium">
+                    <Images className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span>{proj.fotos_count || proj.galeria?.length || 0} fotos</span>
+                  </div>
                 </div>
               </div>
 
