@@ -22,23 +22,48 @@ import {
 export const ServicoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const [servicoDb, setServicoDb] = React.useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [carregamentoConcluido, setCarregamentoConcluido] = useState(false)
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const servicoLocal = SERVICOS.find((s) => s.slug === slug)
 
   React.useEffect(() => {
+    let ativo = true
     if (slug) {
-      import('@/services/site').then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
-        obterServicoPorSlug(slug).then((s) => {
-          if (s) {
-            setServicoDb(s)
-            registrarEventoAnalytics({
-              tipo: 'click_servico',
-              servico_slug: s.slug,
-              servico_nome: s.nome,
-              categoria_nome: s.categoria,
-            })
-          }
+      setLoading(true)
+      setErroCarregamento(null)
+
+      import('@/services/site')
+        .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
+          return obterServicoPorSlug(slug).then((s) => {
+            if (!ativo) return
+            if (s) {
+              setServicoDb(s)
+              registrarEventoAnalytics({
+                tipo: 'click_servico',
+                servico_slug: s.slug,
+                servico_nome: s.nome,
+                categoria_nome: s.categoria,
+              })
+            }
+            setCarregamentoConcluido(true)
+            setLoading(false)
+          })
         })
-      })
+        .catch((err) => {
+          if (!ativo) return
+          console.error('Erro ao carregar serviço:', err)
+          setErroCarregamento('Não foi possível carregar os detalhes deste serviço no momento.')
+          setCarregamentoConcluido(true)
+          setLoading(false)
+        })
+    } else {
+      setLoading(false)
+      setCarregamentoConcluido(true)
+    }
+
+    return () => {
+      ativo = false
     }
   }, [slug])
 
@@ -50,9 +75,9 @@ export const ServicoDetailPage: React.FC = () => {
         destaque: servicoDb.destaque,
         descricaoCurta: servicoDb.descricao_curta,
         descricaoCompleta: servicoDb.descricao_longa,
-        beneficios: servicoDb.beneficios,
-        imagemPrincipal: servicoDb.imagem_principal,
-        galeria: servicoDb.galeria,
+        beneficios: servicoDb.beneficios || [],
+        imagemPrincipal: servicoDb.imagem_principal || '',
+        galeria: servicoDb.galeria || [],
         metaTitle: servicoDb.meta_title,
         metaDescription: servicoDb.meta_description,
         keywords: servicoDb.keywords,
@@ -60,8 +85,53 @@ export const ServicoDetailPage: React.FC = () => {
     : servicoLocal
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
 
+  // Enquanto carrega e não temos nem local nem DB, exibe skeleton/loading elegante
+  if (loading && !servico) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+        <div className="w-12 h-12 border-4 border-[#2C3E50]/20 border-t-[#D4AF37] rounded-full animate-spin mb-4" />
+        <p className="text-sm font-semibold text-[#2C3E50]">Carregando detalhes do serviço...</p>
+      </div>
+    )
+  }
+
+  // Se houve erro ou não foi encontrado, exibe tela explicativa com botão de retorno (nunca redirect silencioso)
+  if (carregamentoConcluido && !servico) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-[#DEE4EA] text-center shadow-xs">
+          <div className="w-14 h-14 bg-[#2C3E50]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-[#2C3E50]">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] mb-2">
+            Serviço não encontrado
+          </h1>
+          <p className="text-sm text-[#616F7D] mb-6">
+            {erroCarregamento ||
+              `O serviço "${slug || ''}" não foi localizado ou pode ter sido alterado.`}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              asChild
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+            >
+              <Link to="/servicos">Ver todos os serviços</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#DEE4EA] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+            >
+              <Link to="/">Voltar ao início</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!servico) {
-    return <Navigate to="/servicos" replace />
+    return null
   }
 
   const whatsappUrl = getWhatsAppUrlForService(servico.titulo)
@@ -199,9 +269,9 @@ export const ServicoDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado Esquerdo: Galeria de Fotos */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-black aspect-[16/10]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#2C3E50]/5 aspect-[16/10]">
               <WatermarkedImage
-                src={servico.galeria[activePhotoIndex] || servico.imagemPrincipal}
+                src={servico.galeria[activePhotoIndex] || servico.imagemPrincipal || ''}
                 alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
                 className="w-full h-full object-cover transition-all duration-300"
               />

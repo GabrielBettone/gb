@@ -19,28 +19,54 @@ import {
   Pause,
   Volume2,
   VolumeX,
+  Layers,
 } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 export const ProjetoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const [projetoDb, setProjetoDb] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [carregamentoConcluido, setCarregamentoConcluido] = useState(false)
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const projetoLocal = PROJETOS.find((p) => p.slug === slug)
 
   useEffect(() => {
+    let ativo = true
     if (slug) {
-      import('@/services/site').then(({ obterProjetoPorSlug, registrarEventoAnalytics }) => {
-        obterProjetoPorSlug(slug).then((p) => {
-          if (p) {
-            setProjetoDb(p)
-            registrarEventoAnalytics({
-              tipo: 'view_categoria',
-              categoria_nome: p.categoria,
-              metadata: { projeto: p.titulo, slug: p.slug },
-            })
-          }
+      setLoading(true)
+      setErroCarregamento(null)
+
+      import('@/services/site')
+        .then(({ obterProjetoPorSlug, registrarEventoAnalytics }) => {
+          return obterProjetoPorSlug(slug).then((p) => {
+            if (!ativo) return
+            if (p) {
+              setProjetoDb(p)
+              registrarEventoAnalytics({
+                tipo: 'view_categoria',
+                categoria_nome: p.categoria,
+                metadata: { projeto: p.titulo, slug: p.slug },
+              })
+            }
+            setCarregamentoConcluido(true)
+            setLoading(false)
+          })
         })
-      })
+        .catch((err) => {
+          if (!ativo) return
+          console.error('Erro ao carregar projeto:', err)
+          setErroCarregamento('Não foi possível carregar os detalhes deste projeto no momento.')
+          setCarregamentoConcluido(true)
+          setLoading(false)
+        })
+    } else {
+      setLoading(false)
+      setCarregamentoConcluido(true)
+    }
+
+    return () => {
+      ativo = false
     }
   }, [slug])
 
@@ -103,9 +129,9 @@ export const ProjetoDetailPage: React.FC = () => {
       }
     }
 
-    return list.length > 0
-      ? list
-      : ['https://img.usecurling.com/p/1200/800?q=modern+drywall+interior&color=blue']
+    // Filtra strings vazias
+    const validas = list.filter((f) => typeof f === 'string' && f.trim().length > 0)
+    return validas
   }, [projetoDb, projetoLocal])
 
   // Compilar lista unificada de vídeos
@@ -130,7 +156,7 @@ export const ProjetoDetailPage: React.FC = () => {
       })
     }
 
-    return vList
+    return vList.filter((v) => typeof v === 'string' && v.trim().length > 0)
   }, [projetoDb, projetoLocal])
 
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
@@ -139,13 +165,56 @@ export const ProjetoDetailPage: React.FC = () => {
   // Paginação das miniaturas do card FOTOS (4 miniaturas por página como no print 2x2)
   const [fotosCardPage, setFotosCardPage] = useState(0)
   const fotosPerPage = 4
-  const totalFotosCardPages = Math.ceil(fotos.length / fotosPerPage)
+  const totalFotosCardPages = Math.max(1, Math.ceil(fotos.length / fotosPerPage))
 
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(0)
   const activeVideoIndex = selectedVideoIndex < videos.length ? selectedVideoIndex : 0
 
+  if (loading && !projeto) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+        <div className="w-12 h-12 border-4 border-[#2C3E50]/20 border-t-[#D4AF37] rounded-full animate-spin mb-4" />
+        <p className="text-sm font-semibold text-[#2C3E50]">Carregando detalhes do projeto...</p>
+      </div>
+    )
+  }
+
+  if (carregamentoConcluido && !projeto) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-[#DEE4EA] text-center shadow-xs">
+          <div className="w-14 h-14 bg-[#2C3E50]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-[#2C3E50]">
+            <Layers className="w-7 h-7" />
+          </div>
+          <h1 className="font-heading text-2xl font-bold text-[#2C3E50] mb-2">
+            Projeto não encontrado
+          </h1>
+          <p className="text-sm text-[#616F7D] mb-6">
+            {erroCarregamento ||
+              `O projeto "${slug || ''}" não foi localizado ou pode ter sido alterado.`}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              asChild
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+            >
+              <Link to="/portfolio">Ver portfólio completo</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="border-[#DEE4EA] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+            >
+              <Link to="/">Voltar ao início</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!projeto) {
-    return <Navigate to="/portfolio" replace />
+    return null
   }
 
   const whatsappUrl = getWhatsAppUrlForProject(projeto.titulo)
@@ -293,52 +362,67 @@ export const ProjetoDetailPage: React.FC = () => {
             {/* Coluna 2 (Centro): Galeria Principal Grande com setas e contagem 1/7 (6 colunas lg) */}
             <div className="lg:col-span-5 space-y-2">
               <div className="relative rounded-2xl overflow-hidden shadow-md bg-[#1B2631] border border-[#DEE4EA] aspect-[4/5] flex items-center justify-center group">
-                <WatermarkedImage
-                  src={fotos[activePhotoIndex]}
-                  alt={`${projeto.titulo} — foto ${activePhotoIndex + 1}`}
-                  className="w-full h-full object-cover cursor-pointer"
-                  onClick={() => setFullscreenOpen(true)}
-                />
+                {fotos.length > 0 ? (
+                  <>
+                    <WatermarkedImage
+                      src={fotos[activePhotoIndex]}
+                      alt={`${projeto.titulo} — foto ${activePhotoIndex + 1}`}
+                      className="w-full h-full object-cover cursor-pointer"
+                      onClick={() => setFullscreenOpen(true)}
+                    />
 
-                {/* Seta Esquerda */}
-                {fotos.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={prevPhoto}
-                    aria-label="Foto anterior"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </button>
+                    {/* Seta Esquerda */}
+                    {fotos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={prevPhoto}
+                        aria-label="Foto anterior"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                      >
+                        <ChevronLeft className="w-6 h-6" />
+                      </button>
+                    )}
+
+                    {/* Seta Direita */}
+                    {fotos.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={nextPhoto}
+                        aria-label="Próxima foto"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                      >
+                        <ChevronRight className="w-6 h-6" />
+                      </button>
+                    )}
+
+                    {/* Botão Ampliar discreto no canto */}
+                    <button
+                      type="button"
+                      onClick={() => setFullscreenOpen(true)}
+                      className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Ampliar foto"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2C3E50] via-[#1B2631] to-[#0f171e] text-white p-6 text-center">
+                    <Layers className="w-16 h-16 text-[#D4AF37] mb-3 opacity-80" />
+                    <p className="font-heading text-lg font-bold">{projeto.titulo}</p>
+                    <p className="text-xs text-white/60 mt-1 max-w-xs">
+                      Fotos e especificações completas disponíveis com nossa equipe técnica via
+                      WhatsApp.
+                    </p>
+                  </div>
                 )}
-
-                {/* Seta Direita */}
-                {fotos.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={nextPhoto}
-                    aria-label="Próxima foto"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </button>
-                )}
-
-                {/* Botão Ampliar discreto no canto */}
-                <button
-                  type="button"
-                  onClick={() => setFullscreenOpen(true)}
-                  className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Ampliar foto"
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </button>
               </div>
 
               {/* Contagem no rodapé esquerdo do slide (ex: 1/7) conforme print */}
-              <div className="text-xs font-semibold text-[#616F7D] px-1 pt-1">
-                {activePhotoIndex + 1}/{fotos.length}
-              </div>
+              {fotos.length > 0 && (
+                <div className="text-xs font-semibold text-[#616F7D] px-1 pt-1">
+                  {activePhotoIndex + 1}/{fotos.length}
+                </div>
+              )}
             </div>
 
             {/* Coluna 3 (Direita): Cards FOTOS, VÍDEOS e DETALHES (4 colunas lg) */}
@@ -350,40 +434,48 @@ export const ProjetoDetailPage: React.FC = () => {
                     FOTOS
                   </span>
                   <h3 className="font-heading text-xl font-bold text-[#2C3E50]">
-                    {fotos.length} fotos
+                    {fotos.length} {fotos.length === 1 ? 'foto' : 'fotos'}
                   </h3>
                   <p className="text-xs text-[#616F7D] mt-0.5">
-                    Use as setas ou as miniaturas para navegar por todas as imagens.
+                    {fotos.length > 0
+                      ? 'Use as setas ou as miniaturas para navegar por todas as imagens.'
+                      : 'Solicite fotos e vídeos desta obra em alta resolução pelo WhatsApp.'}
                   </p>
                 </div>
 
                 {/* Grid 2x2 de Miniaturas */}
-                <div className="grid grid-cols-2 gap-2.5 pt-1">
-                  {fotosVisiveisCard.map((imgUrl, localIdx) => {
-                    const globalIdx = fotosCardPage * fotosPerPage + localIdx
-                    const isSelected = activePhotoIndex === globalIdx
+                {fotos.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    {fotosVisiveisCard.map((imgUrl, localIdx) => {
+                      const globalIdx = fotosCardPage * fotosPerPage + localIdx
+                      const isSelected = activePhotoIndex === globalIdx
 
-                    return (
-                      <button
-                        key={globalIdx}
-                        type="button"
-                        onClick={() => setActivePhotoIndex(globalIdx)}
-                        className={`relative aspect-[4/3] rounded-lg overflow-hidden border-2 transition-all ${
-                          isSelected
-                            ? 'border-[#D4AF37] shadow-sm'
-                            : 'border-transparent hover:border-[#2C3E50]/40'
-                        }`}
-                      >
-                        <img
-                          src={imgUrl}
-                          alt={`Miniatura ${globalIdx + 1}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </button>
-                    )
-                  })}
-                </div>
+                      return (
+                        <button
+                          key={globalIdx}
+                          type="button"
+                          onClick={() => setActivePhotoIndex(globalIdx)}
+                          className={`relative aspect-[4/3] rounded-lg overflow-hidden border-2 transition-all ${
+                            isSelected
+                              ? 'border-[#D4AF37] shadow-sm'
+                              : 'border-transparent hover:border-[#2C3E50]/40'
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={`Miniatura ${globalIdx + 1}`}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-[#f4f4f4] text-xs text-[#616F7D]">
+                    Nenhuma foto adicional cadastrada no momento.
+                  </div>
+                )}
 
                 {/* Navegação entre páginas de miniaturas (< 1/2 >) conforme print */}
                 {totalFotosCardPages > 1 && (

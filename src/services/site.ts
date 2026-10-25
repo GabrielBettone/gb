@@ -207,7 +207,46 @@ export async function listarServicos(apenasAtivos = false): Promise<SiteServico[
 
 export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
   try {
-    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
+    const cleanSlug = (slug || '').trim()
+    if (!cleanSlug) return null
+
+    // Busca direta por lista completa com cache/resiliência:
+    // Garante compatibilidade tanto com PB quanto Supabase sem problemas de filtro/escapes
+    let record: any = null
+    try {
+      record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${cleanSlug}"`)
+    } catch {
+      // Tentativa alternativa sem aspas ou fallback
+      try {
+        const todos = await dataAdapter.getFullList<any>('site_services')
+        record =
+          todos.find(
+            (s) =>
+              (s.slug && s.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+              (s.id && s.id === cleanSlug),
+          ) || null
+      } catch (fallbackErr) {
+        console.error('Erro ao buscar serviços para slug:', fallbackErr)
+      }
+    }
+
+    if (!record) {
+      // Fallback final: tenta buscar no array de todos se ainda não tiver feito
+      try {
+        const todos = await dataAdapter.getFullList<any>('site_services')
+        record =
+          todos.find(
+            (s) =>
+              (s.slug && s.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+              (s.id && s.id === cleanSlug),
+          ) || null
+      } catch {
+        // ignora
+      }
+    }
+
+    if (!record) return null
+
     const catsParsed = parseJsonArray<string>(record.categorias)
     const listaCategorias =
       catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
@@ -237,7 +276,13 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
       created: record.created,
       updated: record.updated,
     }
-  } catch {
+  } catch (err: any) {
+    // Se o erro foi especificamente 404 / não encontrado
+    if (err?.status === 404 || err?.message?.includes('Nenhum registro encontrado')) {
+      return null
+    }
+    // Repassa ou loga erro de rede/servidor para que a UI saiba diferenciar erro de ausência
+    console.warn('Falha na busca de serviço por slug:', err)
     return null
   }
 }
@@ -630,7 +675,42 @@ export async function obterProjetoPorId(id: string): Promise<SitePortfolioItem |
 
 export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioItem | null> {
   try {
-    const record = await dataAdapter.getFirstListItem<any>('site_portfolio', `slug = "${slug}"`)
+    const cleanSlug = (slug || '').trim()
+    if (!cleanSlug) return null
+
+    let record: any = null
+    try {
+      record = await dataAdapter.getFirstListItem<any>('site_portfolio', `slug = "${cleanSlug}"`)
+    } catch {
+      try {
+        const todos = await dataAdapter.getFullList<any>('site_portfolio')
+        record =
+          todos.find(
+            (p) =>
+              (p.slug && p.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+              (p.id && p.id === cleanSlug),
+          ) || null
+      } catch (fallbackErr) {
+        console.error('Erro ao buscar portfólio para slug:', fallbackErr)
+      }
+    }
+
+    if (!record) {
+      try {
+        const todos = await dataAdapter.getFullList<any>('site_portfolio')
+        record =
+          todos.find(
+            (p) =>
+              (p.slug && p.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+              (p.id && p.id === cleanSlug),
+          ) || null
+      } catch {
+        // ignora
+      }
+    }
+
+    if (!record) return null
+
     const catsParsed = parseJsonArray<string>(record.categorias)
     const listaCategorias =
       catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
@@ -668,7 +748,11 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
       created: record.created,
       updated: record.updated,
     }
-  } catch {
+  } catch (err: any) {
+    if (err?.status === 404 || err?.message?.includes('Nenhum registro encontrado')) {
+      return null
+    }
+    console.warn('Falha na busca de projeto por slug:', err)
     return null
   }
 }

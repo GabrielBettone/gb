@@ -45,8 +45,8 @@ function parsePbFilterToSupabase(
   const parts = filterStr.split(/\s+&&\s+/)
   for (const part of parts) {
     let trimmed = part.trim()
-    // Caso haja agrupamento com parênteses
-    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+    // Caso haja agrupamento com parênteses externos repetidos: ((col = "val"))
+    while (trimmed.startsWith('(') && trimmed.endsWith(')')) {
       trimmed = trimmed.substring(1, trimmed.length - 1).trim()
     }
 
@@ -70,15 +70,15 @@ function parsePbFilterToSupabase(
         val = true
       } else if (val === 'false') {
         val = false
-      } else if (!isNaN(Number(val))) {
+      } else if (val !== '' && !isNaN(Number(val))) {
         val = Number(val)
       }
       filters.push({ column: col, operator: 'neq', value: val })
       continue
     }
 
-    // Ex: status = 'Concluídos' ou ativo = true
-    const eqMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*=\s*(.+)$/)
+    // Ex: status = 'Concluídos' ou slug = "forro-de-gesso" ou ativo = true ou slug == "..."
+    const eqMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*={1,2}\s*(.+)$/)
     if (eqMatch) {
       const col = eqMatch[1]
       let val: any = eqMatch[2].trim()
@@ -91,7 +91,7 @@ function parsePbFilterToSupabase(
         val = true
       } else if (val === 'false') {
         val = false
-      } else if (!isNaN(Number(val))) {
+      } else if (val !== '' && !isNaN(Number(val))) {
         val = Number(val)
       }
       filters.push({ column: col, operator: 'eq', value: val })
@@ -113,6 +113,26 @@ function parsePbFilterToSupabase(
       const col = lteMatch[1]
       let val: any = lteMatch[2].trim().replace(/^['"]|['"]$/g, '')
       filters.push({ column: col, operator: 'lte', value: val })
+      continue
+    }
+
+    // Ex: valor > 10
+    const gtMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*>\s*(.+)$/)
+    if (gtMatch) {
+      const col = gtMatch[1]
+      let val: any = gtMatch[2].trim().replace(/^['"]|['"]$/g, '')
+      if (val !== '' && !isNaN(Number(val))) val = Number(val)
+      filters.push({ column: col, operator: 'gt', value: val })
+      continue
+    }
+
+    // Ex: valor < 10
+    const ltMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*<\s*(.+)$/)
+    if (ltMatch) {
+      const col = ltMatch[1]
+      let val: any = ltMatch[2].trim().replace(/^['"]|['"]$/g, '')
+      if (val !== '' && !isNaN(Number(val))) val = Number(val)
+      filters.push({ column: col, operator: 'lt', value: val })
       continue
     }
 
@@ -422,7 +442,9 @@ export const dataAdapter = {
         accessToken: token || undefined,
       })
       if (!results || results.length === 0) {
-        throw new Error(`Nenhum registro encontrado para o filtro: ${filterStr}`)
+        const err: any = new Error(`Nenhum registro encontrado para o filtro: ${filterStr}`)
+        err.status = 404
+        throw err
       }
       return results[0]
     }
