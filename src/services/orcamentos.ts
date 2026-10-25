@@ -1,6 +1,5 @@
-import pb from '@/lib/pocketbase/client'
 import { dataAdapter } from '@/lib/dataAdapter'
-import type { Orcamento, StatusOrcamento, ItemOrcamento, CanalVenda, Venda } from '@/types'
+import type { Orcamento, StatusOrcamento, ItemOrcamento, CanalVenda, Venda, Produto } from '@/types'
 
 export const ETAPAS_ORCAMENTO: StatusOrcamento[] = [
   'Orçamentos a realizar',
@@ -68,7 +67,7 @@ export async function gerarProximoNumeroOrcamento(): Promise<string> {
   const prefixo = `ORC-${anoAtual}-`
 
   try {
-    const ultimos = await pb.collection<Orcamento>('orcamentos').getList(1, 1, {
+    const ultimos = await dataAdapter.getList<Orcamento>('orcamentos', 1, 1, {
       filter: `numero ~ '${prefixo}'`,
       sort: '-numero',
     })
@@ -346,7 +345,7 @@ export async function excluirOrcamento(id: string): Promise<void> {
 export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Promise<void> {
   try {
     // 1. Verifica se já existem parcelas para este orçamento
-    const existentes = await pb.collection('pagamentos_parcelas').getList(1, 1, {
+    const existentes = await dataAdapter.getList('pagamentos_parcelas', 1, 1, {
       filter: `orcamento = '${orcamento.id}'`,
     })
     if (existentes.totalItems > 0) {
@@ -357,7 +356,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Pr
     let metodo: any = null
     if (orcamento.metodo_pagamento) {
       try {
-        metodo = await pb.collection('metodos_pagamento').getOne(orcamento.metodo_pagamento)
+        metodo = await dataAdapter.getOne('metodos_pagamento', orcamento.metodo_pagamento)
       } catch {
         /* intentionally ignored */
       }
@@ -387,7 +386,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Pr
 
     if (numParcelasMetodo === 1 || nomeMetodo.includes('vista')) {
       // 1 Parcela: Valor com desconto à vista
-      await pb.collection('pagamentos_parcelas').create({
+      await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
         numero_parcela: 1,
         total_parcelas: 1,
@@ -401,7 +400,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Pr
       const valEntrada = Math.round((valorTotal / 2) * 100) / 100
       const valSaldo = Math.round((valorTotal - valEntrada) * 100) / 100
 
-      await pb.collection('pagamentos_parcelas').create({
+      await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
         numero_parcela: 1,
         total_parcelas: 2,
@@ -416,7 +415,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Pr
         ? orcamento.data_fim_prevista
         : addDays(hoje, 20)
 
-      await pb.collection('pagamentos_parcelas').create({
+      await dataAdapter.create('pagamentos_parcelas', {
         orcamento: orcamento.id,
         numero_parcela: 2,
         total_parcelas: 2,
@@ -433,7 +432,7 @@ export async function gerarAgendaPagamentoSeNaoExistir(orcamento: Orcamento): Pr
       for (let i = 1; i <= n; i++) {
         const val =
           i === n ? Math.round((valorTotal - valorParcela * (n - 1)) * 100) / 100 : valorParcela
-        await pb.collection('pagamentos_parcelas').create({
+        await dataAdapter.create('pagamentos_parcelas', {
           orcamento: orcamento.id,
           numero_parcela: i,
           total_parcelas: n,
@@ -457,9 +456,10 @@ export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<
   try {
     // 1. Verifica se já existe venda com este orcamento vinculado
     try {
-      const existing = await pb
-        .collection<Venda>('vendas')
-        .getFirstListItem(`orcamento = '${orcamento.id}'`)
+      const existing = await dataAdapter.getFirstListItem<Venda>(
+        'vendas',
+        `orcamento = '${orcamento.id}'`,
+      )
       if (existing) {
         return existing
       }
@@ -474,11 +474,11 @@ export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<
       if (itens.length > 0 && itens[0].produto_id) {
         produtoId = itens[0].produto_id
       } else {
-        const primeiroProd = await pb
-          .collection('produtos')
-          .getList(1, 1, { filter: 'ativo = true' })
-        if (primeiroProd.items.length > 0) {
-          produtoId = primeiroProd.items[0].id
+        const prods = await dataAdapter.getList<Produto>('produtos', 1, 1, {
+          filter: 'ativo = true',
+        })
+        if (prods.items.length > 0) {
+          produtoId = prods.items[0].id
         }
       }
     }
@@ -494,7 +494,7 @@ export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<
     // 3. Data da venda = data de conclusão do orçamento (ou hoje)
     const dataVenda = orcamento.data_conclusao ? orcamento.data_conclusao : new Date().toISOString()
 
-    const novaVenda = await pb.collection<Venda>('vendas').create({
+    const novaVenda = await dataAdapter.create<Venda>('vendas', {
       data: dataVenda,
       cliente: orcamento.cliente,
       produto: produtoId,

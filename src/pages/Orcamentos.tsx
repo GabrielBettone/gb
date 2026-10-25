@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 import type { Orcamento, Produto, StatusOrcamento, ClienteGrupo, MetodoPagamento } from '@/types'
 import {
   listarOrcamentos,
@@ -75,6 +75,7 @@ export const Orcamentos: React.FC = () => {
 
   // Aba principal selecionada (Padrão das 6 abas do sistema antigo + Funil + Contas a Receber)
   const [abaAtiva, setAbaAtiva] = useState<AbaModulo>('funil')
+  const [versaoDados, setVersaoDados] = useState(0)
 
   // Estados principais
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
@@ -82,6 +83,7 @@ export const Orcamentos: React.FC = () => {
   const [grupos, setGrupos] = useState<ClienteGrupo[]>([])
   const [metodos, setMetodos] = useState<MetodoPagamento[]>([])
   const [loading, setLoading] = useState(true)
+  const [atualizando, setAtualizando] = useState(false)
 
   // Modo de visualização dentro do Funil: kanban, gantt ou tabela
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'tabela'>('kanban')
@@ -97,26 +99,65 @@ export const Orcamentos: React.FC = () => {
   const [orcamentoDetalhes, setOrcamentoDetalhes] = useState<Orcamento | null>(null)
   const [orcamentoParaExcluir, setOrcamentoParaExcluir] = useState<Orcamento | null>(null)
 
-  // Carrega dados do PocketBase
-  const carregarDados = useCallback(async () => {
+  // Carrega dados de forma resiliente tanto em Supabase quanto em PocketBase
+  const carregarDados = useCallback(async (exibirFeedback = false) => {
     try {
-      const [orcs, prods, grps, mets] = await Promise.all([
+      if (exibirFeedback) setAtualizando(true)
+
+      const [orcsRes, prodsRes, grpsRes, metsRes] = await Promise.allSettled([
         listarOrcamentos(),
-        pb.collection<Produto>('produtos').getFullList({
+        dataAdapter.getFullList<Produto>('produtos', {
           filter: 'ativo = true',
           sort: 'nome',
         }),
         listarGrupos(),
         listarMetodosPagamento(),
       ])
-      setOrcamentos(orcs)
-      setProdutos(prods)
-      setGrupos(grps)
-      setMetodos(mets)
+
+      if (orcsRes.status === 'fulfilled') {
+        setOrcamentos(orcsRes.value)
+      } else {
+        console.warn('Falha ao listar orçamentos:', orcsRes.reason)
+      }
+
+      if (prodsRes.status === 'fulfilled') {
+        setProdutos(prodsRes.value)
+      } else {
+        console.warn('Falha ao listar produtos:', prodsRes.reason)
+      }
+
+      if (grpsRes.status === 'fulfilled') {
+        setGrupos(grpsRes.value)
+      } else {
+        console.warn('Falha ao listar grupos:', grpsRes.reason)
+      }
+
+      if (metsRes.status === 'fulfilled') {
+        setMetodos(metsRes.value)
+      } else {
+        console.warn('Falha ao listar métodos de pagamento:', metsRes.reason)
+      }
+
+      setVersaoDados((v) => v + 1)
+
+      if (exibirFeedback) {
+        toast({
+          title: 'Dados atualizados',
+          description: 'Todas as abas e orçamentos foram sincronizados.',
+        })
+      }
     } catch (e) {
       console.error('Erro ao carregar dados do módulo de orçamentos:', e)
+      if (exibirFeedback) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao atualizar dados',
+          description: 'Não foi possível sincronizar todos os registros. Tente novamente.',
+        })
+      }
     } finally {
       setLoading(false)
+      if (exibirFeedback) setAtualizando(false)
     }
   }, [])
 
@@ -293,12 +334,15 @@ export const Orcamentos: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => carregarDados()}
+              onClick={() => carregarDados(true)}
+              disabled={atualizando}
               className="h-9 text-xs bg-white text-[#616F7D] border-[#DEE4EA] hover:text-[#2C3E50]"
               title="Atualizar dados"
             >
-              <RotateCw className="w-3.5 h-3.5 mr-1" />
-              Atualizar
+              <RotateCw
+                className={`w-3.5 h-3.5 mr-1 ${atualizando ? 'animate-spin text-[#2C3E50]' : ''}`}
+              />
+              {atualizando ? 'Atualizando...' : 'Atualizar'}
             </Button>
 
             <Button
@@ -612,14 +656,19 @@ export const Orcamentos: React.FC = () => {
         )}
 
         {/* ABA: CONTAS A RECEBER & CONCILIAÇÃO BANCÁRIA */}
-        {abaAtiva === 'receber' && <AbaContasReceber onAtualizarOrcamentos={carregarDados} />}
+        {abaAtiva === 'receber' && (
+          <AbaContasReceber key={`receber-${versaoDados}`} onAtualizarOrcamentos={carregarDados} />
+        )}
 
         {/* ABA: SERVIÇOS E PREÇOS */}
-        {abaAtiva === 'servicos' && <AbaServicosPrecos grupos={grupos} />}
+        {abaAtiva === 'servicos' && (
+          <AbaServicosPrecos key={`servicos-${versaoDados}`} grupos={grupos} />
+        )}
 
         {/* ABA: CLIENTES */}
         {abaAtiva === 'clientes' && (
           <AbaClientes
+            key={`clientes-${versaoDados}`}
             grupos={grupos}
             orcamentos={orcamentos}
             onSelecionarOrcamento={(orc) => {
@@ -630,15 +679,21 @@ export const Orcamentos: React.FC = () => {
         )}
 
         {/* ABA: GRUPOS */}
-        {abaAtiva === 'grupos' && <AbaGrupos grupos={grupos} onAtualizar={carregarDados} />}
+        {abaAtiva === 'grupos' && (
+          <AbaGrupos key={`grupos-${versaoDados}`} grupos={grupos} onAtualizar={carregarDados} />
+        )}
 
         {/* ABA: MÉTODOS DE PAGAMENTO */}
         {abaAtiva === 'metodos' && (
-          <AbaMetodosPagamento metodos={metodos} onAtualizar={carregarDados} />
+          <AbaMetodosPagamento
+            key={`metodos-${versaoDados}`}
+            metodos={metodos}
+            onAtualizar={carregarDados}
+          />
         )}
 
         {/* ABA: CONFIGURAÇÕES DO ORÇAMENTO */}
-        {abaAtiva === 'configuracoes' && <AbaConfiguracoes />}
+        {abaAtiva === 'configuracoes' && <AbaConfiguracoes key={`config-${versaoDados}`} />}
       </div>
 
       {/* MODAL NOVO OU EDITAR ORÇAMENTO */}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import pb from '@/lib/pocketbase/client'
+import { dataAdapter } from '@/lib/dataAdapter'
 import { useRealtime } from '@/hooks/use-realtime'
 import type { Produto, Venda } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -48,12 +48,10 @@ export const Produtos: React.FC = () => {
   const carregarDados = useCallback(async () => {
     try {
       const [prodsRes, vendasRes] = await Promise.all([
-        pb.collection<Produto>('produtos').getFullList({
+        dataAdapter.getFullList<Produto>('produtos', {
           sort: 'nome',
         }),
-        pb.collection<Venda>('vendas').getFullList({
-          fields: 'id,produto,valor',
-        }),
+        dataAdapter.getFullList<Venda>('vendas'),
       ])
       setProdutos(prodsRes)
       setVendas(vendasRes)
@@ -124,7 +122,7 @@ export const Produtos: React.FC = () => {
 
   const handleToggleAtivo = async (prod: Produto) => {
     try {
-      await pb.collection('produtos').update(prod.id, {
+      await dataAdapter.update<Produto>('produtos', prod.id, {
         ativo: !prod.ativo,
       })
       toast({
@@ -152,7 +150,7 @@ export const Produtos: React.FC = () => {
     setSaving(true)
     try {
       if (editingProduto) {
-        await pb.collection('produtos').update(editingProduto.id, {
+        await dataAdapter.update<Produto>('produtos', editingProduto.id, {
           nome: nome.trim(),
           descricao: descricao.trim(),
         })
@@ -161,7 +159,7 @@ export const Produtos: React.FC = () => {
           description: 'As alterações foram salvas com sucesso.',
         })
       } else {
-        await pb.collection('produtos').create({
+        await dataAdapter.create<Produto>('produtos', {
           nome: nome.trim(),
           descricao: descricao.trim(),
           ativo: true,

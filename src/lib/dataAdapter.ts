@@ -162,6 +162,68 @@ export const dataAdapter = {
   },
 
   /**
+   * Busca lista paginada de uma tabela / coleção
+   */
+  async getList<T = any>(
+    collection: string,
+    page: number = 1,
+    perPage: number = 30,
+    options: QueryOptions = {},
+  ): Promise<{
+    page: number
+    perPage: number
+    totalItems: number
+    totalPages: number
+    items: T[]
+  }> {
+    if (isSelfHostedSupabase()) {
+      const filters = parsePbFilterToSupabase(options.filter)
+      const order = options.sort
+        ? options.sort.split(',').map((s) => {
+            const clean = s.trim()
+            if (clean.startsWith('-')) {
+              return { column: clean.substring(1), ascending: false }
+            }
+            return { column: clean, ascending: true }
+          })
+        : undefined
+
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+      const offset = (Math.max(1, page) - 1) * perPage
+
+      const results = await supabaseSelect<T>(collection, {
+        filters,
+        order,
+        limit: perPage,
+        offset,
+        accessToken: token || undefined,
+      })
+
+      const items = Array.isArray(results) ? results : []
+      return {
+        page,
+        perPage,
+        totalItems: items.length,
+        totalPages: 1,
+        items,
+      }
+    }
+
+    const pbRes = await pb.collection(collection).getList<T>(page, perPage, {
+      filter: options.filter,
+      sort: options.sort,
+      expand: options.expand,
+    })
+    return {
+      page: pbRes.page,
+      perPage: pbRes.perPage,
+      totalItems: pbRes.totalItems,
+      totalPages: pbRes.totalPages,
+      items: pbRes.items,
+    }
+  },
+
+  /**
    * Busca um único registro por ID
    */
   async getOne<T = any>(collection: string, id: string): Promise<T> {
