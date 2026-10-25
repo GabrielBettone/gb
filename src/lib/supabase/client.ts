@@ -59,17 +59,15 @@ interface SupabaseConfiguration {
 
 export function getSupabaseConfig(): SupabaseConfiguration {
   const env = (import.meta.env || {}) as Record<string, string | undefined>
-  const processEnv = (typeof process !== 'undefined' && process.env ? process.env : {}) as Record<
-    string,
-    string | undefined
-  >
+  const nodeEnv =
+    typeof globalThis !== 'undefined' &&
+    (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process
+      ?.env
+      ? (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process
+          .env
+      : {}
 
-  const url = (
-    env.VITE_SUPABASE_URL ||
-    processEnv.VITE_SUPABASE_URL ||
-    processEnv.SUPABASE_URL ||
-    ''
-  )
+  const url = (env.VITE_SUPABASE_URL || nodeEnv.VITE_SUPABASE_URL || nodeEnv.SUPABASE_URL || '')
     .trim()
     .replace(/\/+$/, '')
   // Suporta VITE_SUPABASE_PUBLISHABLE_KEY (formato novo sb_publishable_...) e fallback para VITE_SUPABASE_ANON_KEY ou SUPABASE_API_KEY
@@ -77,9 +75,9 @@ export function getSupabaseConfig(): SupabaseConfiguration {
     env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     env.VITE_SUPABASE_ANON_KEY ||
     env.SUPABASE_API_KEY ||
-    processEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    processEnv.VITE_SUPABASE_ANON_KEY ||
-    processEnv.SUPABASE_API_KEY ||
+    nodeEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    nodeEnv.VITE_SUPABASE_ANON_KEY ||
+    nodeEnv.SUPABASE_API_KEY ||
     ''
   ).trim()
 
@@ -299,3 +297,5 @@ export function supabasePublicUrl(bucket: string, path: string): string {
   const cleanPath = path.split('/').filter(Boolean).map(encodeURIComponent).join('/')
   return `${url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${cleanPath}`
 }
+
+export const supabaseGetPublicUrl = supabasePublicUrl

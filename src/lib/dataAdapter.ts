@@ -290,14 +290,17 @@ export const dataAdapter = {
       const token = supabaseAuth.getToken()
 
       for (const [key, val] of formData.entries()) {
-        if (val instanceof File || val instanceof Blob) {
-          const fileName = val instanceof File ? val.name : `file_${timestamp}.jpg`
+        const isFileOrBlob =
+          typeof val === 'object' && val !== null && 'size' in val && 'type' in val
+        if (isFileOrBlob) {
+          const fileObj = val as unknown as File | Blob
+          const fileName = 'name' in fileObj ? (fileObj as File).name : `file_${timestamp}.jpg`
           const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
           const storagePath = `${collection}/${id || 'new'}_${timestamp}_${cleanName}`
 
-          await supabaseUpload(bucketName, storagePath, val, {
+          await supabaseUpload(bucketName, storagePath, fileObj, {
             accessToken: token,
-            contentType: val.type || 'application/octet-stream',
+            contentType: fileObj.type || 'application/octet-stream',
             upsert: true,
           })
           const publicUrl = supabaseGetPublicUrl(bucketName, storagePath)

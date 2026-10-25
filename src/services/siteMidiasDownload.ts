@@ -4,16 +4,17 @@ import { getSupabaseConfig } from '@/lib/supabase/client'
 import { supabaseAuth } from '@/lib/supabase/auth'
 
 export interface MidiaInventarioItem {
+  origem?: string
   pasta: string
   nome_arquivo: string
   url: string
-  tipo: 'arquivo_nativo' | 'url_externa'
+  tipo?: 'arquivo_nativo' | 'url_externa'
 }
 
 export interface MidiaInventarioResponse {
   total: number
   itens: MidiaInventarioItem[]
-  contagem: {
+  contagem?: {
     projetos: number
     servicos: number
     parceiros: number
