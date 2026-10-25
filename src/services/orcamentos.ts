@@ -285,11 +285,12 @@ export async function atualizarOrcamento(
   }
   if (dados.observacoes !== undefined) payload.observacoes = dados.observacoes.trim()
 
-  // Obtém o registro antes do update para detectar se o valor_total mudou
+  // Obtém o registro antes do update para capturar estado anterior (valor e status)
+  let orcamentoAntes: Orcamento | null = null
   let valorAnterior: number | undefined
   try {
-    const atual = await dataAdapter.getOne<Orcamento>('orcamentos', id)
-    valorAnterior = atual?.valor_total
+    orcamentoAntes = await dataAdapter.getOne<Orcamento>('orcamentos', id)
+    valorAnterior = orcamentoAntes?.valor_total
   } catch {
     /* ignore */
   }

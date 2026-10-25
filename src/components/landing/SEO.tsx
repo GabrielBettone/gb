@@ -131,6 +131,17 @@ export const SEO: React.FC<SEOProps> = ({
     }
     canonicalLink.setAttribute('href', fullCanonical)
 
+    // 5.1 Link para o Sitemap XML
+    let sitemapLink = document.head.querySelector('link[rel="sitemap"]') as HTMLLinkElement | null
+    if (!sitemapLink) {
+      sitemapLink = document.createElement('link')
+      sitemapLink.setAttribute('rel', 'sitemap')
+      sitemapLink.setAttribute('type', 'application/xml')
+      sitemapLink.setAttribute('title', 'Sitemap')
+      document.head.appendChild(sitemapLink)
+    }
+    sitemapLink.setAttribute('href', `${BASE_URL}/sitemap.xml`)
+
     // 6. JSON-LD
     const jsonLdId = 'structured-data-jsonld'
     let scriptTag = document.getElementById(jsonLdId) as HTMLScriptElement | null

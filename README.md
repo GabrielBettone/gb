@@ -1,6 +1,49 @@
-# Projeto Criado com o Skip
+# Análise de Vendas & Site Institucional Bettone
 
-Este projeto foi criado de ponta a ponta com o [Skip](https://goskip.dev).
+Aplicação web completa para a **Gesso Bettone** (São Pedro/SP):
+- **Site Institucional & Portfólio**: Landing pages públicas, catálogo de serviços dinâmicos, projetos executados com galeria de fotos e vídeos, simulador de ambientes com IA e área de parceiros homologados.
+- **Painel Administrativo**: Gestão de vendas, produtos, clientes, metas, orçamentos (Kanban e Gantt interativos), contas a receber (parcelamento) e CMS do site.
+
+---
+
+## 🌐 Indexação no Google & Sitemap Dinâmico (SEO)
+
+O projeto conta com geração e atualização dinâmica do `sitemap.xml` para garantir indexação rápida de **todas as páginas e serviços cadastrados**:
+
+1. **Deploy no Self-hosted (Hostinger / Servidor Estático puro)**:
+   - O comando `npm run build` executa automaticamente o script `scripts/generate-sitemap.js` (via hook npm `prebuild`).
+   - Durante a build, o script se conecta à API de dados (Supabase utilizando as variáveis de ambiente `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`) e obtém em tempo real todos os serviços ativos e projetos de portfólio.
+   - O arquivo `public/sitemap.xml` é regerado com todas as rotas públicas:
+     - `/` (Home)
+     - `/servicos` e `/servicos/<slug>` para cada serviço ativo cadastrado
+     - `/portfolio` e `/portfolio/<slug>` para cada projeto público ativo
+     - `/parceiros`, `/sobre`, `/contato`, `/simulador`
+   - Rotas privadas/internas (`/painel`, `/login`, etc.) são excluídas do sitemap.
+   - **Fallback Resiliente**: Caso a API esteja inacessível no momento exato do build, o script inclui automaticamente o catálogo completo dos 15 serviços padrão sem quebrar a compilação.
+   - **Regerar Sitemap após cadastrar novos serviços**:
+     Basta disparar um novo deploy na Hostinger (ou rodar `npm run build` localmente/no CI) para que o sitemap seja regerado com os novos slugs e suas datas de modificação (`<lastmod>`).
+
+2. **Ambiente Skip Cloud**:
+   - Disponibiliza adicionalmente o endpoint em tempo real `GET /backend/v1/sitemap.xml` (via `pocketbase/hooks/site_sitemap.pb.js`), que lê a base de dados instantaneamente a cada requisição.
+
+3. **Arquivo `robots.txt`**:
+   - O arquivo `public/robots.txt` aponta para:
+     ```txt
+     User-agent: *
+     Allow: /
+
+     Sitemap: https://gessobettone.com.br/sitemap.xml
+     ```
+   - Caso seu domínio de produção seja alterado, atualize a URL em **Painel > Site > Configurações > URL Base do Site** e ajuste a linha `Sitemap:` no `public/robots.txt`.
+
+4. **Como Validar e Submeter no Google Search Console**:
+   - Acesse o [Google Search Console](https://search.google.com/search-console).
+   - Verifique sua propriedade (você pode colar a tag de verificação do Google diretamente em **Painel > Site > Configurações > Código de verificação do Google Search Console**).
+   - No menu lateral esquerdo, clique em **Sitemaps**.
+   - No campo "Adicionar novo sitemap", digite `sitemap.xml` e clique em **Enviar**.
+   - O Google processará o arquivo e listará todas as URLs de serviços e páginas encontradas com status verde "Sucesso".
+
+---
 
 ## 🚀 Stack Tecnológica
 
