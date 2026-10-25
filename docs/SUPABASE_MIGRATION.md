@@ -27,6 +27,7 @@ Nunca coloque a chave `service_role` do Supabase em variáveis `VITE_*` nem no c
 ### 1. Banco de dados e acesso
 
 A migração SQL em `supabase/migrations/202610250001_initial_schema.sql` define tabelas equivalentes às coleções principais do PocketBase, o perfil associado a Supabase Auth, regras de acesso RLS e dois buckets de Storage:
+
 - `site-media`: leitura pública de mídia publicada; alterações restritas ao administrador.
 - `simulator-private`: arquivos privados do simulador.
 
@@ -44,6 +45,7 @@ O primeiro administrador deverá ser promovido de maneira explícita depois que 
 ### 3. Frontend e autenticação
 
 Substituir gradualmente:
+
 - `src/contexts/AuthContext.tsx` e `src/components/ProtectedRoute.tsx`;
 - `src/services/orcamentos.ts`, `src/services/orcamentoModulo.ts`, `src/services/orcamentoCondicoes.ts`, `src/services/orcamentoPDF.ts`, `src/services/site.ts` e `src/services/simulador.ts`;
 - `src/services/siteMidiasDownload.ts`, `src/hooks/use-realtime.ts`, `src/lib/watermark.ts`, e os componentes que montam URLs PocketBase.
@@ -53,6 +55,7 @@ Os nomes das coleções e os parâmetros de consulta do PocketBase não são com
 ### 4. Variáveis e validação
 
 Quando o código Supabase estiver implementado, adicionar na configuração da Web App Hostinger:
+
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY` (ou a chave pública/publishable equivalente oferecida pelo painel)
 
@@ -61,7 +64,6 @@ Recompilar a aplicação e validar em endereço temporário. Não expor chaves p
 ## Observação importante
 
 Este PR é somente a fundação de schema e o plano técnico; **não migra o frontend nem os dados e não está pronto para ser implantado como substituição do PocketBase**.
-
 
 ### Código base de integração (ainda isolado)
 

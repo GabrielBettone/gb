@@ -28,13 +28,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [, startTransition] = useTransition()
 
   useEffect(() => {
+    // Se o ambiente estiver configurado para Supabase Self-Hosted
+    const env = import.meta.env as Record<string, string | undefined>
+    const isSupabase =
+      /^https:\/\//i.test(env.VITE_SUPABASE_URL || '') &&
+      Boolean(env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
+    if (isSupabase) {
+      import('@/lib/supabase/auth').then(({ supabaseAuth }) => {
+        const unsub = supabaseAuth.onAuthStateChange((sbUser) => {
+          startTransition(() => {
+            if (sbUser) {
+              setUser({
+                id: sbUser.id,
+                email: sbUser.email,
+                name: sbUser.name,
+                avatar: sbUser.avatar_url,
+                created: sbUser.created_at || '',
+                updated: '',
+                collectionId: 'users',
+                collectionName: 'users',
+              } as unknown as User)
+            } else {
+              setUser(null)
+            }
+            setLoading(false)
+          })
+        })
+        return () => unsub()
+      })
+      return
+    }
+
     const unsub = pb.authStore.onChange((_token, model) => {
       startTransition(() => {
         setUser(model ? (model as unknown as User) : null)
       })
     })
 
-    // Checagem de token
+    // Checagem de token PocketBase
     if (pb.authStore.isValid && pb.authStore.record) {
       setUser(pb.authStore.record as unknown as User)
     } else {
@@ -48,12 +80,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const login = async (email: string, pass: string) => {
+    const env = import.meta.env as Record<string, string | undefined>
+    const isSupabase =
+      /^https:\/\//i.test(env.VITE_SUPABASE_URL || '') &&
+      Boolean(env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
+    if (isSupabase) {
+      const { supabaseAuth } = await import('@/lib/supabase/auth')
+      const sbUser = await supabaseAuth.signInWithPassword(email, pass)
+      const adaptedUser = {
+        id: sbUser.id,
+        email: sbUser.email,
+        name: sbUser.name,
+        avatar: sbUser.avatar_url,
+        created: sbUser.created_at || '',
+        updated: '',
+        collectionId: 'users',
+        collectionName: 'users',
+      } as unknown as User
+      setUser(adaptedUser)
+      return {
+        record: adaptedUser,
+        token: supabaseAuth.getToken(),
+      } as unknown as RecordAuthResponse<User>
+    }
+
     const authData = await pb.collection('users').authWithPassword(email, pass)
     setUser(authData.record as unknown as User)
     return authData as unknown as RecordAuthResponse<User>
   }
 
   const register = async (name: string, email: string, pass: string) => {
+    const env = import.meta.env as Record<string, string | undefined>
+    const isSupabase =
+      /^https:\/\//i.test(env.VITE_SUPABASE_URL || '') &&
+      Boolean(env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
+    if (isSupabase) {
+      const { supabaseAuth } = await import('@/lib/supabase/auth')
+      await supabaseAuth.signUp(email, pass, name)
+      return
+    }
+
     await pb.collection('users').create({
       name,
       email,
@@ -69,11 +137,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const logout = () => {
-    pb.authStore.clear()
+    const env = import.meta.env as Record<string, string | undefined>
+    const isSupabase =
+      /^https:\/\//i.test(env.VITE_SUPABASE_URL || '') &&
+      Boolean(env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
+    if (isSupabase) {
+      import('@/lib/supabase/auth').then(({ supabaseAuth }) => {
+        supabaseAuth.signOut()
+      })
+    } else {
+      pb.authStore.clear()
+    }
     setUser(null)
   }
 
   const requestPasswordReset = async (email: string) => {
+    const env = import.meta.env as Record<string, string | undefined>
+    const isSupabase =
+      /^https:\/\//i.test(env.VITE_SUPABASE_URL || '') &&
+      Boolean(env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY)
+
+    if (isSupabase) {
+      const { supabaseAuth } = await import('@/lib/supabase/auth')
+      await supabaseAuth.resetPasswordForEmail(email)
+      return
+    }
+
     await pb.collection('users').requestPasswordReset(email)
   }
 

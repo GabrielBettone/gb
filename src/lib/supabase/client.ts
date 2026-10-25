@@ -60,11 +60,7 @@ interface SupabaseConfiguration {
 function readConfiguration(): SupabaseConfiguration {
   const env = import.meta.env as Record<string, string | undefined>
   const url = (env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
-  const publicKey = (
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    env.VITE_SUPABASE_ANON_KEY ||
-    ''
-  ).trim()
+  const publicKey = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '').trim()
 
   return { url, publicKey }
 }
@@ -109,11 +105,7 @@ async function parseError(response: Response): Promise<SupabaseRequestError> {
   )
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit = {},
-  accessToken?: string,
-): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, accessToken?: string): Promise<T> {
   const { url } = getConfiguration()
   const headers = getHeaders(accessToken, init.headers)
   if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
@@ -157,7 +149,8 @@ function buildQuery(options: SupabaseSelectOptions = {}): URLSearchParams {
       'order',
       options.order
         .map(({ column, ascending = true, nullsFirst }) => {
-          const nullOrder = nullsFirst === undefined ? '' : nullsFirst ? '.nullsfirst' : '.nullslast'
+          const nullOrder =
+            nullsFirst === undefined ? '' : nullsFirst ? '.nullsfirst' : '.nullslast'
           return `${column}.${ascending ? 'asc' : 'desc'}${nullOrder}`
         })
         .join(','),
@@ -173,10 +166,14 @@ export async function supabaseSelect<T>(
   options: SupabaseSelectOptions = {},
 ): Promise<T[]> {
   const safeTable = encodeURIComponent(table)
-  return request<T[]>(`/rest/v1/${safeTable}?${buildQuery(options).toString()}`, {
-    method: 'GET',
-    headers: { Accept: 'application/json' },
-  }, options.accessToken)
+  return request<T[]>(
+    `/rest/v1/${safeTable}?${buildQuery(options).toString()}`,
+    {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    },
+    options.accessToken,
+  )
 }
 
 export async function supabaseInsert<T>(
@@ -225,7 +222,12 @@ export async function supabaseDelete(
   const query = buildQuery({ columns: 'id', filters })
   await request<void>(
     `/rest/v1/${encodeURIComponent(table)}?${query.toString()}`,
-    { method: 'DELETE', headers: { Prefer: options.returning === 'representation' ? 'return=representation' : 'return=minimal' } },
+    {
+      method: 'DELETE',
+      headers: {
+        Prefer: options.returning === 'representation' ? 'return=representation' : 'return=minimal',
+      },
+    },
     options.accessToken,
   )
 }

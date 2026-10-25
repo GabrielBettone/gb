@@ -1,247 +1,226 @@
-# Guia de Instalação no Seu Próprio Servidor (Self-Hosted)
+# Guia de Instalação no Seu Próprio Servidor (Self-Hosted com Supabase)
 ### Gesso Bettone • Sistema de Gestão de Vendas, Orçamentos e Site Institucional
 
-Este guia foi elaborado para ser simples, direto e à prova de dúvidas, mesmo que você nunca tenha configurado um servidor na vida.
+Este guia foi elaborado para ser simples, direto e à prova de dúvidas, mesmo para quem nunca configurou um servidor ou banco de dados na vida.
 
-Seguindo este passo a passo, você terá o sistema completo rodando no seu próprio VPS (ex.: **Hostinger VPS**, DigitalOcean, Hetzner, AWS, Linode ou qualquer servidor Linux com Docker).
+Nesta edição, o sistema utiliza o **Supabase** (PostgreSQL gerenciado na nuvem) para o banco de dados, autenticação de usuários e armazenamento de fotos/vídeos. O front-end roda no seu próprio VPS (ex.: **Hostinger VPS**, DigitalOcean, AWS, Hetzner ou qualquer servidor com Docker) através de um contêiner leve com Nginx.
 
 ---
 
 ## 📋 Sumário
-1. [O que está incluído no pacote](#1-o-que-está-incluído-no-pacote)
-2. [Pré-requisitos mínimos](#2-pré-requisitos-mínimos)
-3. [Passo a Passo de Instalação (5 minutos)](#3-passo-a-passo-de-instalação-5-minutos)
-4. [Criando o Administrador e seu Primeiro Acesso](#4-criando-o-administrador-e-seu-primeiro-acesso)
-5. [Configurando seu Domínio e SSL Grátis (HTTPS)](#5-configurando-seu-domínio-e-ssl-grátis-https)
-6. [Simulador de Ambientes com IA (Opcional)](#6-simulador-de-ambientes-com-ia-opcional)
-7. [Backup e Segurança dos Dados](#7-backup-e-segurança-dos-dados)
-8. [Como Atualizar o Sistema no Futuro](#8-como-atualizar-o-sistema-no-futuro)
-9. [Solução de Dúvidas Frequentes](#9-solução-de-dúvidas-frequentes)
+1. [O que você vai precisar (Pré-requisitos)](#1-o-que-você-vai-precisar-pré-requisitos)
+2. [Passo 1: Criar seu Projeto no Supabase (Gratuito)](#passo-1-criar-seu-projeto-no-supabase-gratuito)
+3. [Passo 2: Rodar o Script de Tabelas no SQL Editor](#passo-2-rodar-o-script-de-tabelas-no-sql-editor)
+4. [Passo 3: Criar os Buckets de Armazenamento (Fotos e Mídias)](#passo-3-criar-os-buckets-de-armazenamento-fotos-e-mídias)
+5. [Passo 4: Configurar a Autenticação e Criar seu Usuário](#passo-4-configurar-a-autenticação-e-criar-seu-usuário)
+6. [Passo 5: Pegar a URL e a Anon Key do Projeto](#passo-5-pegar-a-url-e-a-anon-key-do-projeto)
+7. [Passo 6: Subir o Front-End no VPS com Docker](#passo-6-subir-o-front-end-no-vps-com-docker)
+8. [Passo 7: Configurar seu Domínio e SSL Grátis (HTTPS)](#passo-7-configurar-seu-domínio-e-ssl-grátis-https)
+9. [Edge Functions do Supabase (Mídias, Marca d'Água e IA)](#edge-functions-do-supabase-mídias-marca-dágua-e-ia)
+10. [Checklist de Verificação Pós-Instalação](#checklist-de-verificação-pós-instalação)
 
 ---
 
-## 1. O que está incluído no pacote
+## 1. O que você vai precisar (Pré-requisitos)
 
-O pacote autônomo entrega exatamente tudo o que sua empresa precisa, com banco de dados **zerado (sem dados de demonstração)** e todo o esquema pronto:
-
-- **Site Institucional Completo:** Home, Serviços com fotos/vídeos e marca d'água, Portfólio de Obras, Depoimentos, Parceiros comerciais, Botão Flutuante de WhatsApp e SEO integrado.
-- **Módulo de Orçamentos Completo:**
-  - Cadastro de clientes e grupos de preços (ex.: Geral, Parceiros, Senac).
-  - Serviços de orçamento com cálculo por área ($m^2$) ou dimensões (largura $\times$ comprimento).
-  - Métodos de pagamento personalizados com desconto à vista.
-  - Funil de vendas e Kanban visual.
-  - Cronograma de obras Gantt interativo.
-  - Geração de PDF profissional com CNPJ, Razão Social e logotipo.
-  - Contas a Receber com baixa de parcelas e conciliação.
-- **Gestão de Vendas e Alertas:** Cadastro de vendas por canal/cidade e robô interno de alertas automáticos.
-- **Central de Mídias e Download em ZIP:** Upload de fotos/vídeos de alta qualidade com marca d'água automática e download de todo o acervo em um único arquivo ZIP organizado por pastas.
-- **Simulador de Ambientes:** Com controles liga/desliga, login por celular, cotas mensais e fallback com fotos do portfólio caso não use chave de IA.
-
----
-
-## 2. Pré-requisitos mínimos
-
-Você precisará de:
-1. **Um VPS Linux:** Recomendamos **Ubuntu 22.04 LTS** ou **Ubuntu 24.04 LTS**.
-   - Configuração recomendada: 1 vCPU, 1 GB ou 2 GB de RAM (planos básicos da Hostinger VPS tipo KVM 1 ou KVM 2 atendem perfeitamente com folga).
-2. **Docker e Docker Compose instalados:** A maioria dos provedores (incluindo a Hostinger) oferece a opção de instalar o VPS já com o template **Docker** pré-instalado em um clique. Se o seu VPS estiver limpo, basta rodar o comando oficial:
+1. **Uma conta no Supabase:** Acesse [supabase.com](https://supabase.com) e entre com sua conta (plano gratuito atende com folga).
+2. **Um VPS Linux:** Recomendamos **Ubuntu 22.04 LTS** ou **Ubuntu 24.04 LTS** na Hostinger (plano KVM 1 ou KVM 2).
+3. **Docker instalado no VPS:** Se a Hostinger já não veio com Docker pré-instalado, basta rodar no terminal:
    ```bash
    curl -fsSL https://get.docker.com | sh
    ```
-3. **Um domínio próprio (opcional, mas recomendado):** ex: `gessobettone.com.br`.
+4. **Um domínio próprio (opcional):** ex.: `gessobettone.com.br`.
 
 ---
 
-## 3. Passo a Passo de Instalação (5 minutos)
+## Passo 1: Criar seu Projeto no Supabase (Gratuito)
 
-Acesse o terminal do seu VPS via SSH (pelo PuTTY no Windows ou pelo terminal no Mac/Linux):
+1. Faça login em [supabase.com/dashboard](https://supabase.com/dashboard).
+2. Clique no botão verde **"New project"**.
+3. Selecione a sua organização.
+4. Preencha os dados:
+   - **Name:** `gesso-bettone` (ou o nome que preferir).
+   - **Database Password:** Crie uma senha forte e guarde-a em local seguro.
+   - **Region:** Selecione `South America (São Paulo)` para ter o menor tempo de resposta no Brasil.
+   - **Pricing Plan:** Escolha `Free` (ou o que desejar).
+5. Clique em **"Create new project"** e aguarde cerca de 1 a 2 minutos até o banco ficar com o status verde (ativo).
 
-### 3.1. Enviar ou Clonar o Projeto no Servidor
-Se você estiver usando o Git ou baixou os arquivos compactados em `.zip`:
+---
 
+## Passo 2: Rodar o Script de Tabelas no SQL Editor
+
+1. No menu lateral esquerdo do Supabase, clique no ícone **SQL Editor** (parece um terminal com `>_`).
+2. Clique em **"New query"** (botão verde no topo).
+3. Abra o arquivo `self-hosted/supabase/schema.sql` que vem neste pacote.
+4. Copie **todo o conteúdo** do arquivo e cole dentro do editor do Supabase.
+5. Clique no botão **"Run"** (ou aperte `Ctrl + Enter`).
+6. Em poucos segundos, você verá a mensagem `Success. No rows returned`.
+7. **Pronto!** Todas as 19 tabelas foram criadas com chaves estrangeiras, índices de alta performance e políticas de segurança (Row Level Security) já configuradas:
+   - `profiles`, `vendas`, `produtos`, `orcamentos`, `clientes`, `clientes_grupos`...
+   - `site_services`, `site_portfolio`, `site_testimonials`, `site_settings`...
+   - `simulador_clientes`, `simulador_historico`, etc.
+
+---
+
+## Passo 3: Criar os Buckets de Armazenamento (Fotos e Mídias)
+
+O script `schema.sql` já tenta criar os buckets automaticamente, mas você pode conferir ou criar manualmente caso necessário:
+
+1. No menu lateral esquerdo, clique em **Storage**.
+2. Verifique se existem dois buckets:
+   - `public-media` (deve estar marcado como **Public bucket**).
+   - `simulador` (deve estar marcado como **Public bucket**).
+3. Se algum deles não estiver na lista:
+   - Clique em **"New bucket"**.
+   - Digite o nome: `public-media`.
+   - Ative a opção **"Public bucket"** (verde).
+   - Clique em **"Save"**.
+   - Repita para o bucket `simulador`.
+
+---
+
+## Passo 4: Configurar a Autenticação e Criar seu Usuário
+
+### 4.1. Desabilitar confirmação obrigatória de e-mail (Recomendado para início imediato)
+Por padrão, o Supabase exige que o usuário clique em um link enviado por e-mail para ativar a conta. Para poder entrar no painel imediatamente:
+1. No menu lateral esquerdo, clique no ícone de engrenagem **Project Settings** > **Authentication**.
+2. Na aba **Email**, desmarque a opção **"Confirm email"** (desative o toggle).
+3. Clique em **Save**.
+*(Se preferir usar confirmação de e-mail com SMTP da Hostinger ou SendGrid, você pode configurar as credenciais de SMTP nativo nessa mesma tela).*
+
+### 4.2. Criar o seu primeiro usuário de login
+1. No menu lateral esquerdo, clique no ícone **Authentication** (dois bonecos/usuários).
+2. Clique na aba **Users** > **"Add user"** > **"Create user"**.
+3. Preencha:
+   - **Email:** seu e-mail de acesso (ex.: `admin@gessobettone.com.br`).
+   - **Password:** sua senha secreta.
+   - Marque a opção **"Auto Confirm User?"** se ela aparecer.
+4. Clique em **"Create user"**.
+5. O trigger automático do PostgreSQL criará o perfil de administrador correspondente na tabela `profiles`.
+
+---
+
+## Passo 5: Pegar a URL e a Anon Key do Projeto
+
+1. No menu lateral esquerdo, clique em **Project Settings** (engrenagem) > **API** (ou **Data API**).
+2. Copie os dois dados abaixo:
+   - **Project URL:** algo como `https://abcdefghij.supabase.co`.
+   - **Project API Keys (anon / public):** uma chave longa que começa normalmente com `eyJhbGciOiJIUzI1NiIsIn...`.
+
+---
+
+## Passo 6: Subir o Front-End no VPS com Docker
+
+Acesse o terminal do seu VPS via SSH:
+
+### 6.1. Acessar a pasta do projeto
 ```bash
-# Crie a pasta do projeto e acesse
-mkdir -p /opt/gesso-bettone
-cd /opt/gesso-bettone
-
-# Se você enviou os arquivos via SFTP/SCP ou descompactou o zip:
-# Acesse a pasta self-hosted:
-cd self-hosted
+cd /opt/gesso-bettone/self-hosted
 ```
 
-### 3.2. Configurar o Arquivo de Ambiente (.env)
-Copie o modelo de configuração:
-
+### 6.2. Configurar o arquivo `.env`
+Copie o modelo de ambiente:
 ```bash
 cp env-example.txt .env
 ```
-
-Abra o arquivo `.env` para conferir ou ajustar (usando o editor nano):
+Abra o `.env` com o editor nano:
 ```bash
 nano .env
 ```
-
-*Por padrão, você não precisa alterar nada! As portas e URLs já vêm configuradas para funcionar automaticamente na porta web 80.*
+Substitua com a URL e a anon key copiadas do seu painel do Supabase no Passo 5:
+```env
+APP_PORT=80
+VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 *(Para salvar no nano: aperte `Ctrl + O`, depois `Enter`, e `Ctrl + X` para sair).*
 
-### 3.3. Subir o Sistema com o Docker
-Execute o comando abaixo dentro da pasta `self-hosted`:
-
+### 6.3. Compilar e subir com o Docker Compose
+Execute dentro da pasta `self-hosted`:
 ```bash
 docker compose up -d --build
 ```
+O Docker fará o build otimizado da aplicação React e iniciará o Nginx na porta 80.
 
-O Docker fará o download das imagens oficiais, compilará o front-end otimizado e iniciará o banco de dados PocketBase com todas as tabelas e regras prontas.
-
-Para verificar se está tudo rodando perfeitamente:
+Para conferir o status:
 ```bash
 docker compose ps
 ```
-Você verá dois contêineres: `bettone_pocketbase` (saudável / healthy) e `bettone_frontend` (up).
+Você verá o contêiner `bettone_frontend` com status **Up**.
 
-Pronto! Acesse no seu navegador:
+Acesse no navegador:
 `http://IP-DO-SEU-VPS`
 
----
-
-## 4. Criando o Administrador e seu Primeiro Acesso
-
-Como o banco nasce 100% limpo e seguro por decisão de privacidade:
-
-### 4.1. Criar o Superusuário do Banco (PocketBase Admin)
-1. No seu navegador, abra:
-   `http://IP-DO-SEU-VPS/_/`
-   *(ou `http://IP-DO-SEU-VPS:8090/_/` se configurou porta direta)*
-2. O PocketBase mostrará a tela de boas-vindas: **"Create your first admin account"**.
-3. Digite seu e-mail e uma senha forte (mínimo 10 caracteres).
-4. Clique em **Create and login**.
-5. No menu lateral, você verá todas as coleções criadas e estruturadas:
-   - `users`, `vendas`, `produtos`, `orcamentos`, `clientes`, `clientes_grupos`...
-   - `site_services`, `site_portfolio`, `site_settings`, `simulador_clientes`...
-
-### 4.2. Criar a sua Conta de Usuário do Aplicativo
-1. Abra a página inicial do sistema no seu navegador:
-   `http://IP-DO-SEU-VPS/login`
-2. Clique no link **"Não tem conta? Cadastre-se"** (ou acesse diretamente `http://IP-DO-SEU-VPS/register`).
-3. Cadastre seu nome, e-mail e senha.
-4. Faça o login e você terá acesso imediato a todo o painel interno de Vendas, Orçamentos, Estoque e Gerenciamento do Site!
+Faça o login em:
+`http://IP-DO-SEU-VPS/login` com o e-mail e a senha criados no Passo 4!
 
 ---
 
-## 5. Configurando seu Domínio e SSL Grátis (HTTPS)
+## Passo 7: Configurar seu Domínio e SSL Grátis (HTTPS)
 
-Para que o site responda em `https://gessobettone.com.br` com cadeado verde de segurança:
+Para apontar `gessobettone.com.br` para o seu VPS com certificado HTTPS Let's Encrypt automático:
 
-### Opção Recomendada: Usar Caddy ou Nginx Proxy Manager
-Se o seu VPS tiver IP fixo (ex: `123.45.67.89`):
-1. No painel onde você comprou o domínio (Registro.br, GoDaddy, Cloudflare, etc.), aponte os registros:
-   - Tipo `A`: `@` -> `IP-DO-SEU-VPS`
-   - Tipo `A`: `www` -> `IP-DO-SEU-VPS`
+1. No painel onde registrou seu domínio (Registro.br, GoDaddy, Cloudflare, etc.), crie os apontamentos:
+   - Tipo `A`: `@` apontando para o `IP-DO-SEU-VPS`.
+   - Tipo `A`: `www` apontando para o `IP-DO-SEU-VPS`.
 
-2. Se quiser usar o **Caddy** (servidor web ultraleve que gera SSL Let's Encrypt 100% automático):
-   Instale o Caddy no servidor:
+2. No VPS, instale o **Caddy** (servidor web que automatiza HTTPS sem complicações):
    ```bash
    sudo apt install -y caddy
    ```
-   Edite `/etc/caddy/Caddyfile`:
+3. Edite o arquivo `/etc/caddy/Caddyfile`:
    ```caddy
    seudominio.com.br, www.seudominio.com.br {
        reverse_proxy localhost:80
    }
    ```
-   Reinicie o Caddy:
+4. Reinicie o Caddy:
    ```bash
    sudo systemctl restart caddy
    ```
-   Em menos de 10 segundos seu site estará no ar com HTTPS válido e certificado renovado automaticamente para sempre!
+Pronto! Seu site e painel estarão no ar com cadeado de segurança verde e certificado renovado automaticamente para sempre.
 
 ---
 
-## 6. Simulador de Ambientes com IA (Opcional)
+## Edge Functions do Supabase (Mídias, Marca d'Água e IA)
 
-O sistema conta com um simulador onde clientes podem enviar fotos do ambiente para visualizar reformas de gesso e drywall.
+O pacote já inclui na pasta `self-hosted/supabase/functions/` as três funções Deno prontas:
+1. `simulador-ia`: Gateway do simulador de ambientes com IA (DALL-E 3) e fallback automático para fotos de alta qualidade da Bettone caso a chave da OpenAI não esteja configurada.
+2. `watermark`: Aplicação e processamento de imagem diretamente na nuvem.
+3. `site-midias-inventario`: Consulta estruturada de todas as fotos e vídeos para o botão **"Baixar todas as mídias em ZIP"** do painel.
 
-- **Sem chave de API:** O sistema utiliza automaticamente fotos temáticas do portfólio executado pela Bettone. Nada quebra e a experiência do cliente continua elegante.
-- **Com Inteligência Artificial real (DALL-E 3):**
-  1. Obtenha uma chave em [platform.openai.com](https://platform.openai.com/api-keys).
-  2. Abra seu arquivo `.env` na pasta `self-hosted`:
-     ```env
-     OPENAI_API_KEY=sk-proj-sua-chave-aqui...
-     ```
-  3. Reinicie o contêiner:
-     ```bash
-     docker compose restart pocketbase
-     ```
-  4. O simulador passará a gerar transformações fotográficas realistas para os clientes!
-
----
-
-## 7. Backup e Segurança dos Dados
-
-Todos os orçamentos, vendas, clientes cadastrados e imagens enviadas ficam armazenados com segurança em um volume Docker persistente chamado `bettone_pb_data`.
-
-### 7.1. Fazer Backup Manual com 1 Comando
-Dentro da pasta `self-hosted`, fornecemos um script pronto:
+### Como fazer deploy das funções (Opcional via Supabase CLI):
+Se quiser publicar as Edge Functions no Supabase:
 ```bash
-chmod +x backup.sh
-./backup.sh
-```
-O script gerará um arquivo `.tar.gz` compactado dentro da pasta `self-hosted/backups/` com data e hora. Você pode baixar esse arquivo para o seu computador ou Google Drive.
+# Instale a CLI do Supabase na sua máquina
+npm install -g supabase
 
-### 7.2. Restaurar um Backup
-Se precisar reinstalar ou trocar de VPS:
-```bash
-chmod +x restaurar.sh
-./restaurar.sh ./backups/bettone_backup_2025-01-01_12-00-00.tar.gz
-```
+# Faça login e vincule ao seu projeto
+supabase login
+supabase link --project-ref SEU-ID-DE-PROJETO
 
-### 7.3. Backup Automático Diário (Opcional)
-Para programar o backup todo dia às 03:00 da manhã, adicione ao `crontab`:
-```bash
-crontab -e
-# Adicione a linha:
-0 3 * * * cd /opt/gesso-bettone/self-hosted && ./backup.sh > /dev/null 2>&1
+# Configure o segredo da OpenAI se desejar usar IA real no simulador
+supabase secrets set OPENAI_API_KEY=sua-chave-aqui
+
+# Faça deploy das funções
+supabase functions deploy simulador-ia --no-verify-jwt
+supabase functions deploy watermark --no-verify-jwt
+supabase functions deploy site-midias-inventario
 ```
 
 ---
 
-## 8. Como Atualizar o Sistema no Futuro
+## Checklist de Verificação Pós-Instalação
 
-Quando houver uma nova versão do sistema:
-1. Puxe as atualizações do repositório ou envie os arquivos atualizados:
-   ```bash
-   cd /opt/gesso-bettone/self-hosted
-   git pull   # ou extraia os novos arquivos
-   ```
-2. Reconstrua e suba os contêineres:
-   ```bash
-   docker compose up -d --build
-   ```
-O Docker atualizará os arquivos do site e aplicará qualquer migração pendente no banco de dados automaticamente, **sem apagar nenhum dos seus clientes, vendas ou orçamentos**.
-
----
-
-## 9. Solução de Dúvidas Frequentes
-
-### P: A porta 80 já está em uso no meu VPS por outro serviço (ex: Apache). O que fazer?
-No seu arquivo `.env`, altere:
-```env
-APP_PORT=8080
-```
-E acesse em `http://IP-DO-SEU-VPS:8080`.
-
-### P: Como visualizar os logs em tempo real se algo der errado?
-Basta executar:
-```bash
-docker compose logs -f
-```
-Ou para ver apenas os logs do banco de dados:
-```bash
-docker compose logs -f pocketbase
-```
-
-### P: Meus dados somem se eu reiniciar o VPS?
-**Não!** O Docker Compose utiliza um volume persistente gerenciado (`bettone_pb_data`). Os contêineres podem ser desligados, atualizados ou o servidor reiniciado que todos os dados permanecem intactos.
+- [ ] Script `schema.sql` executado sem erros no SQL Editor do Supabase.
+- [ ] Buckets `public-media` e `simulador` criados e com acesso público ativado.
+- [ ] Confirmação de e-mail desativada OU servidor SMTP configurado no Authentication.
+- [ ] Primeiro usuário criado no menu Authentication > Users.
+- [ ] Arquivo `.env` preenchido com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+- [ ] Contêiner `bettone_frontend` em execução (`docker compose ps`).
+- [ ] Login efetuado com sucesso em `/login`.
+- [ ] Cadastro de teste de um novo orçamento e cliente realizado com sucesso.
+- [ ] Site público exibindo seções de Serviços, Portfólio, Sobre e Contato.
 
 ---
 *Gesso Bettone — Soluções sob medida em Gesso e Drywall.*

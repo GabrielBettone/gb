@@ -5,7 +5,7 @@ on:
     branches: [main]
   push:
     branches:
-      - "migration/**"
+      - 'migration/**'
 
 permissions:
   contents: read
