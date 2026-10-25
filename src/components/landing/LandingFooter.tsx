@@ -104,6 +104,11 @@ export const LandingFooter: React.FC = () => {
                   Portfólio de Obras
                 </Link>
               </li>
+              <li>
+                <Link to="/parceiros" className="hover:text-[#D4AF37] transition-colors">
+                  Rede de Parceiros
+                </Link>
+              </li>
               {settings?.simulador_ativo !== false && (
                 <li>
                   <Link to="/simulador" className="hover:text-[#D4AF37] transition-colors">

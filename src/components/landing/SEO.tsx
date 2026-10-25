@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { obterConfiguracoes } from '@/services/site'
 
 export interface SEOProps {
   title: string
@@ -17,6 +18,9 @@ const DEFAULT_IMAGE =
   'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg'
 const BASE_URL = 'https://gessobettone.com.br'
 
+// Cache em memória para evitar chamadas duplicadas de site_settings entre páginas
+let cachedGoogleSiteVerification: string | null = null
+
 export const SEO: React.FC<SEOProps> = ({
   title,
   description = DEFAULT_DESC,
@@ -26,6 +30,30 @@ export const SEO: React.FC<SEOProps> = ({
   keywords,
   jsonLd,
 }) => {
+  const [googleVerification, setGoogleVerification] = useState<string>(
+    cachedGoogleSiteVerification || '',
+  )
+
+  useEffect(() => {
+    if (cachedGoogleSiteVerification === null) {
+      obterConfiguracoes()
+        .then((cfg) => {
+          const raw = cfg.google_site_verification || ''
+          // Se o usuário colou a tag inteira <meta name="..." content="...">, extrai só o content
+          let token = raw.trim()
+          const match = token.match(/content=["']([^"']+)["']/i)
+          if (match && match[1]) {
+            token = match[1]
+          }
+          cachedGoogleSiteVerification = token
+          setGoogleVerification(token)
+        })
+        .catch(() => {
+          cachedGoogleSiteVerification = ''
+        })
+    }
+  }, [])
+
   useEffect(() => {
     // 1. Title
     const fullTitle = title.includes('Gesso Bettone') ? title : `${title} | Gesso Bettone`
@@ -49,13 +77,32 @@ export const SEO: React.FC<SEOProps> = ({
     }
     setMeta('name', 'robots', 'index, follow, max-image-preview:large')
 
+    // Google Site Verification (Search Console)
+    const verificationMeta = document.head.querySelector(
+      'meta[name="google-site-verification"]',
+    ) as HTMLMetaElement | null
+    if (googleVerification) {
+      if (!verificationMeta) {
+        const el = document.createElement('meta')
+        el.setAttribute('name', 'google-site-verification')
+        el.setAttribute('content', googleVerification)
+        document.head.appendChild(el)
+      } else {
+        verificationMeta.setAttribute('content', googleVerification)
+      }
+    } else if (verificationMeta) {
+      verificationMeta.remove()
+    }
+
     // 3. OpenGraph
     setMeta('property', 'og:title', fullTitle)
     setMeta('property', 'og:description', description)
     setMeta('property', 'og:type', ogType)
     setMeta('property', 'og:locale', 'pt_BR')
     setMeta('property', 'og:site_name', 'Gesso Bettone')
-    setMeta('property', 'og:image', ogImage)
+    if (ogImage) {
+      setMeta('property', 'og:image', ogImage)
+    }
 
     const fullCanonical = canonical
       ? canonical.startsWith('http')
@@ -69,7 +116,9 @@ export const SEO: React.FC<SEOProps> = ({
     setMeta('name', 'twitter:card', 'summary_large_image')
     setMeta('name', 'twitter:title', fullTitle)
     setMeta('name', 'twitter:description', description)
-    setMeta('name', 'twitter:image', ogImage)
+    if (ogImage) {
+      setMeta('name', 'twitter:image', ogImage)
+    }
 
     // 5. Canonical
     let canonicalLink = document.head.querySelector(
@@ -81,6 +130,7 @@ export const SEO: React.FC<SEOProps> = ({
       document.head.appendChild(canonicalLink)
     }
     canonicalLink.setAttribute('href', fullCanonical)
+
     // 6. JSON-LD
     const jsonLdId = 'structured-data-jsonld'
     let scriptTag = document.getElementById(jsonLdId) as HTMLScriptElement | null
@@ -99,9 +149,8 @@ export const SEO: React.FC<SEOProps> = ({
 
     // Scroll to top on route change
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [title, description, canonical, ogType, ogImage, keywords, jsonLd])
+  }, [title, description, canonical, ogType, ogImage, keywords, jsonLd, googleVerification])
 
-  // Cleanup canonical / tags if necessary
   return null
 }
 

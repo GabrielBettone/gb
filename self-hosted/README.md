@@ -238,6 +238,36 @@ supabase functions deploy site-midias-inventario
 - [ ] Cadastro de teste de um novo orçamento e cliente realizado com sucesso.
 - [ ] Site público exibindo seções de Serviços, Portfólio, Sobre e Contato.
 
+## Limpeza de Dados Demo — Começar o Site do Zero (Supabase)
+
+Para o usuário que deseja iniciar o website 100% zerado e cadastrar seus próprios serviços, projetos e parceiros reais a partir do painel administrativo, execute a seção de limpeza no **SQL Editor** do Supabase:
+
+1. Acesse seu projeto no Supabase > **SQL Editor** > **New query**.
+2. Cole e execute o comando abaixo (também presente no final de `self-hosted/supabase/schema.sql`):
+
+```sql
+-- 1. Apaga todos os projetos de portfólio de demonstração
+DELETE FROM public.site_portfolio;
+
+-- 2. Apaga todos os parceiros de demonstração e suas categorias
+DELETE FROM public.partner_clicks;
+DELETE FROM public.site_partners;
+DELETE FROM public.partner_categories;
+
+-- 3. Limpa imagens default de serviços, mantendo a lista de 14 serviços reais do catálogo
+UPDATE public.site_services
+SET imagem_principal = '',
+    galeria = '[]'::jsonb,
+    arquivo_principal = NULL,
+    arquivos_galeria = '[]'::jsonb;
+
+-- 4. Adiciona suporte ao código de verificação do Google Search Console
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
+```
+
+3. Clique em **Run**. Todas as imagens padrão e dados de exemplo serão removidos com segurança e as páginas públicas exibirão estados vazios elegantes até o novo cadastro de mídias pelo painel em `/painel/site`.
+
 ## Limpeza de Linhas Duplicadas na Conciliação de Pagamentos
 
 Se houver parcelas repetidas do mesmo orçamento geradas por transições repetidas no Kanban, execute o script SQL idempotente abaixo no **SQL Editor** do Supabase:
@@ -262,16 +292,36 @@ FROM ranking r
 WHERE p.id = r.id AND r.rn > 1 AND p.status != 'paga';
 ```
 
-## Como Submeter o Sitemap ao Google Search Console
+## Indexação no Google (SEO Completo & Google Search Console)
 
-1. Acesse o [Google Search Console](https://search.google.com/search-console).
-2. Adicione a propriedade com o seu domínio (ex: `https://gessobettone.com.br`).
-3. Para verificação por tag HTML:
-   - Copie o código da tag (o valor de `content="SEU_CODIGO"` ou a tag completa).
-   - No painel administrativo em **/painel/site** (aba *Configurações*), cole no campo **Código de verificação do Google (Google Search Console)** e clique em Salvar.
-4. No menu lateral do Search Console, clique em **Sitemaps**.
-5. No campo *Adicionar um novo sitemap*, digite `sitemap.xml` e clique em **Enviar**.
-6. O Google fará a leitura periódica do sitemap contendo as páginas institucionais, serviços, portfólio e parceiros.
+O site está estruturado para indexação otimizada no Google Search, com foco em São Pedro/SP e toda a região (Piracicaba, Águas de São Pedro, Charqueada, Santa Maria da Serra, Rio Claro e Brotas), incluindo serviços e a rede de parceiros locais.
+
+### Passo a passo para indexar seu site:
+
+1. **Acesse o Google Search Console:**
+   - Entre em [https://search.google.com/search-console](https://search.google.com/search-console) com sua conta Google.
+   - Adicione uma nova propriedade escolhendo **Prefixo do URL** com o endereço do seu site (ex: `https://gessobettone.com.br`).
+
+2. **Verificar a Propriedade via Tag HTML:**
+   - Escolha o método de verificação **Tag HTML**.
+   - Copie apenas o código contido dentro de `content="..."` (ou a meta tag inteira). Exemplo: `abc123xyz456...`.
+   - Acesse o painel da Bettone em `/painel/site/configuracoes` (Menu Lateral: *Contato, conversão e presença digital*).
+   - Cole o código no campo **Código de verificação do Google Search Console** e clique em **SALVAR ALTERAÇÕES**.
+   - A tag `<meta name="google-site-verification" content="...">` será injetada automaticamente no `<head>` do site público.
+   - Volte ao Search Console e clique no botão **Verificar**.
+
+3. **Submeter o Sitemap XML:**
+   - No menu lateral esquerdo do Search Console, clique em **Sitemaps**.
+   - No campo *Adicionar um novo sitemap*, digite `sitemap.xml` e clique em **Enviar**.
+   - O sitemap cobre as rotas principais (`/`, `/servicos`, `/portfolio`, `/parceiros`, `/sobre`, `/contato`), bem como as páginas detalhadas de serviços e projetos.
+
+4. **Gerar ou Atualizar o Sitemap Dinâmico via Script (Opcional):**
+   - O projeto gera automaticamente `public/sitemap.xml` no build com todas as páginas fixas e serviços.
+   - Se você possui acesso ao Supabase no seu ambiente de build/CI e deseja que o sitemap consulte dinamicamente os novos slugs cadastrados no banco remoto, execute:
+     ```bash
+     npm run generate:sitemap
+     ```
+   - O script lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` do `.env` e atualiza `public/sitemap.xml` e `dist/sitemap.xml`.
 
 ---
 *Gesso Bettone — Soluções sob medida em Gesso e Drywall.*

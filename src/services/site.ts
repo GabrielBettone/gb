@@ -125,6 +125,7 @@ export interface SiteSettings {
   exibir_depoimentos: boolean
   cidades_atendidas: string[]
   pagina_parceiros_ativa: boolean
+  google_site_verification?: string
   arquivo_logo?: string
   logo_url?: string
   simulador_ativo?: boolean
@@ -1353,6 +1354,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
         record.cidades_atendidas,
         FALLBACK_SETTINGS.cidades_atendidas,
       ),
+      google_site_verification: record.google_site_verification || '',
       arquivo_logo: record.arquivo_logo || '',
       logo_url: logoUrl,
       simulador_ativo: record.simulador_ativo !== false,
@@ -1360,7 +1362,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       simulador_cota_padrao: record.simulador_cota_padrao ?? 5,
     }
   } catch {
-    return FALLBACK_SETTINGS
+    return { ...FALLBACK_SETTINGS, google_site_verification: '' }
   }
 }
 
@@ -1429,6 +1431,7 @@ export async function salvarConfiguracoes(
       exibir_depoimentos: !!resultRecord.exibir_depoimentos,
       pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
       cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
+      google_site_verification: resultRecord.google_site_verification || '',
       arquivo_logo: resultRecord.arquivo_logo,
       logo_url: logoUrl,
       simulador_ativo: resultRecord.simulador_ativo !== false,
@@ -1488,6 +1491,7 @@ export async function salvarConfiguracoes(
     exibir_depoimentos: !!resultRecord.exibir_depoimentos,
     pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
     cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
+    google_site_verification: resultRecord.google_site_verification || '',
     arquivo_logo: resultRecord.arquivo_logo,
     logo_url: logoUrl,
     simulador_ativo: resultRecord.simulador_ativo !== false,

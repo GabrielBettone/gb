@@ -69,7 +69,33 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
     }
   }, [src, enableWatermark])
 
-  return <img src={displaySrc} alt={alt} crossOrigin="anonymous" className={className} {...props} />
+  const [hasError, setHasError] = useState(false)
+
+  if (!displaySrc || hasError) {
+    return (
+      <div
+        className={`bg-gradient-to-br from-[#2C3E50]/10 via-[#2C3E50]/5 to-[#D4AF37]/10 flex flex-col items-center justify-center text-center p-4 select-none ${className || ''}`}
+      >
+        <span className="font-heading text-xs font-semibold text-[#2C3E50]/60 uppercase tracking-wider">
+          Gesso Bettone
+        </span>
+        <span className="text-[10px] text-[#616F7D]/70 mt-0.5 line-clamp-1">
+          {alt || 'Acabamento sob medida'}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={displaySrc}
+      alt={alt}
+      crossOrigin="anonymous"
+      onError={() => setHasError(true)}
+      className={className}
+      {...props}
+    />
+  )
 }
 
 export default WatermarkedImage

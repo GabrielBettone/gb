@@ -26,6 +26,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
   )
   const [instagram, setInstagram] = useState('https://www.instagram.com/gessobettone_saopedro')
   const [cnpj, setCnpj] = useState('53.242.055/0001-74')
+  const [googleSiteVerification, setGoogleSiteVerification] = useState('')
   const [exibirDepoimentos, setExibirDepoimentos] = useState(true)
 
   // Logo da empresa
@@ -51,6 +52,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
         )
         setInstagram(cfg.instagram || 'https://www.instagram.com/gessobettone_saopedro')
         setCnpj(cfg.cnpj || '53.242.055/0001-74')
+        setGoogleSiteVerification(cfg.google_site_verification || '')
         setExibirDepoimentos(cfg.exibir_depoimentos !== false)
         setCidades(cfg.cidades_atendidas || [])
         if (cfg.logo_url) {
@@ -77,6 +79,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
           mensagem_orcamento: mensagemOrcamento,
           instagram,
           cnpj,
+          google_site_verification: googleSiteVerification.trim(),
           exibir_depoimentos: exibirDepoimentos,
           cidades_atendidas: cidades,
         },
@@ -266,6 +269,30 @@ export const SiteConfiguracoesPage: React.FC = () => {
                       className="bg-white border-[#DEE4EA]"
                     />
                   </div>
+                </div>
+
+                {/* Google Search Console Verification */}
+                <div className="space-y-1.5 max-w-xl pt-2">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    Código de verificação do Google Search Console
+                  </Label>
+                  <Input
+                    value={googleSiteVerification}
+                    onChange={(e) => setGoogleSiteVerification(e.target.value)}
+                    placeholder="Ex: abc123xyz456... ou tag meta completa"
+                    className="bg-white border-[#DEE4EA] font-mono text-xs"
+                  />
+                  <p className="text-[11px] text-[#616F7D] leading-relaxed">
+                    Copie o código da tag HTML gerada pelo Search Console (apenas o valor de{' '}
+                    <code className="bg-[#f4f4f4] px-1 py-0.5 rounded text-[#2C3E50]">
+                      content="..."
+                    </code>{' '}
+                    ou a tag completa). O código será injetado automaticamente como{' '}
+                    <code className="bg-[#f4f4f4] px-1 py-0.5 rounded text-[#2C3E50]">
+                      &lt;meta name="google-site-verification"&gt;
+                    </code>{' '}
+                    no cabeçalho do site.
+                  </p>
                 </div>
 
                 {/* Checkbox "Exibir depoimentos no site público" exatamente como no Print */}

@@ -67,6 +67,10 @@ export const LandingParceiros: React.FC = () => {
     window.open(`https://wa.me/${zap}?text=${msg}`, '_blank')
   }
 
+  if (parceiros.length === 0) {
+    return null
+  }
+
   return (
     <section className="py-14 bg-[#f4f4f4]" id="parceiros">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">

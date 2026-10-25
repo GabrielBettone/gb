@@ -32,6 +32,9 @@ export const LandingNavbar: React.FC = () => {
     { label: 'Início', to: '/' },
     { label: 'Serviços', to: '/servicos' },
     { label: 'Portfólio', to: '/portfolio' },
+    ...(settings?.pagina_parceiros_ativa !== false
+      ? [{ label: 'Parceiros', to: '/parceiros' }]
+      : []),
     ...(settings?.simulador_ativo !== false ? [{ label: 'Simulador IA', to: '/simulador' }] : []),
     { label: 'Sobre nós', to: '/sobre' },
     { label: 'Contato', to: '/contato' },

@@ -255,6 +255,17 @@ export const ServicoDetailPage: React.FC = () => {
               </div>
             )}
 
+            {/* Aviso quando sem fotos cadastradas */}
+            {servico.galeria.length === 0 && !servico.imagemPrincipal && (
+              <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] text-xs text-[#616F7D] flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#2C3E50]" />
+                <span>
+                  Fotos e registros deste serviço podem ser consultados diretamente com nossos
+                  especialistas via WhatsApp.
+                </span>
+              </div>
+            )}
+
             {/* Benefícios e Vantagens */}
             <div className="mt-8 p-6 rounded-2xl bg-[#f4f4f4] border border-[#DEE4EA]">
               <h3 className="font-heading font-bold text-lg text-[#2C3E50] mb-4 flex items-center gap-2">

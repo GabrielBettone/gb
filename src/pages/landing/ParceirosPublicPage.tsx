@@ -68,9 +68,66 @@ export const ParceirosPublicPage: React.FC = () => {
   return (
     <>
       <SEO
-        title="Parceiros Homologados | Gesso Bettone"
-        description="Conheça os profissionais e empresas parceiras de arquitetura, engenharia e construção homologados pela Gesso Bettone em São Pedro, Piracicaba e região."
+        title="Parceiros de Arquitetura, Construção e Pintura em São Pedro e Região | Gesso Bettone"
+        description="Rede de parceiros homologados da Gesso Bettone: arquitetos, engenheiros, pintores e construtores de São Pedro, Piracicaba, Águas de São Pedro, Charqueada e região."
         canonical="/parceiros"
+        keywords={[
+          'pintura são pedro',
+          'pintor em são pedro sp',
+          'parceiros gesso bettone',
+          'arquitetos são pedro sp',
+          'engenharia e reformas piracicaba',
+          'construção águas de são pedro',
+          'parceiros construção civil',
+        ]}
+        jsonLd={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              {
+                '@type': 'ListItem',
+                position: 1,
+                name: 'Início',
+                item: 'https://gessobettone.com.br/',
+              },
+              {
+                '@type': 'ListItem',
+                position: 2,
+                name: 'Parceiros',
+                item: 'https://gessobettone.com.br/parceiros',
+              },
+            ],
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            name: 'Parceiros Homologados Gesso Bettone',
+            description:
+              'Rede de profissionais de pintura, construção civil, reformas e arquitetura em São Pedro, Piracicaba e região.',
+            numberOfItems: parceiros.length,
+            itemListElement: parceiros.map((p, idx) => ({
+              '@type': 'ListItem',
+              position: idx + 1,
+              item: {
+                '@type': 'ProfessionalService',
+                name: p.nome,
+                description: p.descricao || `${p.papel || 'Parceiro'} em São Pedro e região`,
+                telephone: p.whatsapp ? `+${p.whatsapp.replace(/\D/g, '')}` : undefined,
+                image: p.logo || undefined,
+                areaServed: [
+                  'São Pedro',
+                  'Águas de São Pedro',
+                  'Piracicaba',
+                  'Charqueada',
+                  'Santa Maria da Serra',
+                  'Rio Claro',
+                  'Brotas',
+                ],
+              },
+            })),
+          },
+        ]}
       />
 
       {/* Hero */}
@@ -127,6 +184,31 @@ export const ParceirosPublicPage: React.FC = () => {
           {/* Grid de Parceiros */}
           {loading ? (
             <div className="text-center py-16 text-[#616F7D] text-sm">Carregando parceiros...</div>
+          ) : parceiros.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-[#DEE4EA] p-10 max-w-xl mx-auto shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-[#2C3E50]/10 text-[#2C3E50] flex items-center justify-center mx-auto mb-4">
+                <Handshake className="w-7 h-7 text-[#2C3E50]" />
+              </div>
+              <h3 className="font-heading font-bold text-lg text-[#2C3E50]">
+                Rede de parceiros em homologação
+              </h3>
+              <p className="text-xs sm:text-sm text-[#616F7D] mt-2 leading-relaxed">
+                Estamos selecionando e atualizando a lista de arquitetos, engenheiros, construtores
+                e especialistas em pintura e reformas da nossa região (São Pedro, Piracicaba e
+                cidades vizinhas).
+              </p>
+              <div className="pt-6">
+                <a
+                  href={`https://wa.me/5519981093379?text=${encodeURIComponent('Olá! Sou profissional da construção/arquitetura/pintura e gostaria de me conectar à rede de parceiros da Gesso Bettone.')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs shadow-sm transition-all"
+                >
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  Cadastre sua empresa como parceira
+                </a>
+              </div>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl border border-[#DEE4EA] p-8 max-w-lg mx-auto">
               <Handshake className="w-12 h-12 text-[#DEE4EA] mx-auto mb-3" />

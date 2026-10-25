@@ -940,3 +940,33 @@ GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
+
+-- ============================================================================
+-- 18. LIMPEZA DE DADOS DEMO — RODA 1X PARA COMEÇAR DO ZERO (Idempotente)
+-- ============================================================================
+-- Executável no SQL Editor do Supabase para zerar projetos, parceiros e imagens
+-- de exemplo, mantendo o catálogo oficial dos serviços intacto para produção:
+-- 1) Apaga TODOS os projetos do portfólio (site_portfolio, incluindo Camila Ferraz)
+-- 2) Apaga TODOS os parceiros de exemplo e categorias de parceiros
+-- 3) Zera imagem_principal, galeria e arquivos de exemplo em site_services,
+--    preservando os nomes, descrições e estrutura dos serviços do negócio.
+-- ============================================================================
+
+-- 18.1 Limpeza total dos projetos de demonstração
+DELETE FROM public.site_portfolio;
+
+-- 18.2 Limpeza total dos parceiros de demonstração e categorias
+DELETE FROM public.partner_clicks;
+DELETE FROM public.site_partners;
+DELETE FROM public.partner_categories;
+
+-- 18.3 Zera imagens default/demo dos serviços mantendo o catálogo oficial
+UPDATE public.site_services
+SET imagem_principal = '',
+    galeria = '[]'::jsonb,
+    arquivo_principal = NULL,
+    arquivos_galeria = '[]'::jsonb;
+
+-- 18.4 Garante coluna google_site_verification em site_settings
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS google_site_verification TEXT;

@@ -39,11 +39,11 @@ const HERO_SLIDES: HeroSlide[] = [
   },
   {
     image:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F88bcc881958d712356569279.jpg',
-    title: 'Áreas Gourmet Sofisticadas',
-    subtitle: 'Forro tabicado e acabamentos resistentes de primeira linha',
-    tag: 'Projeto Concluído',
-    serviceSlug: 'area-gourmet',
+      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
+    title: 'Áreas Gourmet e Nichos',
+    subtitle: 'Forros estruturados e acabamentos finos sob medida',
+    tag: 'Residencial',
+    serviceSlug: 'moveis',
   },
   {
     image:

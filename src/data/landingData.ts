@@ -111,15 +111,8 @@ export const SERVICOS: ServicoItem[] = [
       'Acabamento tabicado elegante ou junta invisível',
       'Esconde vigas, fiações e tubulações com facilidade',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffbebd6b9412a8ef2cf6121e78a522290.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F7b5d0a31081f4d60f71c5a52ef3b140e.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Forros de Gesso em São Pedro/SP | Gesso Bettone — 30 anos',
     metaDescription:
       'Forros de gesso sob medida em São Pedro, Piracicaba e região. Acabamento preciso, forros tabicados e iluminação embutida. Solicite seu orçamento.',
@@ -146,15 +139,8 @@ export const SERVICOS: ServicoItem[] = [
       'Placas resistentes à umidade (RU verde) para banheiros e cozinhas',
       'Superfície perfeitamente plana pronta para pintura ou papel de parede',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffb8242ba9f1a3f2fb921ef3ab2f15f7f.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffb8242ba9f1a3f2fb921ef3ab2f15f7f.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F897bc30086d8dee1de6580a58076f750.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F106a7cc6ffcd34c002bf77921e15824d.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F5e10734b3ecad47a6b9653ed09c28dd6.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Paredes e Divisórias em Drywall em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Paredes e divisórias de drywall em São Pedro e região. Construção rápida, limpa e com isolamento acústico superior. Faça seu orçamento.',
@@ -180,11 +166,8 @@ export const SERVICOS: ServicoItem[] = [
       'Compatível com qualquer cor de pintura e papel de parede',
       'Valorização imediata do imóvel',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffde6f4628a63c77f3487f5e69f29fd3c.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffde6f4628a63c77f3487f5e69f29fd3c.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Boiserie e Faixas Decorativas em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Boiserie em gesso e molduras de parede personalizadas em São Pedro, Piracicaba e região. Acabamento artesanal e sofisticação para seu ambiente.',
@@ -208,12 +191,8 @@ export const SERVICOS: ServicoItem[] = [
       'Encaixes e quinas com corte de meia-esquadria perfeito',
       'Resistência e durabilidade garantidas',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Molduras de Gesso em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Molduras de gesso tradicionais e modernas em São Pedro e região. Modelos retos, degraus e ornamentados com instalação precisa.',
@@ -231,12 +210,8 @@ export const SERVICOS: ServicoItem[] = [
       'Criação de ilhas de luz direta e indireta',
       'Melhoria do isolamento acústico entre pavimentos',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F7b5d0a31081f4d60f71c5a52ef3b140e.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Rebaixo de Teto em Gesso em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Rebaixo de teto em gesso e drywall sob medida. Crie ilhas luminosas e valorize seu espaço com a Gesso Bettone.',
@@ -255,11 +230,8 @@ export const SERVICOS: ServicoItem[] = [
       'Opção com iluminação indireta suave sobre o tecido',
       'Modelos sobrepostos ou embutidos no forro',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffbebd6b9412a8ef2cf6121e78a522290.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffbebd6b9412a8ef2cf6121e78a522290.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Cortineiros de Gesso em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Cortineiros de gesso iluminados e embutidos em São Pedro, Piracicaba e região. Acabamento fino para cortinas elegantes.',
@@ -278,12 +250,8 @@ export const SERVICOS: ServicoItem[] = [
       'Sanca invertida com efeito de teto flutuante',
       'Economia de energia com uso otimizado de iluminação indireta',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Sancas de Gesso Abertas e Invertidas em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Sancas de gesso com iluminação indireta e efeito flutuante em São Pedro e Piracicaba. Projeto e execução de alta qualidade.',
@@ -302,11 +270,8 @@ export const SERVICOS: ServicoItem[] = [
       'Totalmente sob medida para qualquer dimensão de parede',
       'Possibilidade de instalação de portas de correr e gaveteiros planejados',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Móveis e Closets em Gesso e Drywall em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Móveis, estantes, closets e nichos em gesso sob medida em São Pedro e região. Durabilidade, resistência e elegância integrada à alvenaria.',
@@ -330,11 +295,8 @@ export const SERVICOS: ServicoItem[] = [
       'Aplicação rápida diretamente sobre a parede',
       'Pode receber tinta fosca, acetinada ou efeitos como cimento queimado',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F99c56de1ee9ebb01f25008713d4f3ed4.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F99c56de1ee9ebb01f25008713d4f3ed4.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Revestimento em Gesso 3D em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Paredes decoradas com placas de gesso 3D em São Pedro e Piracicaba. Diversos modelos geométricos com iluminação destacada.',
@@ -359,13 +321,8 @@ export const SERVICOS: ServicoItem[] = [
       'Modelos para contorno de portas, janelas, beirais e platibandas',
       'Padrão estético de alto padrão arquitetônico',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fb944ac447f9051305d85665a99fc9f25.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fb944ac447f9051305d85665a99fc9f25.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F4a28d60176a9ecf7892986646b834253.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fec638dde10c23a0464266942597cf5e5.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Molduras Externas em Cimento Celular para Fachadas | Gesso Bettone',
     metaDescription:
       'Molduras para fachadas em cimento celular em São Pedro e região. Resistente a sol e chuva, acabamento premium para janelas e platibandas.',
@@ -389,11 +346,8 @@ export const SERVICOS: ServicoItem[] = [
       'Perfeitas para disfarçar pilares estruturais de alvenaria',
       'Enriquecimento visual instantâneo de recepções e salas',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Colunas de Gesso Decorativas em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Colunas decorativas de gesso sob medida em São Pedro, Piracicaba e região. Acabamento clássico e contemporâneo.',
@@ -412,11 +366,8 @@ export const SERVICOS: ServicoItem[] = [
       'Efeito de luz natural e cores vibrantes ao longo do dia',
       'Valorização estética singular',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Vitrais Artísticos em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Vitrais personalizados para residências e espaços especiais em São Pedro e região. Arte, luz e sofisticação.',
@@ -434,11 +385,8 @@ export const SERVICOS: ServicoItem[] = [
       'Harmonia perfeita com forros de gesso e detalhes em drywall',
       'Tratamento preventivo contra pragas e umidade',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fb562045f2c0ae4842ee4ef2621a5fd88.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fb562045f2c0ae4842ee4ef2621a5fd88.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Forro de Madeira em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Instalação de forro de madeira de alta qualidade para áreas gourmet e salas em São Pedro e região. Conforto e sofisticação.',
@@ -461,12 +409,8 @@ export const SERVICOS: ServicoItem[] = [
       'Acabamento fosco aveludado, acetinado ou semibrilho impecável',
       'Sem manchas, emendas aparentes ou pós residuais na entrega',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0850108b048e2887145868310e2b25b3.png',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0850108b048e2887145868310e2b25b3.png',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Feb3360aa97a8b581f33a2895191586b3.png',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Pintura Residencial de Alto Padrão em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Pintura profissional para paredes, tetos e acabamentos de gesso em São Pedro e região. Preparação impecável e materiais de primeira linha.',
@@ -489,11 +433,8 @@ export const SERVICOS: ServicoItem[] = [
       'Garantia de estanqueidade e durabilidade prolongada',
       'Redução da temperatura interna com membranas térmicas refletivas',
     ],
-    imagemPrincipal:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    ],
+    imagemPrincipal: '',
+    galeria: [],
     metaTitle: 'Impermeabilização de Telhados em São Pedro/SP | Gesso Bettone',
     metaDescription:
       'Soluções completas de impermeabilização para telhados e lajes em São Pedro e região. Evite infiltrações e preserve seu patrimônio.',
@@ -505,194 +446,10 @@ export const SERVICOS: ServicoItem[] = [
   },
 ]
 
-export const PROJETOS: ProjetoItem[] = [
-  {
-    slug: 'revestimento-de-container',
-    titulo: 'Revestimento de container',
-    categoria: 'Residencial',
-    subtitulo: 'Revestimento interno de Container',
-    descricao:
-      'Mais do que melhorar o espaço, transformamos o ambiente. Entregamos qualidade, conforto, aconchego e a sensação de estar verdadeiramente em casa com isolamento térmico e acústico de alta performance e fechamento em drywall impecável.',
-    detalhesTecnicos: [
-      'Isolamento termoacústico com lã mineral de alta densidade',
-      'Estruturação metálica de reforço para paredes e forros',
-      'Forro tabicado de gesso com iluminação de LED embutida',
-      'Pintura premium aveludada lavável',
-    ],
-    fotosCount: 7,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2Fbca94049b9185d1fac854996.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2Fbca94049b9185d1fac854996.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffb8242ba9f1a3f2fb921ef3ab2f15f7f.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F897bc30086d8dee1de6580a58076f750.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F106a7cc6ffcd34c002bf77921e15824d.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F5e10734b3ecad47a6b9653ed09c28dd6.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-    ],
-    metaTitle: 'Projeto Revestimento de Container | Gesso Bettone',
-    metaDescription:
-      'Confira o projeto de revestimento interno de container executado pela Gesso Bettone com isolamento térmico, drywall e acabamento refinado.',
-  },
-  {
-    slug: 'biblioteca',
-    titulo: 'Escritório biblioteca',
-    categoria: 'Residencial',
-    subtitulo: 'Aproveitamento e sofisticação de sótão',
-    descricao:
-      'Um espaço antes perdido e sem uso no sótão se transformou em um lindo escritório e biblioteca acolhedora. Execução de forro inclinado acompanhando o telhado com isolamento e nichos integrados.',
-    detalhesTecnicos: [
-      'Forro inclinado estruturado acompanhando as tesouras do telhado',
-      'Nichos e prateleiras embutidas em gesso',
-      'Pontos de iluminação pontual para leitura e trabalho',
-    ],
-    fotosCount: 4,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F39e7e011d6b4bdc02fc2a92f.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F39e7e011d6b4bdc02fc2a92f.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F7b5d0a31081f4d60f71c5a52ef3b140e.jpg',
-    ],
-    metaTitle: 'Projeto Escritório Biblioteca no Sótão | Gesso Bettone',
-    metaDescription:
-      'Transformação de sótão em escritório e biblioteca com forro de gesso e acabamento personalizado pela Gesso Bettone em São Pedro/SP.',
-  },
-  {
-    slug: 'area-gourmet',
-    titulo: 'Área gourmet',
-    categoria: 'Residencial',
-    subtitulo: 'Reforma com forro tabicado e pintura de alto padrão',
-    descricao:
-      'Mais conforto, mais beleza. É um novo ambiente após reforma com adição do Forro de Gesso Tabicado e Pintura alto padrão que renovaram completamente esta área gourmet com churrasqueira.',
-    detalhesTecnicos: [
-      'Forro tabicado de gesso resistente com pintura especial',
-      'Rasgos de luz com perfis de LED de alta eficiência',
-      'Resistência ao calor próximo à área da churrasqueira',
-    ],
-    fotosCount: 8,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F88bcc881958d712356569279.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F88bcc881958d712356569279.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0850108b048e2887145868310e2b25b3.png',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Feb3360aa97a8b581f33a2895191586b3.png',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Fb562045f2c0ae4842ee4ef2621a5fd88.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffbebd6b9412a8ef2cf6121e78a522290.jpg',
-    ],
-    metaTitle: 'Projeto Reforma Área Gourmet com Forro Tabicado | Gesso Bettone',
-    metaDescription:
-      'Renovação completa de área gourmet com forro de gesso tabicado, rasgos de luz e pintura de alto padrão pela Gesso Bettone.',
-  },
-  {
-    slug: 'aline-harrisson',
-    titulo: 'Aline & Harrisson',
-    categoria: 'Residencial',
-    subtitulo: 'Residência contemporânea de alto padrão',
-    descricao:
-      'Projeto residencial completo englobando forros tabicados em toda a área social, cortineiros embutidos nos quartos e suítes, e sancas iluminadas para valorizar o mobiliário de design.',
-    detalhesTecnicos: [
-      'Forros tabicados em living com pé-direito duplo',
-      'Cortineiros embutidos com fita de LED',
-      'Acabamento fino nivelado para pintura suave',
-    ],
-    fotosCount: 5,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F9d19c1f5796a2cc2272e1924.png',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F9d19c1f5796a2cc2272e1924.png',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffde6f4628a63c77f3487f5e69f29fd3c.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F7b5d0a31081f4d60f71c5a52ef3b140e.jpg',
-    ],
-    metaTitle: 'Projeto Residencial Aline & Harrisson | Gesso Bettone',
-    metaDescription:
-      'Residência de alto padrão com forro de gesso tabicado, cortineiros e sancas executados pela Gesso Bettone em São Pedro/SP.',
-  },
-  {
-    slug: 'diego-favoretto',
-    titulo: 'Diego Favoretto',
-    categoria: 'Residencial',
-    subtitulo: 'Ambientes integrados e iluminação indireta',
-    descricao:
-      'Execução precisa de forros, ilhas decorativas e rebaixos que unem sofisticação e conforto, com atenção a cada detalhe arquitetônico.',
-    detalhesTecnicos: [
-      'Integração sala de estar e cozinha com níveis diferenciados',
-      'Sancas com transição suave para luz indireta',
-      'Acabamento em cantos vivos impecáveis',
-    ],
-    fotosCount: 7,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2Fac3bb9669f649261fd66ee33.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2Fac3bb9669f649261fd66ee33.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F0c55a56649f7361977b7a9eb3153728b.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffbebd6b9412a8ef2cf6121e78a522290.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F449a78a7af8e20228e3ed5a9d86d22cd.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F7b5d0a31081f4d60f71c5a52ef3b140e.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffb8242ba9f1a3f2fb921ef3ab2f15f7f.jpg',
-    ],
-    metaTitle: 'Projeto Residencial Diego Favoretto | Gesso Bettone',
-    metaDescription:
-      'Projeto residencial executado pela Gesso Bettone: forros, sancas e ilhas decorativas com acabamento impecável.',
-  },
-  {
-    slug: 'dra-camila-ferraz-odontologia-especializada',
-    titulo: 'Dra. Camila Ferraz - Odontologia especializada',
-    categoria: 'Comercial',
-    subtitulo: 'Clínica odontológica de alto padrão',
-    descricao:
-      'Divisórias acústicas em drywall, consultórios isolados, forro higiênico e recepção com design moderno para uma clínica odontológica de referência.',
-    detalhesTecnicos: [
-      'Paredes drywall com isolamento acústico reforçado entre consultórios',
-      'Passagem embutida para instalações pneumáticas e odontológicas',
-      'Recepção acolhedora com gesso 3D e iluminação convidativa',
-    ],
-    fotosCount: 7,
-    imagemCapa:
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F85de4325245daab522539257.jpg',
-    galeria: [
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fproject_photos%2F85de4325245daab522539257.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2Ffb8242ba9f1a3f2fb921ef3ab2f15f7f.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F3bc3144d74503e38bdf9978bb5672b82.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F897bc30086d8dee1de6580a58076f750.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F106a7cc6ffcd34c002bf77921e15824d.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F5e10734b3ecad47a6b9653ed09c28dd6.jpg',
-      'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F99c56de1ee9ebb01f25008713d4f3ed4.jpg',
-    ],
-    videos: [
-      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    ],
-    metaTitle: 'Projeto Comercial Clínica Dra. Camila Ferraz | Gesso Bettone',
-    metaDescription:
-      'Drywall e isolamento acústico para clínica odontológica executados pela Gesso Bettone. Obra rápida, limpa e funcional.',
-  },
-]
+// Lista de projetos do portfólio — vazio por padrão para início do zero
+// Os projetos reais devem ser cadastrados pelo usuário no painel administrativo (/painel/site/portfolio)
+export const PROJETOS: ProjetoItem[] = []
 
-export const PARCEIROS: ParceiroItem[] = [
-  {
-    nome: 'Edivaldo',
-    papel: 'Construção & Reformas',
-    logo: 'https://gessobettone.com.br/uploads/partners/34eb0f46b06320021778b758.png',
-    descricao: 'Parceiro em obras civis e reformas estruturais.',
-  },
-  {
-    nome: 'Ademar Pereira',
-    papel: 'Construção Civil',
-    logo: 'https://gessobettone.com.br/uploads/partners/f412b7972d1f4d2fa860fa4c.png',
-    descricao: 'Excelência em execução e gerenciamento de obras residenciais.',
-  },
-  {
-    nome: 'Manfrinato Arquitetura',
-    papel: 'Arquitetura & Design',
-    logo: 'https://gessobettone.com.br/uploads/partners/c1d8a30c4e366abac17bf870.jpg',
-    descricao: 'Projetos arquitetônicos de alto padrão integrados ao gesso.',
-  },
-]
+// Lista de parceiros homologados — vazio por padrão para início do zero
+// Os parceiros reais devem ser cadastrados pelo usuário no painel administrativo (/painel/site/parceiros)
+export const PARCEIROS: ParceiroItem[] = []
