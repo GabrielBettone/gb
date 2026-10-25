@@ -1,5 +1,14 @@
 import { dataAdapter } from '@/lib/dataAdapter'
-import type { Orcamento, StatusOrcamento, ItemOrcamento, CanalVenda, Venda, Produto } from '@/types'
+import type {
+  Orcamento,
+  StatusOrcamento,
+  ItemOrcamento,
+  ItemPorLocalOrcamento,
+  PagamentoParcela,
+  CanalVenda,
+  Venda,
+  Produto,
+} from '@/types'
 
 export const ETAPAS_ORCAMENTO: StatusOrcamento[] = [
   'Orçamentos a realizar',

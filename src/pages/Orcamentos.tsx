@@ -326,8 +326,7 @@ export const Orcamentos: React.FC = () => {
   const handleExcluirEtapa = async (etapa: OrcamentoEtapa) => {
     try {
       await excluirEtapa(etapa.id, etapas, orcamentos, async (orcId, novoStatus) => {
-        const r = await atualizarStatusOrcamento(orcId, novoStatus as any)
-        return r.orcamento
+        await atualizarStatusOrcamento(orcId, novoStatus as any)
       })
       toast({
         title: 'Etapa removida',
