@@ -8,6 +8,7 @@ import {
 } from '@/data/landingData'
 import { MessageCircle, MapPin, Phone, Lock, Heart } from 'lucide-react'
 import { obterConfiguracoes, SiteSettings, registrarEventoAnalytics } from '@/services/site'
+import LogoBettone from '@/components/LogoBettone'
 
 export const LandingFooter: React.FC = () => {
   const [settings, setSettings] = useState<SiteSettings | null>(null)
@@ -33,15 +34,15 @@ export const LandingFooter: React.FC = () => {
           <div className="lg:col-span-4 space-y-4">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="h-12 p-1.5 rounded-xl bg-white flex items-center justify-center border border-white/20 group-hover:scale-105 transition-transform">
-                <img
-                  src="/src/assets/logo-6927a.svg"
-                  alt="Gesso Bettone"
-                  className="h-full w-auto object-contain"
+                <LogoBettone
+                  className="h-full w-auto"
+                  customLogoUrl={settings?.logo_url}
+                  theme="light"
                 />
               </div>
               <div className="flex flex-col leading-tight">
                 <span className="font-heading font-bold text-xl text-white tracking-tight">
-                  Gesso Bettone
+                  {settings?.nome_site || 'Gesso Bettone'}
                 </span>
                 <span className="text-[11px] tracking-widest text-[#D4AF37] uppercase font-semibold">
                   30+ Anos de Excelência

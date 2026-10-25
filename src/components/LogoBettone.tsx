@@ -19,8 +19,24 @@ export const LogoBettone: React.FC<LogoBettoneProps> = ({
   customLogoUrl,
   theme = 'light',
 }) => {
-  if (customLogoUrl) {
-    return <img src={customLogoUrl} alt="Gesso Bettone" className={`object-contain ${className}`} />
+  const [imgSrc, setImgSrc] = React.useState<string>(customLogoUrl || logoSvg)
+  const [hasError, setHasError] = React.useState(false)
+
+  React.useEffect(() => {
+    if (customLogoUrl) {
+      setImgSrc(customLogoUrl)
+      setHasError(false)
+    } else {
+      setImgSrc(logoSvg)
+      setHasError(false)
+    }
+  }, [customLogoUrl])
+
+  const handleError = () => {
+    if (!hasError && imgSrc !== logoPng) {
+      setHasError(true)
+      setImgSrc(logoPng)
+    }
   }
 
   // Se for apenas o ícone quadrado/brasão
@@ -30,12 +46,11 @@ export const LogoBettone: React.FC<LogoBettoneProps> = ({
         className={`relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-white shadow-xs border border-[#DEE4EA] p-1 ${className}`}
       >
         <img
-          src={logoSvg}
-          onError={(e) => {
-            ;(e.currentTarget as HTMLImageElement).src = logoPng
-          }}
+          src={imgSrc}
+          onError={handleError}
           alt="Gesso Bettone Ícone"
           className="w-full h-full object-contain"
+          loading="eager"
         />
       </div>
     )
@@ -44,14 +59,13 @@ export const LogoBettone: React.FC<LogoBettoneProps> = ({
   return (
     <div className={`relative inline-flex items-center ${className}`}>
       <img
-        src={logoSvg}
-        onError={(e) => {
-          ;(e.currentTarget as HTMLImageElement).src = logoPng
-        }}
+        src={imgSrc}
+        onError={handleError}
         alt="Gesso Bettone"
         className={`w-auto h-full max-h-full object-contain ${
           theme === 'dark' ? 'brightness-110 drop-shadow-xs' : ''
         }`}
+        loading="eager"
       />
     </div>
   )

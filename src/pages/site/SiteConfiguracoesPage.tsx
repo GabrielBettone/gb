@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import SiteTopNav from '@/components/site/SiteTopNav'
 import { obterConfiguracoes, salvarConfiguracoes, SiteSettings } from '@/services/site'
+import LogoBettone from '@/components/LogoBettone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -319,19 +320,10 @@ export const SiteConfiguracoesPage: React.FC = () => {
                 {/* Exibição Atual */}
                 <div className="p-6 rounded-2xl bg-[#f8fafc] border border-[#DEE4EA] flex flex-col sm:flex-row items-center gap-6">
                   <div className="w-40 h-28 bg-white rounded-xl border border-[#DEE4EA] p-3 flex items-center justify-center shadow-xs">
-                    {previewLogo || logoAtual ? (
-                      <img
-                        src={previewLogo || logoAtual}
-                        alt="Logo Bettone"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    ) : (
-                      <img
-                        src="/src/assets/logo-6927a.svg"
-                        alt="Logo Padrão"
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    )}
+                    <LogoBettone
+                      className="max-h-full max-w-full"
+                      customLogoUrl={previewLogo || logoAtual || null}
+                    />
                   </div>
 
                   <div className="space-y-2 flex-1">

@@ -423,6 +423,40 @@ export async function listarPortfolio(apenasAtivos = false): Promise<SitePortfol
   }
 }
 
+export async function obterProjetoPorId(id: string): Promise<SitePortfolioItem | null> {
+  try {
+    const record = await pb.collection('site_portfolio').getOne(id)
+    return {
+      id: record.id,
+      titulo: record.titulo,
+      slug: record.slug,
+      categoria: record.categoria,
+      subtitulo: record.subtitulo,
+      cidade: record.cidade,
+      descricao: record.descricao,
+      detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
+      imagem_capa: record.imagem_capa || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_capa: record.arquivo_capa || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      fotos_count: record.fotos_count || parseJsonArray<string>(record.galeria).length,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioItem | null> {
   try {
     const record = await pb.collection('site_portfolio').getFirstListItem(`slug = "${slug}"`)

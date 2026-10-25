@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFilters } from '@/contexts/FilterContext'
+import LogoBettone from '@/components/LogoBettone'
+import { obterConfiguracoes } from '@/services/site'
 import {
   LayoutDashboard,
   Receipt,
@@ -35,8 +37,17 @@ export const Layout: React.FC = () => {
   const { filtros, importModalOpen, setImportModalOpen } = useFilters()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
+
+  React.useEffect(() => {
+    obterConfiguracoes().then((cfg) => {
+      if (cfg?.logo_url) {
+        setSiteLogoUrl(cfg.logo_url)
+      }
+    })
+  }, [])
 
   // Título dinâmico da página atual
   const getPageTitle = () => {
@@ -123,13 +134,11 @@ export const Layout: React.FC = () => {
         {/* Topo: Logo & Marca Oficial */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-[#DEE4EA]">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs border border-[#DEE4EA] flex-shrink-0">
-              <img
-                src="/src/assets/logo-6927a.svg"
-                alt="Gesso Bettone"
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <LogoBettone
+              variant="icon"
+              className="w-10 h-10 flex-shrink-0"
+              customLogoUrl={siteLogoUrl}
+            />
             {!collapsed && (
               <div className="flex flex-col leading-none truncate">
                 <span className="font-heading font-bold text-sm text-[#2C3E50] tracking-tight">
@@ -303,13 +312,11 @@ export const Layout: React.FC = () => {
               <SheetContent side="left" className="w-[280px] p-0 bg-white">
                 <SheetHeader className="p-4 border-b border-[#DEE4EA]">
                   <SheetTitle className="flex items-center gap-3 text-left">
-                    <div className="w-9 h-9 rounded-xl bg-white p-1 flex items-center justify-center shadow-xs border border-[#DEE4EA] flex-shrink-0">
-                      <img
-                        src="/src/assets/logo-6927a.svg"
-                        alt="Gesso Bettone"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
+                    <LogoBettone
+                      variant="icon"
+                      className="w-9 h-9 flex-shrink-0"
+                      customLogoUrl={siteLogoUrl}
+                    />
                     <div className="flex flex-col leading-none">
                       <span className="font-heading font-bold text-sm text-[#2C3E50]">
                         Gesso Bettone

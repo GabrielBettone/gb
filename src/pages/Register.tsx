@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import LogoBettone from '@/components/LogoBettone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -78,11 +79,7 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-6 text-center">
           <div className="h-20 w-auto p-2 rounded-2xl bg-white shadow-md border border-[#DEE4EA] mb-3 flex items-center justify-center">
-            <img
-              src="/src/assets/logo-6927a.svg"
-              alt="Gesso Bettone"
-              className="h-full w-auto object-contain"
-            />
+            <LogoBettone className="h-full w-auto max-h-16" theme="light" />
           </div>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-[#2C3E50] tracking-tight">
             Gesso Bettone

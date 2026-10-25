@@ -4,16 +4,19 @@ import { WHATSAPP_LINK, WHATSAPP_DEFAULT_TEXT } from '@/data/landingData'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { MessageCircle, Menu, Lock } from 'lucide-react'
-import { obterConfiguracoes, registrarEventoAnalytics } from '@/services/site'
+import { obterConfiguracoes, registrarEventoAnalytics, SiteSettings } from '@/services/site'
+import LogoBettone from '@/components/LogoBettone'
 
 export const LandingNavbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [whatsappLink, setWhatsappLink] = useState(WHATSAPP_LINK)
   const [phoneDisplay, setPhoneDisplay] = useState('(19) 98109-3379')
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
   const location = useLocation()
 
   React.useEffect(() => {
     obterConfiguracoes().then((cfg) => {
+      setSettings(cfg)
       if (cfg.whatsapp_principal) {
         const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
         setWhatsappLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
@@ -85,15 +88,11 @@ export const LandingNavbar: React.FC = () => {
         {/* Logo Oficial */}
         <Link to="/" className="flex items-center gap-3 group">
           <div className="h-12 w-auto max-w-[170px] flex items-center transition-transform group-hover:scale-105">
-            <img
-              src="/src/assets/logo-6927a.svg"
-              alt="Gesso Bettone"
-              className="h-12 w-auto object-contain"
-            />
+            <LogoBettone className="h-12 w-auto" customLogoUrl={settings?.logo_url} theme="light" />
           </div>
           <div className="hidden sm:flex flex-col leading-tight">
             <span className="font-heading font-bold text-base sm:text-lg text-[#2C3E50] tracking-tight group-hover:text-[#1B2631]">
-              Gesso Bettone
+              {settings?.nome_site || 'Gesso Bettone'}
             </span>
             <span className="text-[10px] tracking-widest text-[#616F7D] uppercase font-semibold">
               Gesso • Drywall • Acabamentos
@@ -168,15 +167,15 @@ export const LandingNavbar: React.FC = () => {
               <SheetHeader className="p-5 border-b border-[#E3E6EA] text-left">
                 <SheetTitle className="flex items-center gap-3">
                   <div className="h-11 w-auto max-w-[140px] flex items-center">
-                    <img
-                      src="/src/assets/logo-6927a.svg"
-                      alt="Gesso Bettone"
-                      className="h-11 w-auto object-contain"
+                    <LogoBettone
+                      className="h-11 w-auto"
+                      customLogoUrl={settings?.logo_url}
+                      theme="light"
                     />
                   </div>
                   <div className="flex flex-col leading-tight">
                     <span className="font-heading font-bold text-base text-[#2C3E50]">
-                      Gesso Bettone
+                      {settings?.nome_site || 'Gesso Bettone'}
                     </span>
                     <span className="font-script text-xs text-[#D4AF37]">Desde 1993</span>
                   </div>

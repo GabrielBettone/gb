@@ -29,7 +29,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Star, ExternalLink, Images } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Star,
+  ExternalLink,
+  Images,
+  Search,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import ImageUploader from '@/components/site/ImageUploader'
 import { resolverUrlMidia } from '@/lib/watermark'
@@ -40,6 +52,12 @@ export const SitePortfolioPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editando, setEditando] = useState<SitePortfolioItem | null>(null)
+
+  // Filtros, Busca e Ordenação para manter contexto
+  const [busca, setBusca] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('todas')
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [ordenacao, setOrdenacao] = useState<'ordem' | 'titulo' | 'mais_recentes'>('ordem')
 
   // Campos
   const [titulo, setTitulo] = useState('')
@@ -139,6 +157,38 @@ export const SitePortfolioPage: React.FC = () => {
     setModalOpen(true)
   }
 
+  const fecharModal = () => {
+    setModalOpen(false)
+    setEditando(null)
+  }
+
+  // Filtragem e ordenação da lista
+  const projetosFiltrados = projetos
+    .filter((p) => {
+      if (busca.trim()) {
+        const termo = busca.toLowerCase()
+        const matchTitulo = p.titulo.toLowerCase().includes(termo)
+        const matchSub = (p.subtitulo || '').toLowerCase().includes(termo)
+        const matchCidade = (p.cidade || '').toLowerCase().includes(termo)
+        if (!matchTitulo && !matchSub && !matchCidade) return false
+      }
+      if (filtroCategoria !== 'todas' && p.categoria !== filtroCategoria) {
+        return false
+      }
+      if (filtroStatus === 'ativos' && !p.ativo) return false
+      if (filtroStatus === 'inativos' && p.ativo) return false
+      if (filtroStatus === 'destaques' && !p.destaque) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (ordenacao === 'ordem') return (a.ordem || 0) - (b.ordem || 0)
+      if (ordenacao === 'titulo') return a.titulo.localeCompare(b.titulo)
+      if (ordenacao === 'mais_recentes') {
+        return new Date(b.created || '').getTime() - new Date(a.created || '').getTime()
+      }
+      return 0
+    })
+
   const handleSalvar = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!titulo.trim() || !slug.trim()) {
@@ -231,6 +281,70 @@ export const SitePortfolioPage: React.FC = () => {
           </Button>
         </div>
 
+        {/* Barra de Filtros, Busca e Ordenação Inline */}
+        <div className="bg-white p-4 rounded-2xl border border-[#DEE4EA] shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 text-[#616F7D] absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar projeto, subtítulo, cidade..."
+                className="pl-9 pr-8 text-xs bg-white border-[#DEE4EA] h-9"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => setBusca('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#616F7D] hover:text-[#2C3E50]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="todas">Todas as categorias</SelectItem>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.nome}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-[120px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="todos">Todos status</SelectItem>
+                <SelectItem value="ativos">Apenas Ativos</SelectItem>
+                <SelectItem value="inativos">Apenas Inativos</SelectItem>
+                <SelectItem value="destaques">Destaques Home</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#616F7D]">Ordenar por:</span>
+            <Select value={ordenacao} onValueChange={(val: any) => setOrdenacao(val)}>
+              <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="ordem">Ordem (#)</SelectItem>
+                <SelectItem value="titulo">Título (A-Z)</SelectItem>
+                <SelectItem value="mais_recentes">Mais recentes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Tabela de Projetos */}
         <div className="bg-white rounded-2xl border border-[#DEE4EA] overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs">
@@ -252,14 +366,14 @@ export const SitePortfolioPage: React.FC = () => {
                     Carregando portfólio...
                   </td>
                 </tr>
-              ) : projetos.length === 0 ? (
+              ) : projetosFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-[#616F7D]">
-                    Nenhum projeto cadastrado.
+                    Nenhum projeto encontrado com os filtros aplicados.
                   </td>
                 </tr>
               ) : (
-                projetos.map((p) => (
+                projetosFiltrados.map((p) => (
                   <tr key={p.id} className="hover:bg-[#f9fafb] transition-colors">
                     <td className="py-3.5 px-4 font-mono font-semibold text-[#2C3E50]">
                       #{p.ordem || 1}
@@ -325,6 +439,14 @@ export const SitePortfolioPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          to={`/painel/site/portfolio/${p.id}/midias`}
+                          className="p-1.5 text-[#D4AF37] hover:text-[#B89425] hover:bg-[#DEE4EA] rounded-lg transition-colors font-semibold flex items-center gap-1 text-[11px]"
+                          title="Gerenciar mídias do projeto"
+                        >
+                          <Images className="w-4 h-4" />
+                          <span className="hidden lg:inline">Mídias</span>
+                        </Link>
                         <a
                           href={`/portfolio/${p.slug}`}
                           target="_blank"
@@ -337,7 +459,7 @@ export const SitePortfolioPage: React.FC = () => {
                         <button
                           onClick={() => abrirEdicao(p)}
                           className="p-1.5 text-[#616F7D] hover:text-[#2C3E50] rounded-lg hover:bg-[#DEE4EA] transition-colors"
-                          title="Editar"
+                          title="Editar (mesma tela)"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -359,12 +481,26 @@ export const SitePortfolioPage: React.FC = () => {
       </div>
 
       {/* Modal Criar / Editar Portfólio */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (!open) fecharModal()
+          else setModalOpen(true)
+        }}
+      >
         <DialogContent className="sm:max-w-2xl bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl font-bold text-[#2C3E50]">
-              {editando ? 'Editar Projeto' : 'Novo Projeto no Portfólio'}
-            </DialogTitle>
+            <div className="flex items-center justify-between pr-4">
+              <DialogTitle className="font-heading text-xl font-bold text-[#2C3E50]">
+                {editando ? `Editar Projeto: ${editando.titulo}` : 'Novo Projeto no Portfólio'}
+              </DialogTitle>
+            </div>
+            {editando && (
+              <p className="text-xs text-[#616F7D]">
+                Edição inline na mesma tela — todas as alterações são salvas mantendo seus filtros e
+                ordenação atuais.
+              </p>
+            )}
           </DialogHeader>
 
           <form onSubmit={handleSalvar} className="space-y-4 pt-2">
@@ -526,19 +662,14 @@ export const SitePortfolioPage: React.FC = () => {
             </div>
 
             <DialogFooter className="pt-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setModalOpen(false)}
-                className="text-xs"
-              >
+              <Button type="button" variant="outline" onClick={fecharModal} className="text-xs">
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
-                Salvar Projeto
+                {editando ? 'Salvar Alterações' : 'Criar Projeto'}
               </Button>
             </DialogFooter>
           </form>

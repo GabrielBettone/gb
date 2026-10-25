@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Star, Eye, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, Star, Eye, ExternalLink, Search, X } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import ImageUploader from '@/components/site/ImageUploader'
 import { resolverUrlMidia } from '@/lib/watermark'
@@ -40,6 +40,12 @@ export const SiteServicosPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editando, setEditando] = useState<SiteServico | null>(null)
+
+  // Filtros, Busca e Ordenação
+  const [busca, setBusca] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('todas')
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [ordenacao, setOrdenacao] = useState<'ordem' | 'nome' | 'mais_recentes'>('ordem')
 
   // Formulário
   const [nome, setNome] = useState('')
@@ -120,6 +126,38 @@ export const SiteServicosPage: React.FC = () => {
     setBeneficiosStr((s.beneficios || []).join('\n'))
     setModalOpen(true)
   }
+
+  const fecharModal = () => {
+    setModalOpen(false)
+    setEditando(null)
+  }
+
+  // Filtragem e ordenação da lista
+  const servicosFiltrados = servicos
+    .filter((s) => {
+      if (busca.trim()) {
+        const termo = busca.toLowerCase()
+        const matchNome = s.nome.toLowerCase().includes(termo)
+        const matchCurta = (s.descricao_curta || '').toLowerCase().includes(termo)
+        const matchLonga = (s.descricao_longa || '').toLowerCase().includes(termo)
+        if (!matchNome && !matchCurta && !matchLonga) return false
+      }
+      if (filtroCategoria !== 'todas' && s.categoria !== filtroCategoria) {
+        return false
+      }
+      if (filtroStatus === 'ativos' && !s.ativo) return false
+      if (filtroStatus === 'inativos' && s.ativo) return false
+      if (filtroStatus === 'destaques' && !s.destaque) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (ordenacao === 'ordem') return (a.ordem || 0) - (b.ordem || 0)
+      if (ordenacao === 'nome') return a.nome.localeCompare(b.nome)
+      if (ordenacao === 'mais_recentes') {
+        return new Date(b.created || '').getTime() - new Date(a.created || '').getTime()
+      }
+      return 0
+    })
 
   const gerarSlugAuto = (texto: string) => {
     return texto
@@ -225,6 +263,70 @@ export const SiteServicosPage: React.FC = () => {
           </Button>
         </div>
 
+        {/* Barra de Filtros, Busca e Ordenação Inline */}
+        <div className="bg-white p-4 rounded-2xl border border-[#DEE4EA] shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="w-4 h-4 text-[#616F7D] absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar serviço por nome ou descrição..."
+                className="pl-9 pr-8 text-xs bg-white border-[#DEE4EA] h-9"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => setBusca('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#616F7D] hover:text-[#2C3E50]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+              <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue placeholder="Categoria" />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="todas">Todas categorias</SelectItem>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.nome}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+              <SelectTrigger className="w-[120px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="todos">Todos status</SelectItem>
+                <SelectItem value="ativos">Apenas Ativos</SelectItem>
+                <SelectItem value="inativos">Apenas Inativos</SelectItem>
+                <SelectItem value="destaques">Destaques Home</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#616F7D]">Ordenar por:</span>
+            <Select value={ordenacao} onValueChange={(val: any) => setOrdenacao(val)}>
+              <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="text-xs bg-white">
+                <SelectItem value="ordem">Ordem (#)</SelectItem>
+                <SelectItem value="nome">Nome (A-Z)</SelectItem>
+                <SelectItem value="mais_recentes">Mais recentes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         {/* Tabela de Serviços */}
         <div className="bg-white rounded-2xl border border-[#DEE4EA] overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
@@ -246,14 +348,14 @@ export const SiteServicosPage: React.FC = () => {
                       Carregando serviços...
                     </td>
                   </tr>
-                ) : servicos.length === 0 ? (
+                ) : servicosFiltrados.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-8 text-[#616F7D]">
-                      Nenhum serviço cadastrado.
+                      Nenhum serviço encontrado com os filtros aplicados.
                     </td>
                   </tr>
                 ) : (
-                  servicos.map((s) => (
+                  servicosFiltrados.map((s) => (
                     <tr key={s.id} className="hover:bg-[#f9fafb] transition-colors">
                       <td className="py-3.5 px-4 font-mono font-semibold text-[#2C3E50]">
                         #{s.ordem || 1}
@@ -329,7 +431,7 @@ export const SiteServicosPage: React.FC = () => {
                           <button
                             onClick={() => abrirEdicao(s)}
                             className="p-1.5 text-[#616F7D] hover:text-[#2C3E50] rounded-lg hover:bg-[#DEE4EA] transition-colors"
-                            title="Editar serviço"
+                            title="Editar serviço (mesma tela)"
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -352,12 +454,24 @@ export const SiteServicosPage: React.FC = () => {
       </div>
 
       {/* Modal Criar / Editar Serviço */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (!open) fecharModal()
+          else setModalOpen(true)
+        }}
+      >
         <DialogContent className="sm:max-w-2xl bg-white max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl font-bold text-[#2C3E50]">
-              {editando ? 'Editar Serviço' : 'Novo Serviço'}
+              {editando ? `Editar Serviço: ${editando.nome}` : 'Novo Serviço'}
             </DialogTitle>
+            {editando && (
+              <p className="text-xs text-[#616F7D]">
+                Edição inline na mesma tela — todas as alterações são salvas mantendo seus filtros e
+                ordenação atuais.
+              </p>
+            )}
           </DialogHeader>
 
           <form onSubmit={handleSalvar} className="space-y-4 pt-2">
@@ -515,19 +629,14 @@ export const SiteServicosPage: React.FC = () => {
             </div>
 
             <DialogFooter className="pt-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setModalOpen(false)}
-                className="text-xs"
-              >
+              <Button type="button" variant="outline" onClick={fecharModal} className="text-xs">
                 Cancelar
               </Button>
               <Button
                 type="submit"
                 className="bg-[#2C3E50] hover:bg-[#1B2631] text-white text-xs font-semibold"
               >
-                Salvar Serviço
+                {editando ? 'Salvar Alterações' : 'Criar Serviço'}
               </Button>
             </DialogFooter>
           </form>

@@ -48,6 +48,8 @@ import {
   Layers,
   BarChart2,
   Sliders,
+  Search,
+  X,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import ImageUploader from '@/components/site/ImageUploader'
@@ -91,6 +93,12 @@ export const SiteParceirosPage: React.FC = () => {
   const [editandoParceiro, setEditandoParceiro] = useState<SiteParceiro | null>(null)
   const [modalCategoriaOpen, setModalCategoriaOpen] = useState(false)
   const [editandoCategoria, setEditandoCategoria] = useState<CategoriaParceiro | null>(null)
+
+  // Filtros, Busca e Ordenação na aba Parceiros (mantém contexto inline)
+  const [buscaParceiro, setBuscaParceiro] = useState('')
+  const [filtroCatParceiro, setFiltroCatParceiro] = useState('todas')
+  const [filtroStatusParceiro, setFiltroStatusParceiro] = useState('todos')
+  const [ordParceiro, setOrdParceiro] = useState<'ordem' | 'nome' | 'mais_recentes'>('ordem')
 
   // Form Parceiro
   const [pNome, setPNome] = useState('')
@@ -151,6 +159,33 @@ export const SiteParceirosPage: React.FC = () => {
   const totalCategorias = categorias.length
   const totalCliquesMes = cliques.length
   const totalCliquesMesAnterior = cliquesMesAnterior.length
+
+  // Parceiros filtrados na aba Parceiros
+  const parceirosFiltrados = parceiros
+    .filter((p) => {
+      if (buscaParceiro.trim()) {
+        const termo = buscaParceiro.toLowerCase()
+        const matchNome = p.nome.toLowerCase().includes(termo)
+        const matchPapel = (p.papel || '').toLowerCase().includes(termo)
+        const matchDesc = (p.descricao || '').toLowerCase().includes(termo)
+        if (!matchNome && !matchPapel && !matchDesc) return false
+      }
+      if (filtroCatParceiro !== 'todas' && p.categoria !== filtroCatParceiro) {
+        return false
+      }
+      if (filtroStatusParceiro === 'ativos' && !p.ativo) return false
+      if (filtroStatusParceiro === 'inativos' && p.ativo) return false
+      if (filtroStatusParceiro === 'destaques' && !p.destaque) return false
+      return true
+    })
+    .sort((a, b) => {
+      if (ordParceiro === 'ordem') return (a.ordem || 0) - (b.ordem || 0)
+      if (ordParceiro === 'nome') return a.nome.localeCompare(b.nome)
+      if (ordParceiro === 'mais_recentes') {
+        return new Date(b.created || '').getTime() - new Date(a.created || '').getTime()
+      }
+      return 0
+    })
 
   // Maior volume do período
   const cliquesPorParceiroMap = new Map<string, { nome: string; count: number }>()
@@ -532,122 +567,189 @@ export const SiteParceirosPage: React.FC = () => {
 
         {/* ABA: PARCEIROS */}
         {abaAtiva === 'Parceiros' && (
-          <div className="bg-white rounded-2xl border border-[#DEE4EA] overflow-hidden shadow-xs">
-            <div className="p-4 border-b border-[#DEE4EA] flex items-center justify-between">
-              <h2 className="font-heading font-bold text-base text-[#2C3E50]">
-                Lista de Parceiros Cadastrados
-              </h2>
-              <Button
-                onClick={abrirNovoParceiro}
-                size="sm"
-                className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Adicionar
-              </Button>
+          <div className="space-y-4">
+            {/* Barra de Filtros e Busca Inline */}
+            <div className="bg-white p-4 rounded-2xl border border-[#DEE4EA] shadow-xs flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="w-4 h-4 text-[#616F7D] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={buscaParceiro}
+                    onChange={(e) => setBuscaParceiro(e.target.value)}
+                    placeholder="Buscar por nome, papel ou especialidade..."
+                    className="pl-9 pr-8 text-xs bg-white border-[#DEE4EA] h-9"
+                  />
+                  {buscaParceiro && (
+                    <button
+                      type="button"
+                      onClick={() => setBuscaParceiro('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#616F7D] hover:text-[#2C3E50]"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <Select value={filtroCatParceiro} onValueChange={setFiltroCatParceiro}>
+                  <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs bg-white">
+                    <SelectItem value="todas">Todas categorias</SelectItem>
+                    {categorias.map((c) => (
+                      <SelectItem key={c.id} value={c.nome}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={filtroStatusParceiro} onValueChange={setFiltroStatusParceiro}>
+                  <SelectTrigger className="w-[120px] text-xs h-9 bg-white border-[#DEE4EA]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs bg-white">
+                    <SelectItem value="todos">Todos status</SelectItem>
+                    <SelectItem value="ativos">Apenas Ativos</SelectItem>
+                    <SelectItem value="inativos">Apenas Inativos</SelectItem>
+                    <SelectItem value="destaques">Destaques</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-[#616F7D]">Ordenar por:</span>
+                <Select value={ordParceiro} onValueChange={(val: any) => setOrdParceiro(val)}>
+                  <SelectTrigger className="w-[140px] text-xs h-9 bg-white border-[#DEE4EA]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="text-xs bg-white">
+                    <SelectItem value="ordem">Ordem (#)</SelectItem>
+                    <SelectItem value="nome">Nome (A-Z)</SelectItem>
+                    <SelectItem value="mais_recentes">Mais recentes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#f4f4f4] text-[#616F7D] font-bold uppercase tracking-wider border-b border-[#DEE4EA]">
-                <tr>
-                  <th className="py-3 px-4">Parceiro</th>
-                  <th className="py-3 px-4">Categoria / Papel</th>
-                  <th className="py-3 px-4">WhatsApp</th>
-                  <th className="py-3 px-4">Destaque</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#DEE4EA]">
-                {parceiros.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#DEE4EA] overflow-hidden shadow-xs">
+              <div className="p-4 border-b border-[#DEE4EA] flex items-center justify-between">
+                <h2 className="font-heading font-bold text-base text-[#2C3E50]">
+                  Lista de Parceiros Cadastrados ({parceirosFiltrados.length})
+                </h2>
+                <Button
+                  onClick={abrirNovoParceiro}
+                  size="sm"
+                  className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Adicionar
+                </Button>
+              </div>
+
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#f4f4f4] text-[#616F7D] font-bold uppercase tracking-wider border-b border-[#DEE4EA]">
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-[#616F7D]">
-                      Nenhum parceiro cadastrado.
-                    </td>
+                    <th className="py-3 px-4">Parceiro</th>
+                    <th className="py-3 px-4">Categoria / Papel</th>
+                    <th className="py-3 px-4">WhatsApp</th>
+                    <th className="py-3 px-4">Destaque</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Ações</th>
                   </tr>
-                ) : (
-                  parceiros.map((p) => (
-                    <tr key={p.id} className="hover:bg-[#f9fafb] transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          {p.arquivo_logo || p.logo ? (
-                            <img
-                              src={
-                                p.arquivo_logo
-                                  ? resolverUrlMidia('site_partners', p.id, p.arquivo_logo)
-                                  : p.logo
-                              }
-                              alt={p.nome}
-                              crossOrigin="anonymous"
-                              className="w-10 h-10 rounded-lg object-contain bg-white border border-[#DEE4EA] p-1"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center font-bold text-[#616F7D]">
-                              LOGO
-                            </div>
-                          )}
-                          <div>
-                            <span className="font-heading font-bold text-sm text-[#2C3E50] block">
-                              {p.nome}
-                            </span>
-                            <span className="text-[11px] text-[#616F7D]">
-                              Ordem: #{p.ordem || 1}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-[#2C3E50]">
-                            {p.categoria || 'Geral'}
-                          </span>
-                          <span className="text-[11px] text-[#616F7D]">{p.papel || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono text-xs text-[#2C3E50]">
-                        {p.whatsapp || '—'}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {p.destaque ? (
-                          <Badge className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-[10px]">
-                            Sim
-                          </Badge>
-                        ) : (
-                          <span className="text-[#616F7D] text-[11px]">Não</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            p.ativo
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {p.ativo ? 'Ativo' : 'Inativo'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => abrirEdicaoParceiro(p)}
-                            className="p-1.5 text-[#616F7D] hover:text-[#2C3E50] rounded-lg hover:bg-[#DEE4EA] transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleExcluirParceiro(p)}
-                            className="p-1.5 text-[#C4453C] hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-[#DEE4EA]">
+                  {parceirosFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-[#616F7D]">
+                        Nenhum parceiro encontrado com os filtros aplicados.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    parceirosFiltrados.map((p) => (
+                      <tr key={p.id} className="hover:bg-[#f9fafb] transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            {p.arquivo_logo || p.logo ? (
+                              <img
+                                src={
+                                  p.arquivo_logo
+                                    ? resolverUrlMidia('site_partners', p.id, p.arquivo_logo)
+                                    : p.logo
+                                }
+                                alt={p.nome}
+                                crossOrigin="anonymous"
+                                className="w-10 h-10 rounded-lg object-contain bg-white border border-[#DEE4EA] p-1"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center font-bold text-[#616F7D]">
+                                LOGO
+                              </div>
+                            )}
+                            <div>
+                              <span className="font-heading font-bold text-sm text-[#2C3E50] block">
+                                {p.nome}
+                              </span>
+                              <span className="text-[11px] text-[#616F7D]">
+                                Ordem: #{p.ordem || 1}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-[#2C3E50]">
+                              {p.categoria || 'Geral'}
+                            </span>
+                            <span className="text-[11px] text-[#616F7D]">{p.papel || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-xs text-[#2C3E50]">
+                          {p.whatsapp || '—'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {p.destaque ? (
+                            <Badge className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-[10px]">
+                              Sim
+                            </Badge>
+                          ) : (
+                            <span className="text-[#616F7D] text-[11px]">Não</span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              p.ativo
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {p.ativo ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => abrirEdicaoParceiro(p)}
+                              className="p-1.5 text-[#616F7D] hover:text-[#2C3E50] rounded-lg hover:bg-[#DEE4EA] transition-colors"
+                              title="Editar parceiro (mesma tela)"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleExcluirParceiro(p)}
+                              className="p-1.5 text-[#C4453C] hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -800,8 +902,14 @@ export const SiteParceirosPage: React.FC = () => {
         <DialogContent className="sm:max-w-lg bg-white">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl font-bold text-[#2C3E50]">
-              {editandoParceiro ? 'Editar Parceiro' : 'Novo Parceiro'}
+              {editandoParceiro ? `Editar Parceiro: ${editandoParceiro.nome}` : 'Novo Parceiro'}
             </DialogTitle>
+            {editandoParceiro && (
+              <p className="text-xs text-[#616F7D]">
+                Edição inline na mesma tela — você salva sem perder o contexto dos filtros e
+                ordenação atuais.
+              </p>
+            )}
           </DialogHeader>
 
           <form onSubmit={handleSalvarParceiro} className="space-y-4 pt-2">
