@@ -3,6 +3,8 @@ import { Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from 'luci
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
+import { isSelfHostedSupabase } from '@/lib/dataAdapter'
+import { supabaseGetPublicUrl } from '@/lib/supabase/client'
 
 export interface MediaItem {
   id?: string
@@ -49,6 +51,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       val.startsWith('blob:')
     ) {
       return val
+    }
+    if (isSelfHostedSupabase() && val) {
+      const bucket = collectionName?.includes('simulador') ? 'simulador' : 'public-media'
+      return supabaseGetPublicUrl(bucket, val)
     }
     if (collectionName && recordId && val) {
       const pbBase = pb.baseUrl || ''

@@ -16,6 +16,7 @@ import {
   supabaseDelete,
   supabaseUpload,
   supabasePublicUrl,
+  supabaseGetPublicUrl,
 } from '@/lib/supabase/client'
 import { supabaseAuth } from '@/lib/supabase/auth'
 
@@ -267,10 +268,72 @@ export const dataAdapter = {
     if (isSelfHostedSupabase()) {
       const token = supabaseAuth.getToken()
       await supabaseUpload(bucket, path, file, { accessToken: token, upsert: true })
-      return supabasePublicUrl(bucket, path)
+      return supabaseGetPublicUrl(bucket, path)
     }
 
     // Se estiver no PocketBase, o upload é direto no Record
     return URL.createObjectURL(file)
+  },
+
+  /**
+   * Salva FormData com suporte a upload de arquivos tanto no PocketBase quanto no Supabase
+   */
+  async upload<T = Record<string, unknown>>(
+    collection: string,
+    formData: FormData,
+    id?: string,
+  ): Promise<T> {
+    if (isSelfHostedSupabase()) {
+      const payload: Record<string, unknown> = {}
+      const bucketName = collection.includes('simulador') ? 'simulador' : 'public-media'
+      const timestamp = Date.now()
+      const token = supabaseAuth.getToken()
+
+      for (const [key, val] of formData.entries()) {
+        if (val instanceof File || val instanceof Blob) {
+          const fileName = val instanceof File ? val.name : `file_${timestamp}.jpg`
+          const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+          const storagePath = `${collection}/${id || 'new'}_${timestamp}_${cleanName}`
+
+          await supabaseUpload(bucketName, storagePath, val, {
+            accessToken: token,
+            contentType: val.type || 'application/octet-stream',
+            upsert: true,
+          })
+          const publicUrl = supabaseGetPublicUrl(bucketName, storagePath)
+
+          if (key in payload) {
+            const current = payload[key]
+            if (Array.isArray(current)) {
+              current.push(publicUrl)
+            } else {
+              payload[key] = [current, publicUrl]
+            }
+          } else {
+            payload[key] = publicUrl
+          }
+        } else {
+          try {
+            if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
+              payload[key] = JSON.parse(val)
+            } else {
+              payload[key] = val
+            }
+          } catch {
+            payload[key] = val
+          }
+        }
+      }
+
+      if (id) {
+        return (await dataAdapter.update<T>(collection, id, payload)) as T
+      }
+      return (await dataAdapter.create<T>(collection, payload)) as T
+    }
+
+    if (id) {
+      return (await pb.collection(collection).update(id, formData)) as T
+    }
+    return (await pb.collection(collection).create(formData)) as T
   },
 }

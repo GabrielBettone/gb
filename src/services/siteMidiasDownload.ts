@@ -1,4 +1,7 @@
 import pb from '@/lib/pocketbase/client'
+import { isSelfHostedSupabase, dataAdapter } from '@/lib/dataAdapter'
+import { getSupabaseConfig } from '@/lib/supabase/client'
+import { supabaseAuth } from '@/lib/supabase/auth'
 
 export interface MidiaInventarioItem {
   pasta: string
@@ -21,6 +24,96 @@ export interface MidiaInventarioResponse {
  * Obtém a lista completa de mídias cadastradas para o empacotamento ZIP
  */
 export async function obterInventarioMidias(): Promise<MidiaInventarioResponse> {
+  if (isSelfHostedSupabase()) {
+    const { url, publicKey } = getSupabaseConfig()
+    const token = supabaseAuth.getToken()
+    const functionUrl = `${url}/functions/v1/site-midias-inventario`
+
+    const res = await fetch(functionUrl, {
+      method: 'GET',
+      headers: {
+        apikey: publicKey,
+        Authorization: `Bearer ${token || publicKey}`,
+      },
+    })
+
+    if (res.ok) {
+      return res.json()
+    }
+
+    // Fallback: se edge function não estiver disponível no Supabase, monta o inventário pelo client
+    const [servicos, portfolio, depoimentos, parceiros, settingsList] = await Promise.all([
+      dataAdapter.getFullList<any>('site_servicos'),
+      dataAdapter.getFullList<any>('site_portfolio'),
+      dataAdapter.getFullList<any>('site_depoimentos'),
+      dataAdapter.getFullList<any>('site_parceiros'),
+      dataAdapter.getFullList<any>('site_settings', { limit: 1 }),
+    ])
+
+    const itens: MidiaInventarioItem[] = []
+    const settings = settingsList?.[0]
+    if (settings?.logo_url) {
+      itens.push({
+        origem: 'Configurações',
+        pasta: 'configuracoes/logo',
+        nome_arquivo: 'logo.png',
+        url: settings.logo_url,
+      })
+    }
+
+    for (const s of servicos) {
+      const fotos: string[] = Array.isArray(s.fotos) ? s.fotos : []
+      fotos.forEach((foto, idx) => {
+        if (foto) {
+          itens.push({
+            origem: 'Serviços',
+            pasta: `servicos/${s.slug || s.id}`,
+            nome_arquivo: `foto_${idx + 1}.jpg`,
+            url: foto,
+          })
+        }
+      })
+    }
+
+    for (const p of portfolio) {
+      const fotos: string[] = Array.isArray(p.fotos) ? p.fotos : []
+      fotos.forEach((foto, idx) => {
+        if (foto) {
+          itens.push({
+            origem: 'Portfólio',
+            pasta: `portfolio/${p.id}`,
+            nome_arquivo: `projeto_${idx + 1}.jpg`,
+            url: foto,
+          })
+        }
+      })
+    }
+
+    for (const d of depoimentos) {
+      if (d.foto) {
+        itens.push({
+          origem: 'Depoimentos',
+          pasta: 'depoimentos',
+          nome_arquivo: `${d.id}_foto.jpg`,
+          url: d.foto,
+        })
+      }
+    }
+
+    for (const parc of parceiros) {
+      if (parc.foto) {
+        itens.push({
+          origem: 'Parceiros',
+          pasta: 'parceiros',
+          nome_arquivo: `${parc.slug || parc.id}.jpg`,
+          url: parc.foto,
+        })
+      }
+    }
+
+    return { total: itens.length, itens }
+  }
+
   const pbBase = pb.baseUrl || ''
   const token = pb.authStore.token
   const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/site/midias-inventario`, {

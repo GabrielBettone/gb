@@ -1,5 +1,6 @@
 // Utilitário de marca d'água e processamento de imagem para a Gesso Bettone
 import pb from '@/lib/pocketbase/client'
+import { isSupabaseConfigured, supabaseGetPublicUrl } from '@/lib/supabase/client'
 
 /**
  * Aplica a marca d'água elegante da Gesso Bettone sobre uma imagem (File, Blob ou URL)
@@ -170,6 +171,23 @@ export function resolverUrlMidia(
   if (fileNameOrUrl.startsWith('http://') || fileNameOrUrl.startsWith('https://')) {
     return fileNameOrUrl
   }
+
+  // Em modo Supabase, caminhos relativos de storage (ex: public-media/... ou simulador/...)
+  if (isSupabaseConfigured()) {
+    // Se começar com public-media/ ou similar
+    if (fileNameOrUrl.includes('/')) {
+      const parts = fileNameOrUrl.split('/')
+      const bucket = parts[0]
+      const path = parts.slice(1).join('/')
+      return supabaseGetPublicUrl(bucket, path)
+    }
+    // Caso padrão em Supabase para uploads de mídia do site
+    return supabaseGetPublicUrl(
+      'public-media',
+      `${collectionIdOrName}/${recordId}/${fileNameOrUrl}`,
+    )
+  }
+
   const pbBase = pb.baseUrl || ''
   return `${pbBase.replace(/\/+$/, '')}/api/files/${collectionIdOrName}/${recordId}/${fileNameOrUrl}`
 }

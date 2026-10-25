@@ -57,12 +57,37 @@ interface SupabaseConfiguration {
   publicKey: string
 }
 
-function readConfiguration(): SupabaseConfiguration {
-  const env = import.meta.env as Record<string, string | undefined>
-  const url = (env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '')
-  const publicKey = (env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '').trim()
+export function getSupabaseConfig(): SupabaseConfiguration {
+  const env = (import.meta.env || {}) as Record<string, string | undefined>
+  const processEnv = (typeof process !== 'undefined' && process.env ? process.env : {}) as Record<
+    string,
+    string | undefined
+  >
+
+  const url = (
+    env.VITE_SUPABASE_URL ||
+    processEnv.VITE_SUPABASE_URL ||
+    processEnv.SUPABASE_URL ||
+    ''
+  )
+    .trim()
+    .replace(/\/+$/, '')
+  // Suporta VITE_SUPABASE_PUBLISHABLE_KEY (formato novo sb_publishable_...) e fallback para VITE_SUPABASE_ANON_KEY ou SUPABASE_API_KEY
+  const publicKey = (
+    env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    env.VITE_SUPABASE_ANON_KEY ||
+    env.SUPABASE_API_KEY ||
+    processEnv.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    processEnv.VITE_SUPABASE_ANON_KEY ||
+    processEnv.SUPABASE_API_KEY ||
+    ''
+  ).trim()
 
   return { url, publicKey }
+}
+
+function readConfiguration(): SupabaseConfiguration {
+  return getSupabaseConfig()
 }
 
 export function isSupabaseConfigured(): boolean {

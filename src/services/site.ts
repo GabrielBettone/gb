@@ -1,4 +1,7 @@
 import pb from '@/lib/pocketbase/client'
+import { isSelfHostedSupabase, dataAdapter } from '@/lib/dataAdapter'
+import { getSupabaseConfig, supabaseUpload, supabaseGetPublicUrl } from '@/lib/supabase/client'
+import { supabaseAuth } from '@/lib/supabase/auth'
 
 // --- Tipagens ---
 
@@ -158,7 +161,7 @@ function parseJsonArray<T>(val: any, fallback: T[] = []): T[] {
 export async function listarServicos(apenasAtivos = false): Promise<SiteServico[]> {
   try {
     const filter = apenasAtivos ? 'ativo = true' : ''
-    const records = await pb.collection('site_services').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_services', {
       filter,
       sort: '-destaque,ordem,created',
     })
@@ -195,7 +198,7 @@ export async function listarServicos(apenasAtivos = false): Promise<SiteServico[
 
 export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
   try {
-    const record = await pb.collection('site_services').getFirstListItem(`slug = "${slug}"`)
+    const record = await dataAdapter.getFirstListItem<any>('site_services', `slug = "${slug}"`)
     return {
       id: record.id,
       nome: record.nome,
@@ -230,6 +233,71 @@ export async function criarServico(
   data: Partial<SiteServico>,
   arquivos?: { arquivo_principal?: File; arquivos_galeria?: File[] },
 ): Promise<SiteServico> {
+  const payload: any = {
+    ...data,
+    beneficios: isSelfHostedSupabase()
+      ? Array.isArray(data.beneficios)
+        ? data.beneficios
+        : []
+      : JSON.stringify(data.beneficios || []),
+    galeria: isSelfHostedSupabase()
+      ? Array.isArray(data.galeria)
+        ? data.galeria
+        : []
+      : JSON.stringify(data.galeria || []),
+    keywords: isSelfHostedSupabase()
+      ? Array.isArray(data.keywords)
+        ? data.keywords
+        : []
+      : JSON.stringify(data.keywords || []),
+  }
+
+  if (isSelfHostedSupabase()) {
+    const token = supabaseAuth.getToken()
+    const ts = Date.now()
+    if (arquivos?.arquivo_principal) {
+      const ext = arquivos.arquivo_principal.name.split('.').pop() || 'jpg'
+      const path = `services/principal_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivo_principal, {
+        accessToken: token,
+        contentType: arquivos.arquivo_principal.type,
+        upsert: true,
+      })
+      const url = supabaseGetPublicUrl('public-media', path)
+      payload.arquivo_principal = path
+      payload.imagem_principal = url
+    }
+
+    if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      const galeriaUrls: string[] = [...(Array.isArray(payload.galeria) ? payload.galeria : [])]
+      const galeriaPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
+        const file = arquivos.arquivos_galeria[i]
+        const ext = file.name.split('.').pop() || 'jpg'
+        const path = `services/galeria_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        galeriaPaths.push(path)
+        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_galeria = galeriaPaths
+      payload.galeria = galeriaUrls
+    }
+
+    const record = await dataAdapter.create<any>('site_services', payload)
+    return {
+      ...record,
+      beneficios: parseJsonArray<string>(record.beneficios),
+      galeria: parseJsonArray<string>(record.galeria),
+      keywords: parseJsonArray<string>(record.keywords),
+      arquivo_principal: record.arquivo_principal,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SiteServico
+  }
+
   if (
     arquivos &&
     (arquivos.arquivo_principal ||
@@ -261,12 +329,6 @@ export async function criarServico(
     } as unknown as SiteServico
   }
 
-  const payload = {
-    ...data,
-    beneficios: JSON.stringify(data.beneficios || []),
-    galeria: JSON.stringify(data.galeria || []),
-    keywords: JSON.stringify(data.keywords || []),
-  }
   const record = await pb.collection('site_services').create(payload)
   return {
     ...record,
@@ -281,6 +343,58 @@ export async function atualizarServico(
   data: Partial<SiteServico>,
   arquivos?: { arquivo_principal?: File; arquivos_galeria?: File[] },
 ): Promise<SiteServico> {
+  const payload: any = { ...data }
+
+  if (isSelfHostedSupabase()) {
+    const token = supabaseAuth.getToken()
+    const ts = Date.now()
+    if (data.beneficios !== undefined) payload.beneficios = data.beneficios
+    if (data.galeria !== undefined) payload.galeria = data.galeria
+    if (data.keywords !== undefined) payload.keywords = data.keywords
+
+    if (arquivos?.arquivo_principal) {
+      const ext = arquivos.arquivo_principal.name.split('.').pop() || 'jpg'
+      const path = `services/principal_${id}_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivo_principal, {
+        accessToken: token,
+        contentType: arquivos.arquivo_principal.type,
+        upsert: true,
+      })
+      payload.arquivo_principal = path
+      payload.imagem_principal = supabaseGetPublicUrl('public-media', path)
+    }
+
+    if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      const currentGaleria = Array.isArray(payload.galeria) ? payload.galeria : []
+      const galeriaUrls: string[] = [...currentGaleria]
+      const galeriaPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
+        const file = arquivos.arquivos_galeria[i]
+        const ext = file.name.split('.').pop() || 'jpg'
+        const path = `services/galeria_${id}_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        galeriaPaths.push(path)
+        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_galeria = galeriaPaths
+      payload.galeria = galeriaUrls
+    }
+
+    const record = await dataAdapter.update<any>('site_services', id, payload)
+    return {
+      ...record,
+      beneficios: parseJsonArray<string>(record.beneficios),
+      galeria: parseJsonArray<string>(record.galeria),
+      keywords: parseJsonArray<string>(record.keywords),
+      arquivo_principal: record.arquivo_principal,
+      arquivos_galeria: record.arquivos_galeria || [],
+    } as unknown as SiteServico
+  }
+
   if (
     arquivos &&
     (arquivos.arquivo_principal ||
@@ -312,7 +426,6 @@ export async function atualizarServico(
     } as unknown as SiteServico
   }
 
-  const payload: any = { ...data }
   if (data.beneficios !== undefined) payload.beneficios = JSON.stringify(data.beneficios)
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
   if (data.keywords !== undefined) payload.keywords = JSON.stringify(data.keywords)
@@ -327,8 +440,7 @@ export async function atualizarServico(
 }
 
 export async function excluirServico(id: string): Promise<boolean> {
-  await pb.collection('site_services').delete(id)
-  return true
+  return await dataAdapter.delete('site_services', id)
 }
 
 // --- CATEGORIAS DO SITE ---
@@ -336,7 +448,7 @@ export async function excluirServico(id: string): Promise<boolean> {
 export async function listarCategorias(apenasAtivas = false): Promise<SiteCategoria[]> {
   try {
     const filter = apenasAtivas ? 'ativa = true' : ''
-    const records = await pb.collection('site_categories').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_categories', {
       filter,
       sort: 'ordem,nome',
     })
@@ -356,7 +468,7 @@ export async function listarCategorias(apenasAtivas = false): Promise<SiteCatego
 }
 
 export async function criarCategoria(data: Partial<SiteCategoria>): Promise<SiteCategoria> {
-  const record = await pb.collection('site_categories').create(data)
+  const record = await dataAdapter.create<any>('site_categories', data)
   return {
     id: record.id,
     nome: record.nome,
@@ -370,7 +482,7 @@ export async function atualizarCategoria(
   id: string,
   data: Partial<SiteCategoria>,
 ): Promise<SiteCategoria> {
-  const record = await pb.collection('site_categories').update(id, data)
+  const record = await dataAdapter.update<any>('site_categories', id, data)
   return {
     id: record.id,
     nome: record.nome,
@@ -381,8 +493,7 @@ export async function atualizarCategoria(
 }
 
 export async function excluirCategoria(id: string): Promise<boolean> {
-  await pb.collection('site_categories').delete(id)
-  return true
+  return await dataAdapter.delete('site_categories', id)
 }
 
 // --- PORTFÓLIO DO SITE ---
@@ -390,7 +501,7 @@ export async function excluirCategoria(id: string): Promise<boolean> {
 export async function listarPortfolio(apenasAtivos = false): Promise<SitePortfolioItem[]> {
   try {
     const filter = apenasAtivos ? 'ativo = true' : ''
-    const records = await pb.collection('site_portfolio').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_portfolio', {
       filter,
       sort: '-destaque,ordem,created',
     })
@@ -435,7 +546,7 @@ export async function listarPortfolio(apenasAtivos = false): Promise<SitePortfol
 
 export async function obterProjetoPorId(id: string): Promise<SitePortfolioItem | null> {
   try {
-    const record = await pb.collection('site_portfolio').getOne(id)
+    const record = await dataAdapter.getOne<any>('site_portfolio', id)
     return {
       id: record.id,
       titulo: record.titulo,
@@ -476,7 +587,7 @@ export async function obterProjetoPorId(id: string): Promise<SitePortfolioItem |
 
 export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioItem | null> {
   try {
-    const record = await pb.collection('site_portfolio').getFirstListItem(`slug = "${slug}"`)
+    const record = await dataAdapter.getFirstListItem<any>('site_portfolio', `slug = "${slug}"`)
     return {
       id: record.id,
       titulo: record.titulo,
@@ -519,6 +630,93 @@ export async function criarProjeto(
   data: Partial<SitePortfolioItem>,
   arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[]; arquivos_videos?: File[] },
 ): Promise<SitePortfolioItem> {
+  const payload: any = {
+    ...data,
+    detalhes_tecnicos: isSelfHostedSupabase()
+      ? Array.isArray(data.detalhes_tecnicos)
+        ? data.detalhes_tecnicos
+        : []
+      : JSON.stringify(data.detalhes_tecnicos || []),
+    galeria: isSelfHostedSupabase()
+      ? Array.isArray(data.galeria)
+        ? data.galeria
+        : []
+      : JSON.stringify(data.galeria || []),
+    videos: isSelfHostedSupabase()
+      ? Array.isArray(data.videos)
+        ? data.videos
+        : []
+      : JSON.stringify(data.videos || []),
+  }
+
+  if (isSelfHostedSupabase()) {
+    const token = supabaseAuth.getToken()
+    const ts = Date.now()
+
+    if (arquivos?.arquivo_capa) {
+      const ext = arquivos.arquivo_capa.name.split('.').pop() || 'jpg'
+      const path = `portfolio/capa_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivo_capa, {
+        accessToken: token,
+        contentType: arquivos.arquivo_capa.type,
+        upsert: true,
+      })
+      payload.arquivo_capa = path
+      payload.imagem_capa = supabaseGetPublicUrl('public-media', path)
+    }
+
+    if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      const galeriaUrls: string[] = [...(Array.isArray(payload.galeria) ? payload.galeria : [])]
+      const galeriaPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
+        const file = arquivos.arquivos_galeria[i]
+        const ext = file.name.split('.').pop() || 'jpg'
+        const path = `portfolio/galeria_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        galeriaPaths.push(path)
+        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_galeria = galeriaPaths
+      payload.galeria = galeriaUrls
+      payload.fotos_count = galeriaUrls.length
+    }
+
+    if (arquivos?.arquivos_videos && arquivos.arquivos_videos.length > 0) {
+      const videosUrls: string[] = [...(Array.isArray(payload.videos) ? payload.videos : [])]
+      const videosPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_videos.length; i++) {
+        const file = arquivos.arquivos_videos[i]
+        const ext = file.name.split('.').pop() || 'mp4'
+        const path = `portfolio/videos_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        videosPaths.push(path)
+        videosUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_videos = videosPaths
+      payload.videos = videosUrls
+      payload.videos_count = videosUrls.length
+    }
+
+    const record = await dataAdapter.create<any>('site_portfolio', payload)
+    return {
+      ...record,
+      detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
+      galeria: parseJsonArray<string>(record.galeria),
+      videos: parseJsonArray<string>(record.videos),
+      arquivo_capa: record.arquivo_capa,
+      arquivos_galeria: record.arquivos_galeria || [],
+      arquivos_videos: record.arquivos_videos || [],
+    } as unknown as SitePortfolioItem
+  }
+
   const hasFiles =
     arquivos &&
     (arquivos.arquivo_capa ||
@@ -556,12 +754,6 @@ export async function criarProjeto(
     } as unknown as SitePortfolioItem
   }
 
-  const payload: any = {
-    ...data,
-    detalhes_tecnicos: JSON.stringify(data.detalhes_tecnicos || []),
-    galeria: JSON.stringify(data.galeria || []),
-    videos: JSON.stringify(data.videos || []),
-  }
   const record = await pb.collection('site_portfolio').create(payload)
   return {
     ...record,
@@ -576,6 +768,81 @@ export async function atualizarProjeto(
   data: Partial<SitePortfolioItem>,
   arquivos?: { arquivo_capa?: File; arquivos_galeria?: File[]; arquivos_videos?: File[] },
 ): Promise<SitePortfolioItem> {
+  const payload: any = { ...data }
+
+  if (isSelfHostedSupabase()) {
+    const token = supabaseAuth.getToken()
+    const ts = Date.now()
+    if (data.detalhes_tecnicos !== undefined) payload.detalhes_tecnicos = data.detalhes_tecnicos
+    if (data.galeria !== undefined) payload.galeria = data.galeria
+    if (data.videos !== undefined) payload.videos = data.videos
+
+    if (arquivos?.arquivo_capa) {
+      const ext = arquivos.arquivo_capa.name.split('.').pop() || 'jpg'
+      const path = `portfolio/capa_${id}_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivo_capa, {
+        accessToken: token,
+        contentType: arquivos.arquivo_capa.type,
+        upsert: true,
+      })
+      payload.arquivo_capa = path
+      payload.imagem_capa = supabaseGetPublicUrl('public-media', path)
+    }
+
+    if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
+      const currentGaleria = Array.isArray(payload.galeria) ? payload.galeria : []
+      const galeriaUrls: string[] = [...currentGaleria]
+      const galeriaPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
+        const file = arquivos.arquivos_galeria[i]
+        const ext = file.name.split('.').pop() || 'jpg'
+        const path = `portfolio/galeria_${id}_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        galeriaPaths.push(path)
+        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_galeria = galeriaPaths
+      payload.galeria = galeriaUrls
+      payload.fotos_count = galeriaUrls.length
+    }
+
+    if (arquivos?.arquivos_videos && arquivos.arquivos_videos.length > 0) {
+      const currentVideos = Array.isArray(payload.videos) ? payload.videos : []
+      const videosUrls: string[] = [...currentVideos]
+      const videosPaths: string[] = []
+      for (let i = 0; i < arquivos.arquivos_videos.length; i++) {
+        const file = arquivos.arquivos_videos[i]
+        const ext = file.name.split('.').pop() || 'mp4'
+        const path = `portfolio/videos_${id}_${ts}_${i}.${ext}`
+        await supabaseUpload('public-media', path, file, {
+          accessToken: token,
+          contentType: file.type,
+          upsert: true,
+        })
+        videosPaths.push(path)
+        videosUrls.push(supabaseGetPublicUrl('public-media', path))
+      }
+      payload.arquivos_videos = videosPaths
+      payload.videos = videosUrls
+      payload.videos_count = videosUrls.length
+    }
+
+    const record = await dataAdapter.update<any>('site_portfolio', id, payload)
+    return {
+      ...record,
+      detalhes_tecnicos: parseJsonArray<string>(record.detalhes_tecnicos),
+      galeria: parseJsonArray<string>(record.galeria),
+      videos: parseJsonArray<string>(record.videos),
+      arquivo_capa: record.arquivo_capa,
+      arquivos_galeria: record.arquivos_galeria || [],
+      arquivos_videos: record.arquivos_videos || [],
+    } as unknown as SitePortfolioItem
+  }
+
   const hasFiles =
     arquivos &&
     (arquivos.arquivo_capa ||
@@ -613,7 +880,6 @@ export async function atualizarProjeto(
     } as unknown as SitePortfolioItem
   }
 
-  const payload: any = { ...data }
   if (data.detalhes_tecnicos !== undefined)
     payload.detalhes_tecnicos = JSON.stringify(data.detalhes_tecnicos)
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
@@ -629,8 +895,7 @@ export async function atualizarProjeto(
 }
 
 export async function excluirProjeto(id: string): Promise<boolean> {
-  await pb.collection('site_portfolio').delete(id)
-  return true
+  return await dataAdapter.delete('site_portfolio', id)
 }
 
 // --- DEPOIMENTOS ---
@@ -638,7 +903,7 @@ export async function excluirProjeto(id: string): Promise<boolean> {
 export async function listarDepoimentos(apenasAprovados = false): Promise<SiteDepoimento[]> {
   try {
     const filter = apenasAprovados ? 'aprovado = true' : ''
-    const records = await pb.collection('site_testimonials').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_testimonials', {
       filter,
       sort: 'ordem,-created',
     })
@@ -660,7 +925,7 @@ export async function listarDepoimentos(apenasAprovados = false): Promise<SiteDe
 }
 
 export async function criarDepoimento(data: Partial<SiteDepoimento>): Promise<SiteDepoimento> {
-  const record = await pb.collection('site_testimonials').create(data)
+  const record = await dataAdapter.create<any>('site_testimonials', data)
   return {
     id: record.id,
     nome: record.nome,
@@ -677,7 +942,7 @@ export async function atualizarDepoimento(
   id: string,
   data: Partial<SiteDepoimento>,
 ): Promise<SiteDepoimento> {
-  const record = await pb.collection('site_testimonials').update(id, data)
+  const record = await dataAdapter.update<any>('site_testimonials', id, data)
   return {
     id: record.id,
     nome: record.nome,
@@ -690,8 +955,7 @@ export async function atualizarDepoimento(
 }
 
 export async function excluirDepoimento(id: string): Promise<boolean> {
-  await pb.collection('site_testimonials').delete(id)
-  return true
+  return await dataAdapter.delete('site_testimonials', id)
 }
 
 // --- PARCEIROS & CATEGORIAS DE PARCEIROS ---
@@ -701,7 +965,7 @@ export async function listarCategoriasParceiros(
 ): Promise<CategoriaParceiro[]> {
   try {
     const filter = apenasAtivas ? 'ativa = true' : ''
-    const records = await pb.collection('partner_categories').getFullList({
+    const records = await dataAdapter.getFullList<any>('partner_categories', {
       filter,
       sort: 'ordem,nome',
     })
@@ -722,7 +986,7 @@ export async function listarCategoriasParceiros(
 export async function criarCategoriaParceiro(
   data: Partial<CategoriaParceiro>,
 ): Promise<CategoriaParceiro> {
-  const record = await pb.collection('partner_categories').create(data)
+  const record = await dataAdapter.create<any>('partner_categories', data)
   return {
     id: record.id,
     nome: record.nome,
@@ -736,7 +1000,7 @@ export async function atualizarCategoriaParceiro(
   id: string,
   data: Partial<CategoriaParceiro>,
 ): Promise<CategoriaParceiro> {
-  const record = await pb.collection('partner_categories').update(id, data)
+  const record = await dataAdapter.update<any>('partner_categories', id, data)
   return {
     id: record.id,
     nome: record.nome,
@@ -747,14 +1011,13 @@ export async function atualizarCategoriaParceiro(
 }
 
 export async function excluirCategoriaParceiro(id: string): Promise<boolean> {
-  await pb.collection('partner_categories').delete(id)
-  return true
+  return await dataAdapter.delete('partner_categories', id)
 }
 
 export async function listarParceiros(apenasAtivos = false): Promise<SiteParceiro[]> {
   try {
     const filter = apenasAtivos ? 'ativo = true' : ''
-    const records = await pb.collection('site_partners').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_partners', {
       filter,
       sort: '-destaque,ordem,nome',
     })
@@ -783,6 +1046,36 @@ export async function criarParceiro(
   data: Partial<SiteParceiro>,
   arquivoLogo?: File,
 ): Promise<SiteParceiro> {
+  if (isSelfHostedSupabase()) {
+    const payload: any = { ...data }
+    if (arquivoLogo) {
+      const token = supabaseAuth.getToken()
+      const ext = arquivoLogo.name.split('.').pop() || 'jpg'
+      const path = `parceiros/logo_${Date.now()}.${ext}`
+      await supabaseUpload('public-media', path, arquivoLogo, {
+        accessToken: token,
+        contentType: arquivoLogo.type,
+        upsert: true,
+      })
+      payload.arquivo_logo = path
+      payload.logo = supabaseGetPublicUrl('public-media', path)
+    }
+    const record = await dataAdapter.create<any>('site_partners', payload)
+    return {
+      id: record.id,
+      nome: record.nome,
+      categoria: record.categoria,
+      papel: record.papel,
+      whatsapp: record.whatsapp,
+      logo: record.logo,
+      arquivo_logo: record.arquivo_logo,
+      descricao: record.descricao,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+    }
+  }
+
   if (arquivoLogo) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
@@ -826,6 +1119,36 @@ export async function atualizarParceiro(
   data: Partial<SiteParceiro>,
   arquivoLogo?: File,
 ): Promise<SiteParceiro> {
+  if (isSelfHostedSupabase()) {
+    const payload: any = { ...data }
+    if (arquivoLogo) {
+      const token = supabaseAuth.getToken()
+      const ext = arquivoLogo.name.split('.').pop() || 'jpg'
+      const path = `parceiros/logo_${id}_${Date.now()}.${ext}`
+      await supabaseUpload('public-media', path, arquivoLogo, {
+        accessToken: token,
+        contentType: arquivoLogo.type,
+        upsert: true,
+      })
+      payload.arquivo_logo = path
+      payload.logo = supabaseGetPublicUrl('public-media', path)
+    }
+    const record = await dataAdapter.update<any>('site_partners', id, payload)
+    return {
+      id: record.id,
+      nome: record.nome,
+      categoria: record.categoria,
+      papel: record.papel,
+      whatsapp: record.whatsapp,
+      logo: record.logo,
+      arquivo_logo: record.arquivo_logo,
+      descricao: record.descricao,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+    }
+  }
+
   if (arquivoLogo) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
@@ -865,8 +1188,7 @@ export async function atualizarParceiro(
 }
 
 export async function excluirParceiro(id: string): Promise<boolean> {
-  await pb.collection('site_partners').delete(id)
-  return true
+  return await dataAdapter.delete('site_partners', id)
 }
 
 export async function registrarCliqueParceiro(
@@ -878,7 +1200,7 @@ export async function registrarCliqueParceiro(
     const isoDate = now.toISOString()
     const anoMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const visitorId = getOrCreateVisitorId()
-    await pb.collection('partner_clicks').create({
+    await dataAdapter.create('partner_clicks', {
       parceiro_id: parceiroId,
       parceiro_nome: parceiroNome,
       data: isoDate,
@@ -893,7 +1215,7 @@ export async function registrarCliqueParceiro(
 export async function listarCliquesParceiros(anoMes?: string): Promise<PartnerClick[]> {
   try {
     const filter = anoMes ? `ano_mes = "${anoMes}"` : ''
-    const records = await pb.collection('partner_clicks').getFullList({
+    const records = await dataAdapter.getFullList<any>('partner_clicks', {
       filter,
       sort: '-created',
     })
@@ -939,11 +1261,16 @@ const FALLBACK_SETTINGS: SiteSettings = {
 
 export async function obterConfiguracoes(): Promise<SiteSettings> {
   try {
-    const record = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
-    const pbBase = pb.baseUrl || ''
-    const logoUrl = record.arquivo_logo
-      ? `${pbBase.replace(/\/+$/, '')}/api/files/${record.collectionId}/${record.id}/${record.arquivo_logo}`
-      : record.logo_url || ''
+    const record = await dataAdapter.getFirstListItem<any>('site_settings', 'chave = "geral"')
+    let logoUrl = record.logo_url || ''
+    if (record.arquivo_logo) {
+      if (isSelfHostedSupabase()) {
+        logoUrl = supabaseGetPublicUrl('public-media', record.arquivo_logo)
+      } else {
+        const pbBase = pb.baseUrl || ''
+        logoUrl = `${pbBase.replace(/\/+$/, '')}/api/files/${record.collectionId}/${record.id}/${record.arquivo_logo}`
+      }
+    }
 
     return {
       id: record.id,
@@ -976,15 +1303,73 @@ export async function salvarConfiguracoes(
   arquivoLogo?: File | null,
 ): Promise<SiteSettings> {
   let existingId: string | null = null
-  let existingRecord: any = null
   try {
-    existingRecord = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
+    const existingRecord = await dataAdapter.getFirstListItem<any>(
+      'site_settings',
+      'chave = "geral"',
+    )
     existingId = existingRecord.id
   } catch {
     /* intentionally ignored */
   }
 
   let resultRecord: any
+
+  if (isSelfHostedSupabase()) {
+    const payload: any = {
+      chave: 'geral',
+      ...settings,
+    }
+    if (settings.cidades_atendidas !== undefined) {
+      payload.cidades_atendidas = Array.isArray(settings.cidades_atendidas)
+        ? settings.cidades_atendidas
+        : []
+    }
+
+    if (arquivoLogo) {
+      const token = supabaseAuth.getToken()
+      const ext = arquivoLogo.name.split('.').pop() || 'png'
+      const path = `config/logo_${Date.now()}.${ext}`
+      await supabaseUpload('public-media', path, arquivoLogo, {
+        accessToken: token,
+        contentType: arquivoLogo.type,
+        upsert: true,
+      })
+      payload.arquivo_logo = path
+      payload.logo_url = supabaseGetPublicUrl('public-media', path)
+    }
+
+    if (existingId) {
+      resultRecord = await dataAdapter.update<any>('site_settings', existingId, payload)
+    } else {
+      resultRecord = await dataAdapter.create<any>('site_settings', payload)
+    }
+
+    const logoUrl =
+      resultRecord.logo_url ||
+      (resultRecord.arquivo_logo
+        ? supabaseGetPublicUrl('public-media', resultRecord.arquivo_logo)
+        : '')
+
+    return {
+      id: resultRecord.id,
+      chave: resultRecord.chave,
+      nome_site: resultRecord.nome_site,
+      whatsapp_principal: resultRecord.whatsapp_principal,
+      email_contato: resultRecord.email_contato,
+      mensagem_orcamento: resultRecord.mensagem_orcamento,
+      instagram: resultRecord.instagram,
+      cnpj: resultRecord.cnpj,
+      exibir_depoimentos: !!resultRecord.exibir_depoimentos,
+      pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
+      cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
+      arquivo_logo: resultRecord.arquivo_logo,
+      logo_url: logoUrl,
+      simulador_ativo: resultRecord.simulador_ativo !== false,
+      simulador_exigir_login: !!resultRecord.simulador_exigir_login,
+      simulador_cota_padrao: resultRecord.simulador_cota_padrao ?? 5,
+    }
+  }
 
   if (arquivoLogo) {
     const formData = new FormData()
@@ -1077,7 +1462,7 @@ export async function registrarEventoAnalytics(params: {
     ).padStart(2, '0')}`
     const visitorId = getOrCreateVisitorId()
 
-    await pb.collection('site_analytics_events').create({
+    await dataAdapter.create('site_analytics_events', {
       tipo: params.tipo,
       pagina: params.pagina || (typeof window !== 'undefined' ? window.location.pathname : ''),
       servico_slug: params.servico_slug || '',
@@ -1111,7 +1496,7 @@ export async function carregarDadosAnalytics(dias = 30): Promise<{
     startDate.setDate(startDate.getDate() - dias)
     const startDateStr = startDate.toISOString()
 
-    const records = await pb.collection('site_analytics_events').getFullList({
+    const records = await dataAdapter.getFullList<any>('site_analytics_events', {
       filter: `data >= "${startDateStr}"`,
       sort: 'data',
     })
