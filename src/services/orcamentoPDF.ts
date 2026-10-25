@@ -133,10 +133,9 @@ export async function imprimirOrcamentoPDF(
   const valorAVista = orcamento.valor_a_vista || valorTotal
   const valorAPrazo = orcamento.valor_a_prazo || valorTotal
   const metodoObj = orcamento.expand?.metodo_pagamento
-  const metodoNome = metodoObj?.nome || 'Condição padrão'
   const percentualDescAVista = metodoObj?.desconto_a_vista || 0
 
-  // Condições do método calculadas com valores reais, sem menção a desconto
+  // Condições calculadas com valores reais, sem menção a desconto ou nomes internos do método
   const condicoesMetodo = formatarCondicoesPrazo(metodoObj, valorAPrazo)
 
   const html = `
@@ -549,7 +548,6 @@ export async function imprimirOrcamentoPDF(
         <div class="price-card-title">VALOR A PRAZO</div>
         <div class="price-value">${formatMoeda(valorAPrazo)}</div>
         <div class="price-conditions">
-          <div style="font-weight: 600; color: #2C3E50; margin-bottom: 2px;">${metodoNome}</div>
           ${condicoesMetodo.length > 0 ? condicoesMetodo.join('<br/>') : 'Parcelamento conforme acordado com a equipe comercial.'}
         </div>
       </div>

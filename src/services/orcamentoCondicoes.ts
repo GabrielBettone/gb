@@ -41,30 +41,38 @@ export function formatarCondicoesPrazo(
   }
 
   // Filtrar condições:
-  // Se houver mais de uma condição e alguma for exclusivamente sobre pagamento à vista com desconto,
-  // ela não pertence ao card de valor a prazo cheio.
+  // NENHUMA linha que mencione desconto ou condição à vista deve aparecer no card a prazo,
+  // pois o desconto à vista já está tratado exclusivamente no card de valor à vista.
   const condicoesPrazoCandidatas = condicoesRaw.filter((c) => {
-    const ehApenasDescontoAVista =
-      /^(?:à\s*vista|quitação\s*no\s*ato).*(?:desconto|desc\.)/i.test(c.trim()) &&
-      !/(?:cartão|\d+x|parcela|entrada|saldo)/i.test(c)
-    return !ehApenasDescontoAVista
+    const texto = c.trim()
+    // Se for menção a desconto (ex.: "5% desconto", "10% de desconto", "À vista com 5% de desconto...")
+    const ehMencaoDesconto =
+      /desconto|desc\./i.test(texto) && !/(?:cartão|\d+x|parcela|entrada|saldo)/i.test(texto)
+    const ehAVistaPuro =
+      /^(?:à\s*vista|quitação\s*no\s*ato)/i.test(texto) &&
+      !/(?:cartão|\d+x|parcela|entrada|saldo)/i.test(texto)
+    return !ehMencaoDesconto && !ehAVistaPuro
   })
 
-  // Se todas foram filtradas (ou é método de pagamento único / à vista)
+  // Se todas foram filtradas (ou é método de pagamento puramente à vista sem parcelas adicionais)
   if (condicoesPrazoCandidatas.length === 0) {
-    const primeira = condicoesRaw[0] || 'Pagamento único via PIX'
-    const limpa = primeira
-      .replace(/\s*com\s+\d+%\s+de\s+desconto/gi, '')
-      .replace(/\s*\(\s*\d+%\s+desc(?:onto)?\s*\)/gi, '')
-      .replace(/com\s+\d+%\s+desconto/gi, '')
-      .trim()
-    return [limpa || 'Pagamento único via PIX']
+    if (metodo?.numero_parcelas && metodo.numero_parcelas > 1) {
+      const vParc = formatMoeda(valorAPrazo / metodo.numero_parcelas)
+      return [`${metodo.numero_parcelas}x de ${vParc} sem juros`]
+    }
+    // Caso padrão genérico, sem injetar nome do método
+    return ['Pagamento integral conforme condições comerciais.']
   }
 
   const resultado: string[] = []
 
   for (const cond of condicoesPrazoCandidatas) {
     let linha = cond.trim()
+
+    // Ignorar qualquer linha que seja menção a desconto ou contenha a palavra desconto/desc.
+    if (/desc(?:onto)?/i.test(linha) && !/(?:cartão|\d+x|parcela|entrada|saldo)/i.test(linha)) {
+      continue
+    }
 
     // 1. Entrada / Sinal com porcentagem (ex: "50% de entrada no fechamento do contrato")
     const matchEntrada = linha.match(/(\d{1,2})%\s*(?:de\s*)?(entrada|sinal)/i)
@@ -86,8 +94,8 @@ export function formatarCondicoesPrazo(
       continue
     }
 
-    // 3. Ignorar menção a desconto promocional isolado na entrada
-    if (/^\d+%\s+de\s+desconto/i.test(linha)) {
+    // 3. Ignorar menção a desconto mesmo que esteja no meio de outra frase
+    if (/desconto/i.test(linha) && !/(?:cartão|\d+x|parcela|entrada|saldo)/i.test(linha)) {
       continue
     }
 
@@ -126,6 +134,10 @@ export function formatarCondicoesPrazo(
     }
 
     // Outros textos informativos da condição (ex: "Primeira parcela na aprovação do orçamento")
+    // Se o texto for igual ao nome do método ou tiver menção a desconto, não adicionar
+    if (metodo?.nome && linha.toLowerCase() === metodo.nome.trim().toLowerCase()) {
+      continue
+    }
     resultado.push(linha)
   }
 
