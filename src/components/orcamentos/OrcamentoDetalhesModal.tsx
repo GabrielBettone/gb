@@ -19,7 +19,7 @@ import {
   Printer,
   CreditCard,
 } from 'lucide-react'
-import { ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
+import { ETAPAS_CONFIG, getEtapaConfig, parseItens } from '@/services/orcamentos'
 import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'

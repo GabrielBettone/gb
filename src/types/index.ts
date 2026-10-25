@@ -34,6 +34,7 @@ export type StatusOrcamento =
   | 'Aprovados aguardando início'
   | 'Trabalhos iniciados'
   | 'Concluídos'
+  | (string & {})
 
 export interface ItemOrcamento {
   produto_id?: string

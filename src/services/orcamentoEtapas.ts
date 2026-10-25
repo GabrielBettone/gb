@@ -1,6 +1,8 @@
 import { dataAdapter } from '@/lib/dataAdapter'
 import type { Orcamento } from '@/types'
 
+export { getEtapaConfig, ETAPAS_CONFIG } from '@/services/orcamentos'
+
 export interface OrcamentoEtapa {
   id: string
   nome: string
