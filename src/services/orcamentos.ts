@@ -296,20 +296,42 @@ export async function atualizarOrcamento(
 
   const updated = await dataAdapter.update<Orcamento>('orcamentos', id, payload)
 
+  // Se o status mudou ao editar no modal:
+  const statusAnterior = (orcamentoAntes?.status || '').trim()
+  const novoStatus = dados.status ? (dados.status as string).trim() : statusAnterior
+  const mudouStatus = dados.status !== undefined && novoStatus !== statusAnterior
+
+  const etapasSemAgenda = [
+    'Orçamentos a realizar',
+    'Aguardando aprovação',
+    'Cancelado',
+    'Cancelados',
+  ]
+
+  const saiuDeConcluidos =
+    (statusAnterior === 'Concluídos' || statusAnterior.toLowerCase().includes('conclu')) &&
+    novoStatus !== 'Concluídos'
+
+  if (mudouStatus && (saiuDeConcluidos || etapasSemAgenda.includes(novoStatus))) {
+    await cancelarParcelasEmAberto(id)
+  }
+
   // Se o valor_total foi alterado, recalcula as parcelas em aberto
   const mudouValor =
     dados.valor_total !== undefined &&
     valorAnterior !== undefined &&
     Math.abs(dados.valor_total - valorAnterior) > 0.01
 
-  if (mudouValor) {
-    await gerarAgendaPagamentoSeNaoExistir(updated, true)
-  } else if (
-    dados.status === 'Aprovados aguardando início' ||
-    dados.status === 'Trabalhos iniciados' ||
-    dados.status === 'Concluídos'
+  if (
+    novoStatus === 'Aprovados aguardando início' ||
+    novoStatus === 'Trabalhos iniciados' ||
+    novoStatus === 'Concluídos'
   ) {
-    await gerarAgendaPagamentoSeNaoExistir(updated, false)
+    if (mudouValor) {
+      await gerarAgendaPagamentoSeNaoExistir(updated, true)
+    } else {
+      await gerarAgendaPagamentoSeNaoExistir(updated, false)
+    }
   }
 
   // Se passou para 'Concluídos', sincronizar venda de forma idempotente
@@ -335,15 +357,31 @@ export async function atualizarOrcamento(
 export async function cancelarParcelasEmAberto(orcamentoId: string): Promise<number> {
   try {
     const parcelas = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
-      filter: `orcamento = '${orcamentoId}' || orcamento_id = '${orcamentoId}'`,
+      filter: `orcamento = '${orcamentoId}'`,
     })
 
-    const abertas = parcelas.filter((p) => p.status === 'a_pagar')
+    // Caso o banco seja self-hosted Supabase com chave legada orcamento_id:
+    let parcelasPorOrcId: PagamentoParcela[] = []
+    if (parcelas.length === 0) {
+      try {
+        parcelasPorOrcId = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+          filter: `orcamento_id = '${orcamentoId}'`,
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const unificadas = [...parcelas, ...parcelasPorOrcId].filter(
+      (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx,
+    )
+
+    const abertas = unificadas.filter((p) => p.status === 'a_pagar')
     for (const p of abertas) {
       await dataAdapter.update('pagamentos_parcelas', p.id, {
         status: 'cancelada',
         observacoes_baixa:
-          'Estornada por retrocesso ou cancelamento de etapa em ' +
+          'Cancelada por retrocesso ou alteração de etapa em ' +
           new Date().toLocaleDateString('pt-BR'),
       })
     }
@@ -383,20 +421,22 @@ export async function atualizarStatusOrcamento(
   // Se saiu de 'Concluídos' para qualquer outra etapa não concluída,
   // ou se voltou para etapa preliminar ou cancelamento, cancela as parcelas em aberto
   const statusAnterior = (orcamentoAntes?.status || '').trim()
-  const saiuDeConcluidos = statusAnterior === 'Concluídos' && novoStatus !== 'Concluídos'
+  const saiuDeConcluidos =
+    (statusAnterior === 'Concluídos' || statusAnterior.toLowerCase().includes('conclu')) &&
+    novoStatus !== 'Concluídos'
 
-  const etapasPreliminares = [
+  const etapasSemAgenda = [
     'Orçamentos a realizar',
     'Aguardando aprovação',
     'Cancelado',
     'Cancelados',
   ]
 
-  if (saiuDeConcluidos || etapasPreliminares.includes(novoStatus)) {
+  if (saiuDeConcluidos || etapasSemAgenda.includes(novoStatus)) {
     parcelasEstornadas = await cancelarParcelasEmAberto(id)
   }
 
-  // Gera parcelas APENAS se não existirem (já é idempotente, mas aqui evitamos re-gerar se apenas transitou)
+  // Gera parcelas APENAS nas etapas que demandam agenda (e reativa canceladas de forma idempotente)
   if (
     novoStatus === 'Aprovados aguardando início' ||
     novoStatus === 'Trabalhos iniciados' ||
@@ -475,36 +515,52 @@ export async function gerarAgendaPagamentoSeNaoExistir(
   forcarRecalculo = false,
 ): Promise<void> {
   try {
-    // 1. Verifica se já existem parcelas para este orçamento
-    const existentes = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
-      filter: `orcamento = '${orcamento.id}' || orcamento_id = '${orcamento.id}'`,
+    // 1. Verifica se já existem parcelas para este orçamento (busca compatível com PocketBase e Supabase)
+    const porOrcamento = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+      filter: `orcamento = '${orcamento.id}'`,
     })
+
+    let porOrcamentoId: PagamentoParcela[] = []
+    if (porOrcamento.length === 0) {
+      try {
+        porOrcamentoId = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+          filter: `orcamento_id = '${orcamento.id}'`,
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const existentes = [...porOrcamento, ...porOrcamentoId].filter(
+      (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx,
+    )
 
     const parcelasPagas = existentes.filter((p) => p.status === 'paga')
     const parcelasAbertas = existentes.filter((p) => p.status === 'a_pagar')
     const parcelasCanceladas = existentes.filter((p) => p.status === 'cancelada')
 
-    // Se já existem parcelas e não foi forçado recálculo:
-    // Se temos parcelas ativas (pagas ou a pagar), não faz nada para não duplicar.
-    // Se só haviam parcelas canceladas (por exemplo porque o orçamento saiu de Concluídos e agora voltou),
-    // reativamos as canceladas ao invés de criar linhas duplicadas!
+    // Se já existem parcelas e NÃO foi forçado recálculo:
+    // Regra rígida: NUNCA crie linhas novas se o orçamento já tem histórico de parcelas!
     if (existentes.length > 0 && !forcarRecalculo) {
-      if (parcelasPagas.length > 0 || parcelasAbertas.length > 0) {
-        return // Já possui parcelas ativas e não foi solicitado recálculo
+      // Se há parcelas abertas ou pagas, nada a fazer — a agenda já está ativa.
+      if (parcelasAbertas.length > 0 || parcelasPagas.length > 0) {
+        return
       }
 
+      // Se todas as parcelas foram canceladas (ex: quando o usuário tirou de Concluídos e agora devolveu a Concluídos):
+      // REATIVA as parcelas canceladas existentes, NUNCA inserindo linhas novas!
       if (parcelasCanceladas.length > 0) {
-        // Reativa as parcelas canceladas previamente, evitando criar novas linhas
         for (const p of parcelasCanceladas) {
           await dataAdapter.update('pagamentos_parcelas', p.id, {
             status: 'a_pagar',
             observacoes_baixa:
-              'Parcela reativada ao avançar etapa do orçamento em ' +
+              'Parcela reativada ao retornar etapa do orçamento em ' +
               new Date().toLocaleDateString('pt-BR'),
           })
         }
         return
       }
+      return
     }
 
     // Se é para recalcular e já temos parcelas

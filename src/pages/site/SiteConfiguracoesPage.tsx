@@ -19,6 +19,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
 
   // Campos Contato, conversão e presença digital
   const [nomeSite, setNomeSite] = useState('Gesso Bettone')
+  const [siteUrl, setSiteUrl] = useState('https://gessobettone.com.br')
   const [whatsappPrincipal, setWhatsappPrincipal] = useState('5519981093379')
   const [emailContato, setEmailContato] = useState('contato@gessobettone.com.br')
   const [mensagemOrcamento, setMensagemOrcamento] = useState(
@@ -44,6 +45,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
       .then((cfg) => {
         if (!isMounted) return
         setNomeSite(cfg.nome_site || 'Gesso Bettone')
+        setSiteUrl(cfg.site_url || 'https://gessobettone.com.br')
         setWhatsappPrincipal(cfg.whatsapp_principal || '5519981093379')
         setEmailContato(cfg.email_contato || 'contato@gessobettone.com.br')
         setMensagemOrcamento(
@@ -74,6 +76,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
       const salvas = await salvarConfiguracoes(
         {
           nome_site: nomeSite,
+          site_url: siteUrl.trim(),
           whatsapp_principal: whatsappPrincipal,
           email_contato: emailContato,
           mensagem_orcamento: mensagemOrcamento,
@@ -199,7 +202,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Nome / Título do Site */}
+                {/* Nome / Título do Site e URL do Domínio */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-[#2C3E50]">
                     Nome / título do site
@@ -209,6 +212,24 @@ export const SiteConfiguracoesPage: React.FC = () => {
                     onChange={(e) => setNomeSite(e.target.value)}
                     className="max-w-xl bg-white border-[#DEE4EA]"
                   />
+                </div>
+
+                {/* URL Base do Site para Robots & Sitemap */}
+                <div className="space-y-1.5 max-w-xl">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    URL Base do Site (Domínio público para indexação Google)
+                  </Label>
+                  <Input
+                    type="url"
+                    value={siteUrl}
+                    onChange={(e) => setSiteUrl(e.target.value)}
+                    placeholder="https://gessobettone.com.br"
+                    className="bg-white border-[#DEE4EA]"
+                  />
+                  <p className="text-[11px] text-[#616F7D]">
+                    Usada na geração do sitemap.xml e robots.txt para o Google encontrar todas as
+                    páginas e serviços do catálogo.
+                  </p>
                 </div>
 
                 {/* WhatsApp principal e E-mail de contato em 2 colunas */}

@@ -117,6 +117,7 @@ export interface SiteSettings {
   id?: string
   chave: string
   nome_site: string
+  site_url?: string
   whatsapp_principal: string
   email_contato: string
   mensagem_orcamento: string
@@ -1306,6 +1307,7 @@ export async function listarCliquesParceiros(anoMes?: string): Promise<PartnerCl
 const FALLBACK_SETTINGS: SiteSettings = {
   chave: 'geral',
   nome_site: 'Gesso Bettone',
+  site_url: 'https://gessobettone.com.br',
   whatsapp_principal: '5519981093379',
   email_contato: 'contato@gessobettone.com.br',
   mensagem_orcamento: 'Olá! Vim pelo site da Gesso Bettone e gostaria de solicitar um orçamento.',
@@ -1343,6 +1345,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       id: record.id,
       chave: record.chave,
       nome_site: record.nome_site || FALLBACK_SETTINGS.nome_site,
+      site_url: record.site_url || FALLBACK_SETTINGS.site_url,
       whatsapp_principal: record.whatsapp_principal || FALLBACK_SETTINGS.whatsapp_principal,
       email_contato: record.email_contato || FALLBACK_SETTINGS.email_contato,
       mensagem_orcamento: record.mensagem_orcamento || FALLBACK_SETTINGS.mensagem_orcamento,
@@ -1423,6 +1426,7 @@ export async function salvarConfiguracoes(
       id: resultRecord.id,
       chave: resultRecord.chave,
       nome_site: resultRecord.nome_site,
+      site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
       whatsapp_principal: resultRecord.whatsapp_principal,
       email_contato: resultRecord.email_contato,
       mensagem_orcamento: resultRecord.mensagem_orcamento,
@@ -1483,6 +1487,7 @@ export async function salvarConfiguracoes(
     id: resultRecord.id,
     chave: resultRecord.chave,
     nome_site: resultRecord.nome_site,
+    site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
     whatsapp_principal: resultRecord.whatsapp_principal,
     email_contato: resultRecord.email_contato,
     mensagem_orcamento: resultRecord.mensagem_orcamento,

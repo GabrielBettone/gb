@@ -967,6 +967,16 @@ SET imagem_principal = '',
     arquivo_principal = NULL,
     arquivos_galeria = '[]'::jsonb;
 
--- 18.4 Garante coluna google_site_verification em site_settings
+-- 18.4 Garante coluna google_site_verification e site_url em site_settings
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT 'https://gessobettone.com.br';
+
+-- 18.5 Limpeza total dos dados iniciais de vendas e produtos (idempotente)
+-- Desvincula produto_principal de orçamentos para evitar violações de chave estrangeira
+UPDATE public.orcamentos SET produto_principal = NULL WHERE produto_principal IS NOT NULL;
+DELETE FROM public.alertas;
+DELETE FROM public.importacoes;
+DELETE FROM public.vendas;
+DELETE FROM public.produtos;

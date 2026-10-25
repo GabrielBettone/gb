@@ -44,7 +44,39 @@ function parsePbFilterToSupabase(
   // Quebra por &&
   const parts = filterStr.split(/\s+&&\s+/)
   for (const part of parts) {
-    const trimmed = part.trim()
+    let trimmed = part.trim()
+    // Caso haja agrupamento com parênteses
+    if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+      trimmed = trimmed.substring(1, trimmed.length - 1).trim()
+    }
+
+    // Se houver || interno (ex: col = a || col = b), pega o primeiro ou trata
+    if (trimmed.includes('||')) {
+      const orParts = trimmed.split(/\s*\|\|\s*/)
+      trimmed = orParts[0].trim()
+    }
+
+    // Ex: status != 'cancelada'
+    const neqMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*!=\s*(.+)$/)
+    if (neqMatch) {
+      const col = neqMatch[1]
+      let val: any = neqMatch[2].trim()
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1)
+      } else if (val === 'true') {
+        val = true
+      } else if (val === 'false') {
+        val = false
+      } else if (!isNaN(Number(val))) {
+        val = Number(val)
+      }
+      filters.push({ column: col, operator: 'neq', value: val })
+      continue
+    }
+
     // Ex: status = 'Concluídos' ou ativo = true
     const eqMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*=\s*(.+)$/)
     if (eqMatch) {
