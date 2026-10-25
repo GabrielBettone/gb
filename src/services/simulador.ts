@@ -60,7 +60,7 @@ export async function solicitarCodigoSimulador(
   codigo_demo?: string
   telefone: string
 }> {
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/simulador/solicitar-codigo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -83,7 +83,7 @@ export async function confirmarCodigoSimulador(
   sucesso: boolean
   cliente: SimuladorCliente
 }> {
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/simulador/confirmar-codigo`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -102,7 +102,7 @@ export async function confirmarCodigoSimulador(
 export async function gerarSimulacaoComIa(
   params: GerarSimulacaoParams,
 ): Promise<GerarSimulacaoResult> {
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/simulador/gerar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

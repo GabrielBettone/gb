@@ -940,7 +940,7 @@ const FALLBACK_SETTINGS: SiteSettings = {
 export async function obterConfiguracoes(): Promise<SiteSettings> {
   try {
     const record = await pb.collection('site_settings').getFirstListItem('chave = "geral"')
-    const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+    const pbBase = pb.baseUrl || ''
     const logoUrl = record.arquivo_logo
       ? `${pbBase.replace(/\/+$/, '')}/api/files/${record.collectionId}/${record.id}/${record.arquivo_logo}`
       : record.logo_url || ''
@@ -1020,7 +1020,7 @@ export async function salvarConfiguracoes(
     }
   }
 
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   const logoUrl = resultRecord.arquivo_logo
     ? `${pbBase.replace(/\/+$/, '')}/api/files/${resultRecord.collectionId}/${resultRecord.id}/${resultRecord.arquivo_logo}`
     : resultRecord.logo_url || ''

@@ -1,0 +1,40 @@
+# ==============================================================================
+# CONFIGURAÇÕES DO PACOTE SELF-HOSTED (GESSO BETTONE)
+# ==============================================================================
+# Copie este arquivo para .env antes de executar:
+#   cp env-example.txt .env
+#
+# Todas as configurações abaixo são opcionais com padrões inteligentes.
+# ==============================================================================
+
+# Porta pública onde o site e o sistema ficarão acessíveis no seu navegador ou VPS
+# Padrão: 80 (porta web padrão para HTTP)
+# Exemplo alternativo se a porta 80 já estiver em uso: APP_PORT=3000
+APP_PORT=80
+
+# Porta interna direta para a API do PocketBase (opcional para depuração ou acesso direto)
+# Padrão: 8090
+PB_PORT=8090
+
+# URL pública da API do PocketBase para o front-end
+# Deixe em branco ("") para usar automaticamente a mesma origem do site (recomendado).
+# O Nginx já encaminha /api/ e /backend/ diretamente para o PocketBase sem precisar de CORS.
+# Exemplo se você for usar um domínio específico ou subdomínio dedicado para a API:
+# VITE_POCKETBASE_URL=https://api.seudominio.com.br
+VITE_POCKETBASE_URL=
+
+# ------------------------------------------------------------------------------
+# SIMULADOR DE AMBIENTES COM INTELIGÊNCIA ARTIFICIAL (OPCIONAL)
+# ------------------------------------------------------------------------------
+# Chave de API da OpenAI (DALL-E 3) para geração de imagens fotográficas em tempo real.
+# Se você NÃO informar uma chave de IA, o sistema NÃO quebra: ele entra automaticamente
+# no modo fallback refinado, exibindo fotos de obras reais e executadas do portfólio Bettone.
+# Obtenha sua chave em: https://platform.openai.com/api-keys
+OPENAI_API_KEY=
+
+# URL base do provedor de IA (opcional, padrão: https://api.openai.com)
+OPENAI_BASE_URL=https://api.openai.com
+
+# Chaves alternativas aceitas pelos hooks caso você use outro gateway compatível:
+# AI_API_KEY=
+# SIMULADOR_AI_KEY=

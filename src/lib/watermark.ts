@@ -1,4 +1,5 @@
 // Utilitário de marca d'água e processamento de imagem para a Gesso Bettone
+import pb from '@/lib/pocketbase/client'
 
 /**
  * Aplica a marca d'água elegante da Gesso Bettone sobre uma imagem (File, Blob ou URL)
@@ -169,6 +170,6 @@ export function resolverUrlMidia(
   if (fileNameOrUrl.startsWith('http://') || fileNameOrUrl.startsWith('https://')) {
     return fileNameOrUrl
   }
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   return `${pbBase.replace(/\/+$/, '')}/api/files/${collectionIdOrName}/${recordId}/${fileNameOrUrl}`
 }

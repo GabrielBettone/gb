@@ -191,7 +191,7 @@ export async function obterConfiguracoesOrcamento(): Promise<OrcamentoConfigurac
       .collection<OrcamentoConfiguracao>('orcamento_configuracoes')
       .getFirstListItem("chave = 'padrao'")
 
-    const pbBase = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
+    const pbBase = (pb.baseUrl || '').replace(/\/+$/, '')
     const logoUrl = rec.arquivo_logo
       ? `${pbBase}/api/files/${rec.collectionId}/${rec.id}/${rec.arquivo_logo}`
       : rec.logo_url || ''

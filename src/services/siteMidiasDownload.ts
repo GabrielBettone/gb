@@ -21,7 +21,7 @@ export interface MidiaInventarioResponse {
  * Obtém a lista completa de mídias cadastradas para o empacotamento ZIP
  */
 export async function obterInventarioMidias(): Promise<MidiaInventarioResponse> {
-  const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+  const pbBase = pb.baseUrl || ''
   const token = pb.authStore.token
   const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/site/midias-inventario`, {
     headers: {
@@ -42,9 +42,7 @@ export async function obterInventarioMidias(): Promise<MidiaInventarioResponse> 
  */
 async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
   try {
-    const fullUrl = url.startsWith('http')
-      ? url
-      : `${(import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')}${url}`
+    const fullUrl = url.startsWith('http') ? url : `${(pb.baseUrl || '').replace(/\/+$/, '')}${url}`
     const res = await fetch(fullUrl)
     if (!res.ok) return null
     const buffer = await res.arrayBuffer()

@@ -238,10 +238,14 @@ routerAdd('POST', '/backend/v1/simulador/gerar', (e) => {
     let metodoGeracao = 'gateway'
 
     const gatewayUrl =
-      $os.getenv('OPENAI_BASE_URL') || $os.getenv('SKIP_AI_GATEWAY_URL') || 'https://api.openai.com'
+      $os.getenv('OPENAI_BASE_URL') ||
+      $os.getenv('AI_BASE_URL') ||
+      $os.getenv('SKIP_AI_GATEWAY_URL') ||
+      'https://api.openai.com'
     const gatewayKey =
       $os.getenv('OPENAI_API_KEY') ||
       $os.getenv('AI_API_KEY') ||
+      $os.getenv('SIMULADOR_AI_KEY') ||
       $os.getenv('SKIP_AI_GATEWAY_API_KEY') ||
       ''
 

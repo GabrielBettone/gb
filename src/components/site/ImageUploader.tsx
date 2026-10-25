@@ -51,7 +51,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return val
     }
     if (collectionName && recordId && val) {
-      const pbBase = import.meta.env.VITE_POCKETBASE_URL || ''
+      const pbBase = pb.baseUrl || ''
       return `${pbBase.replace(/\/+$/, '')}/api/files/${collectionName}/${recordId}/${val}`
     }
     return val
