@@ -108,7 +108,7 @@ export const SiteCategoriasPage: React.FC = () => {
         toast({ title: 'Categoria criada com sucesso!' })
       }
       setModalOpen(false)
-      carregar()
+      carregarDados()
     } catch (err: any) {
       console.error('Erro ao salvar categoria:', err)
       const msg =
@@ -128,7 +128,7 @@ export const SiteCategoriasPage: React.FC = () => {
     try {
       await excluirCategoria(c.id)
       toast({ title: 'Categoria excluída com sucesso.' })
-      carregar()
+      carregarDados()
     } catch (err: any) {
       console.error('Erro ao excluir categoria:', err)
       toast({

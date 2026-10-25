@@ -86,8 +86,8 @@ export async function gerarProximoNumeroOrcamento(): Promise<string> {
     }
 
     // Se nenhum achado com o ano atual, conta registros totais para garantir consistência
-    const total = await dataAdapter.getList('orcamentos', 1, 1)
-    const prox = (total.totalItems + 1).toString().padStart(4, '0')
+    const total = await dataAdapter.getFullList('orcamentos')
+    const prox = (total.length + 1).toString().padStart(4, '0')
     return `${prefixo}${prox}`
   } catch (e) {
     console.error('Erro ao gerar número de orçamento:', e)
