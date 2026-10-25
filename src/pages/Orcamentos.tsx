@@ -8,6 +8,13 @@ import {
   excluirOrcamento,
   ETAPAS_ORCAMENTO,
 } from '@/services/orcamentos'
+import {
+  listarEtapas,
+  criarEtapa,
+  atualizarEtapa,
+  excluirEtapa,
+  type OrcamentoEtapa,
+} from '@/services/orcamentoEtapas'
 import { listarGrupos, listarMetodosPagamento } from '@/services/orcamentoModulo'
 import { KanbanView } from '@/components/orcamentos/KanbanView'
 import { GanttView } from '@/components/orcamentos/GanttView'
@@ -79,11 +86,19 @@ export const Orcamentos: React.FC = () => {
 
   // Estados principais
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([])
+  const [etapas, setEtapas] = useState<OrcamentoEtapa[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [grupos, setGrupos] = useState<ClienteGrupo[]>([])
   const [metodos, setMetodos] = useState<MetodoPagamento[]>([])
   const [loading, setLoading] = useState(true)
   const [atualizando, setAtualizando] = useState(false)
+
+  // Estado para modal de Criar/Editar Etapa Customizada
+  const [modalEtapaOpen, setModalEtapaOpen] = useState(false)
+  const [etapaEditando, setEtapaEditando] = useState<OrcamentoEtapa | null>(null)
+  const [nomeNovaEtapa, setNomeNovaEtapa] = useState('')
+  const [corNovaEtapa, setCorNovaEtapa] = useState('#2C3E50')
+  const [salvandoEtapa, setSalvandoEtapa] = useState(false)
 
   // Modo de visualização dentro do Funil: kanban, gantt ou tabela
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'tabela'>('kanban')
@@ -104,8 +119,9 @@ export const Orcamentos: React.FC = () => {
     try {
       if (exibirFeedback) setAtualizando(true)
 
-      const [orcsRes, prodsRes, grpsRes, metsRes] = await Promise.allSettled([
+      const [orcsRes, etapasRes, prodsRes, grpsRes, metsRes] = await Promise.allSettled([
         listarOrcamentos(),
+        listarEtapas(),
         dataAdapter.getFullList<Produto>('produtos', {
           filter: 'ativo = true',
           sort: 'nome',
@@ -113,6 +129,12 @@ export const Orcamentos: React.FC = () => {
         listarGrupos(),
         listarMetodosPagamento(),
       ])
+
+      if (etapasRes.status === 'fulfilled') {
+        setEtapas(etapasRes.value)
+      } else {
+        console.warn('Falha ao listar etapas:', etapasRes.reason)
+      }
 
       if (orcsRes.status === 'fulfilled') {
         setOrcamentos(orcsRes.value)
@@ -171,11 +193,13 @@ export const Orcamentos: React.FC = () => {
   })
 
   // Manipulador de mudança de etapa via Drag-and-Drop do Kanban ou Ação Rápida
-  const handleMudarStatus = async (id: string, novoStatus: StatusOrcamento) => {
+  const handleMudarStatus = async (id: string, novoStatus: StatusOrcamento | string) => {
     try {
-      setOrcamentos((prev) => prev.map((o) => (o.id === id ? { ...o, status: novoStatus } : o)))
+      setOrcamentos((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: novoStatus as any } : o)),
+      )
 
-      await atualizarStatusOrcamento(id, novoStatus)
+      await atualizarStatusOrcamento(id, novoStatus as any)
 
       if (novoStatus === 'Concluídos') {
         toast({
@@ -238,6 +262,83 @@ export const Orcamentos: React.FC = () => {
   }
 
   // Exclusão
+  // Gerenciamento de Etapas Customizadas
+  const handleAbrirNovaEtapa = () => {
+    setEtapaEditando(null)
+    setNomeNovaEtapa('')
+    setCorNovaEtapa('#2C3E50')
+    setModalEtapaOpen(true)
+  }
+
+  const handleEditarEtapa = (etapa: OrcamentoEtapa) => {
+    setEtapaEditando(etapa)
+    setNomeNovaEtapa(etapa.nome)
+    setCorNovaEtapa(etapa.cor || '#2C3E50')
+    setModalEtapaOpen(true)
+  }
+
+  const handleSalvarEtapa = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!nomeNovaEtapa.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Nome obrigatório',
+        description: 'Informe o nome da etapa.',
+      })
+      return
+    }
+
+    setSalvandoEtapa(true)
+    try {
+      if (etapaEditando) {
+        await atualizarEtapa(etapaEditando.id, {
+          nome: nomeNovaEtapa.trim(),
+          cor: corNovaEtapa,
+        })
+        toast({ title: 'Etapa atualizada com sucesso!' })
+      } else {
+        await criarEtapa({
+          nome: nomeNovaEtapa.trim(),
+          cor: corNovaEtapa,
+        })
+        toast({ title: 'Nova etapa criada no funil!' })
+      }
+      setModalEtapaOpen(false)
+      const listaAtualizada = await listarEtapas()
+      setEtapas(listaAtualizada)
+      carregarDados()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar etapa',
+        description: err?.message || 'Falha ao salvar.',
+      })
+    } finally {
+      setSalvandoEtapa(false)
+    }
+  }
+
+  const handleExcluirEtapa = async (etapa: OrcamentoEtapa) => {
+    try {
+      await excluirEtapa(etapa.id, etapas, orcamentos, async (orcId, novoStatus) => {
+        await atualizarStatusOrcamento(orcId, novoStatus as any)
+      })
+      toast({
+        title: 'Etapa removida',
+        description: `A etapa "${etapa.nome}" foi excluída e os trabalhos migrados para a etapa anterior.`,
+      })
+      const listaAtualizada = await listarEtapas()
+      setEtapas(listaAtualizada)
+      carregarDados()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Não foi possível excluir',
+        description: err?.message || 'Erro ao remover etapa.',
+      })
+    }
+  }
+
   const handleConfirmarExclusao = async () => {
     if (!orcamentoParaExcluir) return
     try {
@@ -579,11 +680,13 @@ export const Orcamentos: React.FC = () => {
                       <SelectItem value="todos" className="text-xs">
                         Todas as Etapas
                       </SelectItem>
-                      {ETAPAS_ORCAMENTO.map((st) => (
-                        <SelectItem key={st} value={st} className="text-xs">
-                          {st}
-                        </SelectItem>
-                      ))}
+                      {(etapas.length > 0 ? etapas.map((e) => e.nome) : ETAPAS_ORCAMENTO).map(
+                        (st) => (
+                          <SelectItem key={st} value={st} className="text-xs">
+                            {st}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -626,12 +729,16 @@ export const Orcamentos: React.FC = () => {
                 {viewMode === 'kanban' && (
                   <KanbanView
                     orcamentos={orcamentosFiltrados}
+                    etapas={etapas}
                     onMudarStatus={handleMudarStatus}
                     onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
                     onNovoOrcamento={() => {
                       setOrcamentoParaEditar(null)
                       setModalNovoOpen(true)
                     }}
+                    onNovaEtapa={handleAbrirNovaEtapa}
+                    onEditarEtapa={handleEditarEtapa}
+                    onExcluirEtapa={handleExcluirEtapa}
                   />
                 )}
 
@@ -701,12 +808,70 @@ export const Orcamentos: React.FC = () => {
         open={modalNovoOpen}
         onOpenChange={setModalNovoOpen}
         produtos={produtos}
+        etapas={etapas}
         orcamentoParaEditar={orcamentoParaEditar}
         onSuccess={() => {
           carregarDados()
           setOrcamentoParaEditar(null)
         }}
       />
+
+      {/* MODAL CRIAR/EDITAR ETAPA DO FUNIL */}
+      <AlertDialog open={modalEtapaOpen} onOpenChange={setModalEtapaOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-[#2C3E50]">
+              {etapaEditando ? 'Editar Etapa do Funil' : 'Nova Etapa do Funil'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-[#616F7D]">
+              Adicione uma nova coluna customizada ao pipeline de orçamentos e obras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <form onSubmit={handleSalvarEtapa} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#2C3E50]">Nome da Etapa *</label>
+              <Input
+                value={nomeNovaEtapa}
+                onChange={(e) => setNomeNovaEtapa(e.target.value)}
+                placeholder="Ex: Medição Técnica ou Em Negociação"
+                className="h-9 text-xs bg-white"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-[#2C3E50]">Cor de Identificação</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={corNovaEtapa}
+                  onChange={(e) => setCorNovaEtapa(e.target.value)}
+                  className="w-10 h-9 rounded cursor-pointer border border-[#DEE4EA] p-0.5 bg-white"
+                />
+                <span className="text-xs text-[#616F7D] font-mono">{corNovaEtapa}</span>
+              </div>
+            </div>
+
+            <AlertDialogFooter className="pt-2">
+              <AlertDialogCancel
+                type="button"
+                onClick={() => setModalEtapaOpen(false)}
+                className="text-xs"
+              >
+                Cancelar
+              </AlertDialogCancel>
+              <Button
+                type="submit"
+                disabled={salvandoEtapa}
+                className="bg-[#2C3E50] text-[#D4AF37] hover:bg-[#1B2631] text-xs font-bold"
+              >
+                {salvandoEtapa ? 'Salvando...' : etapaEditando ? 'Salvar' : 'Criar Etapa'}
+              </Button>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* MODAL DETALHES DO ORÇAMENTO */}
       <OrcamentoDetalhesModal

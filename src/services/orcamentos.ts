@@ -39,10 +39,25 @@ export const ETAPAS_CONFIG: Record<
   },
   Concluídos: {
     label: 'Concluídos',
-    corBadge: 'bg-[#1C4E3D]/10 text-[#1C4E3D] border-[#1C4E3D]/30',
-    corBorda: 'border-l-[#1C4E3D]',
-    corHeader: 'bg-[#EEF4F0] text-[#1C4E3D] border-[#1C4E3D]/20',
+    corBadge: 'bg-[#2C3E50] text-[#D4AF37] border-[#2C3E50]',
+    corBorda: 'border-l-[#2C3E50]',
+    corHeader: 'bg-[#2C3E50]/10 text-[#2C3E50] border-[#2C3E50]/30',
   },
+}
+
+/**
+ * Retorna configuração visual para qualquer etapa (padrão ou customizada)
+ */
+export function getEtapaConfig(status: string) {
+  if (ETAPAS_CONFIG[status]) {
+    return ETAPAS_CONFIG[status]
+  }
+  return {
+    label: status,
+    corBadge: 'bg-slate-100 text-slate-800 border-slate-300',
+    corBorda: 'border-l-slate-400',
+    corHeader: 'bg-slate-50 text-slate-900 border-slate-200',
+  }
 }
 
 /**

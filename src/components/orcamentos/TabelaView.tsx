@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
+import { ETAPAS_CONFIG, getEtapaConfig, parseItens } from '@/services/orcamentos'
 import {
   ArrowUpDown,
   Calendar,
@@ -164,10 +164,7 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
               </TableRow>
             ) : (
               orcamentosPaginados.map((orc) => {
-                const config = ETAPAS_CONFIG[orc.status] || {
-                  label: orc.status,
-                  corBadge: 'bg-gray-100 text-gray-800',
-                }
+                const config = getEtapaConfig(orc.status)
                 const prodNome =
                   orc.expand?.produto_principal?.nome ||
                   parseItens(orc.itens)[0]?.descricao ||

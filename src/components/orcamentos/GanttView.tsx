@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import type { Orcamento } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
+import { ETAPAS_CONFIG, getEtapaConfig, parseItens } from '@/services/orcamentos'
 import {
   Calendar,
   ChevronLeft,
@@ -392,10 +392,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
             ) : (
               itensGantt.map((item) => {
                 const orc = item.orcamento
-                const config = ETAPAS_CONFIG[orc.status] || {
-                  label: orc.status,
-                  corBadge: 'bg-gray-100 text-gray-800',
-                }
+                const config = getEtapaConfig(orc.status)
 
                 // Cálculo da posição no eixo X
                 const diasInicio = diasDesdeInicio(item.dInicio)

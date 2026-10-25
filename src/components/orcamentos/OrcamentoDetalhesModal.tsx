@@ -51,11 +51,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
 
   if (!orcamento) return null
 
-  const config = ETAPAS_CONFIG[orcamento.status] || {
-    label: orcamento.status,
-    corBadge: 'bg-gray-100 text-gray-800 border-gray-300',
-    corHeader: 'bg-gray-50 text-gray-900 border-gray-200',
-  }
+  const config = getEtapaConfig(orcamento.status)
 
   const itens = parseItens(orcamento.itens)
 

@@ -165,6 +165,37 @@ CREATE TRIGGER trigger_orcamento_configuracoes_updated_at
   BEFORE UPDATE ON public.orcamento_configuracoes
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
+-- 7.1 ETAPAS PERSONALIZADAS DO FUNIL DE ORÇAMENTOS
+CREATE TABLE IF NOT EXISTS public.orcamento_etapas (
+  id TEXT PRIMARY KEY DEFAULT ('etp_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
+  nome TEXT NOT NULL UNIQUE,
+  cor TEXT NOT NULL DEFAULT '#2C3E50',
+  cor_badge TEXT DEFAULT 'bg-slate-100 text-slate-800 border-slate-300',
+  cor_header TEXT DEFAULT 'bg-slate-50 text-slate-900 border-slate-200',
+  ordem INTEGER NOT NULL DEFAULT 1,
+  padrao BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orcamento_etapas_nome ON public.orcamento_etapas(nome);
+CREATE INDEX IF NOT EXISTS idx_orcamento_etapas_ordem ON public.orcamento_etapas(ordem);
+
+DROP TRIGGER IF EXISTS trigger_orcamento_etapas_updated_at ON public.orcamento_etapas;
+CREATE TRIGGER trigger_orcamento_etapas_updated_at
+  BEFORE UPDATE ON public.orcamento_etapas
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
+-- Insere etapas padrão se não existirem
+INSERT INTO public.orcamento_etapas (id, nome, cor, cor_badge, cor_header, ordem, padrao)
+VALUES
+  ('etp_realizar', 'Orçamentos a realizar', '#F59E0B', 'bg-amber-100 text-amber-800 border-amber-300', 'bg-amber-50 text-amber-900 border-amber-200', 1, true),
+  ('etp_aguardando', 'Aguardando aprovação', '#3B82F6', 'bg-blue-100 text-blue-800 border-blue-300', 'bg-blue-50 text-blue-900 border-blue-200', 2, true),
+  ('etp_aprovados', 'Aprovados aguardando início', '#8B5CF6', 'bg-purple-100 text-purple-800 border-purple-300', 'bg-purple-50 text-purple-900 border-purple-200', 3, true),
+  ('etp_iniciados', 'Trabalhos iniciados', '#10B981', 'bg-emerald-100 text-emerald-800 border-emerald-300', 'bg-emerald-50 text-emerald-900 border-emerald-200', 4, true),
+  ('etp_concluidos', 'Concluídos', '#2C3E50', 'bg-[#2C3E50] text-[#D4AF37] border-[#2C3E50]', 'bg-[#2C3E50]/10 text-[#2C3E50] border-[#2C3E50]/30', 5, true)
+ON CONFLICT (nome) DO NOTHING;
+
 -- 8. ORÇAMENTOS
 CREATE TABLE IF NOT EXISTS public.orcamentos (
   id TEXT PRIMARY KEY DEFAULT ('orc_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),

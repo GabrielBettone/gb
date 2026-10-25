@@ -59,10 +59,13 @@ import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import { useToast } from '@/hooks/use-toast'
 
+import type { OrcamentoEtapa } from '@/services/orcamentoEtapas'
+
 interface OrcamentoModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   produtos: Produto[]
+  etapas?: OrcamentoEtapa[]
   orcamentoParaEditar?: Orcamento | null
   onSuccess: () => void
 }
@@ -80,6 +83,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   open,
   onOpenChange,
   produtos,
+  etapas = [],
   orcamentoParaEditar,
   onSuccess,
 }) => {
@@ -103,7 +107,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   const [contato, setContato] = useState('')
   const [cidade, setCidade] = useState('São Pedro')
   const [canalOrigem, setCanalOrigem] = useState<CanalVenda>('WhatsApp')
-  const [status, setStatus] = useState<StatusOrcamento>('Orçamentos a realizar')
+  const [status, setStatus] = useState<StatusOrcamento | string>('Orçamentos a realizar')
   const [produtoPrincipal, setProdutoPrincipal] = useState<string>('')
   const [validade, setValidade] = useState('')
   const [dataInicioPrevista, setDataInicioPrevista] = useState('')
@@ -721,16 +725,18 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-[#2C3E50]">Etapa do Funil</Label>
-                  <Select value={status} onValueChange={(val: StatusOrcamento) => setStatus(val)}>
+                  <Select value={status} onValueChange={(val: string) => setStatus(val)}>
                     <SelectTrigger className="h-9 text-xs bg-white">
                       <SelectValue placeholder="Etapa" />
                     </SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPTIONS.map((st) => (
-                        <SelectItem key={st} value={st} className="text-xs">
-                          {st}
-                        </SelectItem>
-                      ))}
+                      {(etapas.length > 0 ? etapas.map((e) => e.nome) : STATUS_OPTIONS).map(
+                        (st) => (
+                          <SelectItem key={st} value={st} className="text-xs">
+                            {st}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

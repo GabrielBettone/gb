@@ -1,37 +1,49 @@
 import React, { useState } from 'react'
 import type { Orcamento, StatusOrcamento } from '@/types'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ETAPAS_ORCAMENTO, ETAPAS_CONFIG, parseItens } from '@/services/orcamentos'
+import type { OrcamentoEtapa } from '@/services/orcamentoEtapas'
+import { getEtapaConfig, parseItens } from '@/services/orcamentos'
 import {
   Calendar,
-  Clock,
-  DollarSign,
-  User,
-  Layers,
-  ArrowRight,
   GripVertical,
   CheckCircle2,
-  Phone,
+  Layers,
+  Plus,
+  Trash2,
+  Edit2,
+  MoreVertical,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 
 interface KanbanViewProps {
   orcamentos: Orcamento[]
-  onMudarStatus: (id: string, novoStatus: StatusOrcamento) => void
+  etapas: OrcamentoEtapa[]
+  onMudarStatus: (id: string, novoStatus: StatusOrcamento | string) => void
   onAbrirDetalhes: (orcamento: Orcamento) => void
-  onNovoOrcamento?: (statusPadrao?: StatusOrcamento) => void
+  onNovoOrcamento?: (statusPadrao?: StatusOrcamento | string) => void
+  onNovaEtapa?: () => void
+  onEditarEtapa?: (etapa: OrcamentoEtapa) => void
+  onExcluirEtapa?: (etapa: OrcamentoEtapa) => void
 }
 
 export const KanbanView: React.FC<KanbanViewProps> = ({
   orcamentos,
+  etapas,
   onMudarStatus,
   onAbrirDetalhes,
   onNovoOrcamento,
+  onNovaEtapa,
+  onEditarEtapa,
+  onExcluirEtapa,
 }) => {
   // Estado de drag: id do orçamento arrastado
   const [draggedOrcamentoId, setDraggedOrcamentoId] = useState<string | null>(null)
-  const [colunaHover, setColunaHover] = useState<StatusOrcamento | null>(null)
+  const [colunaHover, setColunaHover] = useState<string | null>(null)
 
   const formatMoeda = (val: number) => {
     return val.toLocaleString('pt-BR', {
@@ -60,7 +72,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     setColunaHover(null)
   }
 
-  const handleDragOver = (e: React.DragEvent, status: StatusOrcamento) => {
+  const handleDragOver = (e: React.DragEvent, status: string) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     if (colunaHover !== status) {
@@ -68,14 +80,14 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     }
   }
 
-  const handleDragLeave = (e: React.DragEvent, status: StatusOrcamento) => {
+  const handleDragLeave = (e: React.DragEvent, status: string) => {
     if (e.currentTarget.contains(e.relatedTarget as Node)) return
     if (colunaHover === status) {
       setColunaHover(null)
     }
   }
 
-  const handleDrop = (e: React.DragEvent, statusDestino: StatusOrcamento) => {
+  const handleDrop = (e: React.DragEvent, statusDestino: string) => {
     e.preventDefault()
     const id = e.dataTransfer.getData('text/plain') || draggedOrcamentoId
     if (id) {
@@ -87,21 +99,21 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
   return (
     <div className="w-full overflow-x-auto pb-4">
-      {/* 5 colunas com largura mínima fixa para permitir scroll horizontal suave */}
-      <div className="flex gap-4 min-w-[1250px] items-start">
-        {ETAPAS_ORCAMENTO.map((etapa) => {
-          const config = ETAPAS_CONFIG[etapa]
-          const orcamentosDaEtapa = orcamentos.filter((o) => o.status === etapa)
+      {/* Colunas com largura mínima fixa para permitir scroll horizontal suave */}
+      <div className="flex gap-4 min-w-max items-start">
+        {etapas.map((etapa) => {
+          const config = getEtapaConfig(etapa.nome)
+          const orcamentosDaEtapa = orcamentos.filter((o) => o.status === etapa.nome)
           const totalValor = orcamentosDaEtapa.reduce((acc, o) => acc + (o.valor_total || 0), 0)
-          const isHovered = colunaHover === etapa
+          const isHovered = colunaHover === etapa.nome
 
           return (
             <div
-              key={etapa}
-              onDragOver={(e) => handleDragOver(e, etapa)}
-              onDragLeave={(e) => handleDragLeave(e, etapa)}
-              onDrop={(e) => handleDrop(e, etapa)}
-              className={`flex-1 flex flex-col bg-[#F6F7F9] rounded-xl border transition-all duration-200 min-h-[580px] ${
+              key={etapa.id || etapa.nome}
+              onDragOver={(e) => handleDragOver(e, etapa.nome)}
+              onDragLeave={(e) => handleDragLeave(e, etapa.nome)}
+              onDrop={(e) => handleDrop(e, etapa.nome)}
+              className={`w-72 flex-shrink-0 flex flex-col bg-[#F6F7F9] rounded-xl border transition-all duration-200 min-h-[580px] ${
                 isHovered
                   ? 'border-[#2C3E50] ring-2 ring-[#2C3E50]/20 bg-[#E8EDF2]/60'
                   : 'border-[#E3E6EA]'
@@ -110,25 +122,70 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               {/* Topo da Coluna: Título + Badge de Contagem + Total em R$ */}
               <div
                 className={`p-3.5 border-b rounded-t-xl flex flex-col gap-1.5 transition-colors ${config.corHeader}`}
+                style={!etapa.padrao ? { borderTop: `3px solid ${etapa.cor}` } : undefined}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: etapa.cor }}
+                    />
+                    <span
+                      className="font-bold text-xs uppercase tracking-wider truncate"
+                      title={config.label}
+                    >
                       {config.label}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/80 shadow-xs border border-black/5">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-white/80 shadow-xs border border-black/5 flex-shrink-0">
                       {orcamentosDaEtapa.length}
                     </span>
                   </div>
-                  {onNovoOrcamento && etapa === 'Orçamentos a realizar' && (
-                    <button
-                      type="button"
-                      onClick={() => onNovoOrcamento(etapa)}
-                      className="text-[11px] font-semibold text-[#2C3E50] hover:underline"
-                    >
-                      + Criar
-                    </button>
-                  )}
+
+                  <div className="flex items-center gap-1">
+                    {onNovoOrcamento && etapa.nome === 'Orçamentos a realizar' && (
+                      <button
+                        type="button"
+                        onClick={() => onNovoOrcamento(etapa.nome)}
+                        className="text-[11px] font-semibold text-[#2C3E50] hover:underline"
+                      >
+                        + Criar
+                      </button>
+                    )}
+
+                    {!etapa.padrao && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-[#616F7D] hover:text-[#2C3E50]"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {onEditarEtapa && (
+                            <DropdownMenuItem
+                              onClick={() => onEditarEtapa(etapa)}
+                              className="text-xs cursor-pointer"
+                            >
+                              <Edit2 className="w-3 h-3 mr-2" />
+                              Editar Etapa
+                            </DropdownMenuItem>
+                          )}
+                          {onExcluirEtapa && (
+                            <DropdownMenuItem
+                              onClick={() => onExcluirEtapa(etapa)}
+                              className="text-xs text-red-600 focus:text-red-600 cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3 mr-2" />
+                              Excluir Etapa
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-[11px] text-[#5B6470] pt-1 border-t border-black/5">
@@ -163,8 +220,9 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                         onDragStart={(e) => handleDragStart(e, orc.id)}
                         onDragEnd={handleDragEnd}
                         onClick={() => onAbrirDetalhes(orc)}
+                        style={!etapa.padrao ? { borderLeftColor: etapa.cor } : undefined}
                         className={`group bg-white rounded-xl p-3.5 border shadow-xs hover:shadow-md transition-all cursor-grab active:cursor-grabbing border-l-4 ${
-                          config.corBorda
+                          etapa.padrao ? config.corBorda : ''
                         } ${
                           isDragging
                             ? 'opacity-40 scale-95 border-dashed border-[#2C3E50]'
@@ -226,6 +284,21 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
             </div>
           )
         })}
+
+        {/* Botão de Adicionar Nova Etapa Customizada */}
+        {onNovaEtapa && (
+          <button
+            type="button"
+            onClick={onNovaEtapa}
+            className="w-64 flex-shrink-0 h-32 rounded-xl border-2 border-dashed border-[#DEE4EA] hover:border-[#2C3E50]/40 hover:bg-[#F6F7F9] transition-all flex flex-col items-center justify-center gap-2 text-xs text-[#616F7D] hover:text-[#2C3E50] p-4 text-center group"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#E8EDF2] group-hover:bg-[#2C3E50] group-hover:text-white transition-colors flex items-center justify-center text-[#2C3E50]">
+              <Plus className="w-4 h-4" />
+            </div>
+            <span className="font-semibold">+ Nova Etapa do Funil</span>
+            <span className="text-[10px] text-[#8A94A0]">Crie uma nova coluna personalizada</span>
+          </button>
+        )}
       </div>
     </div>
   )

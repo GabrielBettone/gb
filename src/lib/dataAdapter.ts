@@ -106,11 +106,18 @@ export const dataAdapter = {
       const filters = parsePbFilterToSupabase(options.filter)
       const order = options.sort
         ? options.sort.split(',').map((s) => {
-            const clean = s.trim()
+            let clean = s.trim()
+            let ascending = true
             if (clean.startsWith('-')) {
-              return { column: clean.substring(1), ascending: false }
+              ascending = false
+              clean = clean.substring(1)
+            } else if (clean.startsWith('+')) {
+              clean = clean.substring(1)
             }
-            return { column: clean, ascending: true }
+            // Mapeia colunas comuns PocketBase -> Supabase PostgreSQL
+            if (clean === 'created') clean = 'created_at'
+            if (clean === 'updated') clean = 'updated_at'
+            return { column: clean, ascending }
           })
         : undefined
 
@@ -147,6 +154,75 @@ export const dataAdapter = {
                 console.warn('Erro ao expandir grupo via Supabase:', err)
               }
             }
+          } else if (expandKey === 'produto_principal') {
+            const prodIds = Array.from(
+              new Set(records.map((r) => r.produto_principal).filter(Boolean)),
+            ) as string[]
+            if (prodIds.length > 0) {
+              try {
+                const prods = await supabaseSelect<any>('produtos', {
+                  filters: [{ column: 'id', operator: 'in', value: prodIds }],
+                  accessToken: token || undefined,
+                })
+                const prodMap = new Map(prods.map((p) => [p.id, p]))
+                records.forEach((r) => {
+                  if (r.produto_principal && prodMap.has(r.produto_principal)) {
+                    r.expand = {
+                      ...(r.expand || {}),
+                      produto_principal: prodMap.get(r.produto_principal),
+                    }
+                  }
+                })
+              } catch (err) {
+                console.warn('Erro ao expandir produto_principal via Supabase:', err)
+              }
+            }
+          } else if (expandKey === 'metodo_pagamento') {
+            const metIds = Array.from(
+              new Set(records.map((r) => r.metodo_pagamento).filter(Boolean)),
+            ) as string[]
+            if (metIds.length > 0) {
+              try {
+                const mets = await supabaseSelect<any>('metodos_pagamento', {
+                  filters: [{ column: 'id', operator: 'in', value: metIds }],
+                  accessToken: token || undefined,
+                })
+                const metMap = new Map(mets.map((m) => [m.id, m]))
+                records.forEach((r) => {
+                  if (r.metodo_pagamento && metMap.has(r.metodo_pagamento)) {
+                    r.expand = {
+                      ...(r.expand || {}),
+                      metodo_pagamento: metMap.get(r.metodo_pagamento),
+                    }
+                  }
+                })
+              } catch (err) {
+                console.warn('Erro ao expandir metodo_pagamento via Supabase:', err)
+              }
+            }
+          } else if (expandKey === 'cliente_cadastrado') {
+            const cliIds = Array.from(
+              new Set(records.map((r) => r.cliente_cadastrado).filter(Boolean)),
+            ) as string[]
+            if (cliIds.length > 0) {
+              try {
+                const clis = await supabaseSelect<any>('clientes', {
+                  filters: [{ column: 'id', operator: 'in', value: cliIds }],
+                  accessToken: token || undefined,
+                })
+                const cliMap = new Map(clis.map((c) => [c.id, c]))
+                records.forEach((r) => {
+                  if (r.cliente_cadastrado && cliMap.has(r.cliente_cadastrado)) {
+                    r.expand = {
+                      ...(r.expand || {}),
+                      cliente_cadastrado: cliMap.get(r.cliente_cadastrado),
+                    }
+                  }
+                })
+              } catch (err) {
+                console.warn('Erro ao expandir cliente_cadastrado via Supabase:', err)
+              }
+            }
           }
         }
       }
@@ -180,11 +256,17 @@ export const dataAdapter = {
       const filters = parsePbFilterToSupabase(options.filter)
       const order = options.sort
         ? options.sort.split(',').map((s) => {
-            const clean = s.trim()
+            let clean = s.trim()
+            let ascending = true
             if (clean.startsWith('-')) {
-              return { column: clean.substring(1), ascending: false }
+              ascending = false
+              clean = clean.substring(1)
+            } else if (clean.startsWith('+')) {
+              clean = clean.substring(1)
             }
-            return { column: clean, ascending: true }
+            if (clean === 'created') clean = 'created_at'
+            if (clean === 'updated') clean = 'updated_at'
+            return { column: clean, ascending }
           })
         : undefined
 
