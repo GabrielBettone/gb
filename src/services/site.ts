@@ -281,7 +281,46 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
     if (err?.status === 404 || err?.message?.includes('Nenhum registro encontrado')) {
       return null
     }
-    // Repassa ou loga erro de rede/servidor para que a UI saiba diferenciar erro de ausência
+    // Fallback: se houver falha de rede ou de query, tenta listar todos e achar pelo slug
+    try {
+      const fallbackList = await dataAdapter.getFullList<any>('site_services')
+      const achado = fallbackList.find(
+        (s) => (s.slug && s.slug.toLowerCase() === slug.toLowerCase()) || (s.id && s.id === slug),
+      )
+      if (achado) {
+        const catsParsed = parseJsonArray<string>(achado.categorias)
+        const listaCategorias =
+          catsParsed.length > 0 ? catsParsed : achado.categoria ? [achado.categoria] : []
+        return {
+          id: achado.id,
+          nome: achado.nome || '',
+          slug: achado.slug || slug,
+          categoria: achado.categoria || listaCategorias[0] || 'Serviços',
+          categorias: listaCategorias,
+          destaque: !!achado.destaque,
+          ativo: achado.ativo !== false,
+          ordem: achado.ordem || 0,
+          descricao_curta: achado.descricao_curta || '',
+          descricao_longa: achado.descricao_longa || '',
+          beneficios: parseJsonArray<string>(achado.beneficios),
+          imagem_principal: achado.imagem_principal || '',
+          galeria: parseJsonArray<string>(achado.galeria),
+          arquivo_principal: achado.arquivo_principal || '',
+          arquivos_galeria: Array.isArray(achado.arquivos_galeria)
+            ? achado.arquivos_galeria
+            : achado.arquivos_galeria
+              ? [achado.arquivos_galeria]
+              : [],
+          meta_title: achado.meta_title,
+          meta_description: achado.meta_description,
+          keywords: parseJsonArray<string>(achado.keywords),
+          created: achado.created,
+          updated: achado.updated,
+        }
+      }
+    } catch {
+      // ignora
+    }
     console.warn('Falha na busca de serviço por slug:', err)
     return null
   }
@@ -751,6 +790,53 @@ export async function obterProjetoPorSlug(slug: string): Promise<SitePortfolioIt
   } catch (err: any) {
     if (err?.status === 404 || err?.message?.includes('Nenhum registro encontrado')) {
       return null
+    }
+    try {
+      const fallbackList = await dataAdapter.getFullList<any>('site_portfolio')
+      const achado = fallbackList.find(
+        (p) => (p.slug && p.slug.toLowerCase() === slug.toLowerCase()) || (p.id && p.id === slug),
+      )
+      if (achado) {
+        const catsParsed = parseJsonArray<string>(achado.categorias)
+        const listaCategorias =
+          catsParsed.length > 0 ? catsParsed : achado.categoria ? [achado.categoria] : []
+        return {
+          id: achado.id,
+          titulo: achado.titulo || '',
+          slug: achado.slug || slug,
+          categoria: achado.categoria || listaCategorias[0] || 'Portfólio',
+          categorias: listaCategorias,
+          subtitulo: achado.subtitulo || '',
+          cidade: achado.cidade || '',
+          descricao: achado.descricao || '',
+          detalhes_tecnicos: parseJsonArray<string>(achado.detalhes_tecnicos),
+          imagem_capa: achado.imagem_capa || '',
+          galeria: parseJsonArray<string>(achado.galeria),
+          arquivo_capa: achado.arquivo_capa || '',
+          arquivos_galeria: Array.isArray(achado.arquivos_galeria)
+            ? achado.arquivos_galeria
+            : achado.arquivos_galeria
+              ? [achado.arquivos_galeria]
+              : [],
+          fotos_count: achado.fotos_count || parseJsonArray<string>(achado.galeria).length,
+          arquivos_videos: Array.isArray(achado.arquivos_videos)
+            ? achado.arquivos_videos
+            : achado.arquivos_videos
+              ? [achado.arquivos_videos]
+              : [],
+          videos: parseJsonArray<string>(achado.videos),
+          videos_count: achado.videos_count || parseJsonArray<string>(achado.videos).length,
+          destaque: !!achado.destaque,
+          ativo: achado.ativo !== false,
+          ordem: achado.ordem || 0,
+          meta_title: achado.meta_title,
+          meta_description: achado.meta_description,
+          created: achado.created,
+          updated: achado.updated,
+        }
+      }
+    } catch {
+      // ignora
     }
     console.warn('Falha na busca de projeto por slug:', err)
     return null

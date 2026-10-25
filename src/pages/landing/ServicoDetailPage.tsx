@@ -39,12 +39,16 @@ export const ServicoDetailPage: React.FC = () => {
             if (!ativo) return
             if (s) {
               setServicoDb(s)
-              registrarEventoAnalytics({
-                tipo: 'click_servico',
-                servico_slug: s.slug,
-                servico_nome: s.nome,
-                categoria_nome: s.categoria,
-              })
+              try {
+                registrarEventoAnalytics({
+                  tipo: 'click_servico',
+                  servico_slug: s.slug || slug,
+                  servico_nome: s.nome || '',
+                  categoria_nome: s.categoria || '',
+                })
+              } catch (analyticsErr) {
+                console.debug('Analytics não registrado:', analyticsErr)
+              }
             }
             setCarregamentoConcluido(true)
             setLoading(false)
@@ -69,20 +73,34 @@ export const ServicoDetailPage: React.FC = () => {
 
   const servico = servicoDb
     ? {
-        slug: servicoDb.slug,
-        titulo: servicoDb.nome,
-        categoria: servicoDb.categoria,
-        destaque: servicoDb.destaque,
-        descricaoCurta: servicoDb.descricao_curta,
-        descricaoCompleta: servicoDb.descricao_longa,
-        beneficios: servicoDb.beneficios || [],
+        slug: servicoDb.slug || slug || '',
+        titulo: servicoDb.nome || (slug ? slug.replace(/-/g, ' ') : 'Serviço'),
+        categoria: servicoDb.categoria || 'Serviços',
+        destaque: !!servicoDb.destaque,
+        descricaoCurta: servicoDb.descricao_curta || '',
+        descricaoCompleta:
+          servicoDb.descricao_longa ||
+          servicoDb.descricao_curta ||
+          'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
+        beneficios: Array.isArray(servicoDb.beneficios) ? servicoDb.beneficios : [],
         imagemPrincipal: servicoDb.imagem_principal || '',
-        galeria: servicoDb.galeria || [],
-        metaTitle: servicoDb.meta_title,
-        metaDescription: servicoDb.meta_description,
-        keywords: servicoDb.keywords,
+        galeria: Array.isArray(servicoDb.galeria) ? servicoDb.galeria : [],
+        metaTitle: servicoDb.meta_title || servicoDb.nome || 'Serviço | Gesso Bettone',
+        metaDescription:
+          servicoDb.meta_description ||
+          servicoDb.descricao_curta ||
+          servicoDb.descricao_longa ||
+          'Serviços em gesso e drywall da Gesso Bettone.',
+        keywords: Array.isArray(servicoDb.keywords) ? servicoDb.keywords : [],
       }
     : servicoLocal
+      ? {
+          ...servicoLocal,
+          beneficios: Array.isArray(servicoLocal.beneficios) ? servicoLocal.beneficios : [],
+          galeria: Array.isArray(servicoLocal.galeria) ? servicoLocal.galeria : [],
+          keywords: Array.isArray(servicoLocal.keywords) ? servicoLocal.keywords : [],
+        }
+      : null
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
 
   // Enquanto carrega e não temos nem local nem DB, exibe skeleton/loading elegante
@@ -134,12 +152,21 @@ export const ServicoDetailPage: React.FC = () => {
     return null
   }
 
-  const whatsappUrl = getWhatsAppUrlForService(servico.titulo)
+  const whatsappUrl = getWhatsAppUrlForService(servico.titulo || 'Serviço')
 
   // Outros serviços para recomendação
   const outrosServicos = SERVICOS.filter((s) => s.slug !== servico.slug).slice(0, 3)
 
-  // JSON-LD Service + Breadcrumbs
+  // Lista unificada e segura de fotos da galeria
+  const listaFotos: string[] = [
+    ...(servico.galeria || []),
+    ...(servico.imagemPrincipal ? [servico.imagemPrincipal] : []),
+  ].filter((f) => typeof f === 'string' && f.trim().length > 0)
+
+  // Garante que o índice selecionado é válido
+  const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''
+
+  // JSON-LD Service + Breadcrumbs protegido contra undefined/null
   const serviceJsonLd = [
     {
       '@context': 'https://schema.org',
@@ -160,7 +187,7 @@ export const ServicoDetailPage: React.FC = () => {
         {
           '@type': 'ListItem',
           position: 3,
-          name: servico.titulo,
+          name: servico.titulo || 'Serviço',
           item: `https://gessobettone.com.br/servicos/${servico.slug}`,
         },
       ],
@@ -168,10 +195,10 @@ export const ServicoDetailPage: React.FC = () => {
     {
       '@context': 'https://schema.org',
       '@type': 'Service',
-      name: servico.titulo,
-      serviceType: servico.titulo,
-      category: servico.categoria,
-      description: servico.descricaoCompleta,
+      name: servico.titulo || 'Serviço',
+      serviceType: servico.titulo || 'Serviço',
+      category: servico.categoria || 'Serviços',
+      description: servico.descricaoCompleta || servico.descricaoCurta || 'Serviço Gesso Bettone',
       provider: {
         '@type': 'LocalBusiness',
         name: 'Gesso Bettone',
@@ -187,16 +214,18 @@ export const ServicoDetailPage: React.FC = () => {
         '@type': 'AdministrativeArea',
         name: c,
       })),
-      image: servico.imagemPrincipal,
+      ...(servico.imagemPrincipal ? { image: servico.imagemPrincipal } : {}),
     },
   ]
 
   const nextPhoto = () => {
-    setActivePhotoIndex((prev) => (prev + 1) % servico.galeria.length)
+    if (listaFotos.length === 0) return
+    setActivePhotoIndex((prev) => (prev + 1) % listaFotos.length)
   }
 
   const prevPhoto = () => {
-    setActivePhotoIndex((prev) => (prev - 1 + servico.galeria.length) % servico.galeria.length)
+    if (listaFotos.length === 0) return
+    setActivePhotoIndex((prev) => (prev - 1 + listaFotos.length) % listaFotos.length)
   }
 
   return (
@@ -270,41 +299,58 @@ export const ServicoDetailPage: React.FC = () => {
           {/* Lado Esquerdo: Galeria de Fotos */}
           <div className="lg:col-span-7 space-y-4">
             <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#2C3E50]/5 aspect-[16/10]">
-              <WatermarkedImage
-                src={servico.galeria[activePhotoIndex] || servico.imagemPrincipal || ''}
-                alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
-                className="w-full h-full object-cover transition-all duration-300"
-              />
-
-              {servico.galeria.length > 1 && (
+              {fotoAtualUrl ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={prevPhoto}
-                    aria-label="Foto anterior"
-                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextPhoto}
-                    aria-label="Próxima foto"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                  <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-medium">
-                    {activePhotoIndex + 1} / {servico.galeria.length}
-                  </div>
+                  <WatermarkedImage
+                    src={fotoAtualUrl}
+                    alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
+                    className="w-full h-full object-cover transition-all duration-300"
+                  />
+
+                  {listaFotos.length > 1 && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={prevPhoto}
+                        aria-label="Foto anterior"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={nextPhoto}
+                        aria-label="Próxima foto"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                      <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-medium">
+                        {activePhotoIndex + 1} / {listaFotos.length}
+                      </div>
+                    </>
+                  )}
                 </>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2C3E50]/15 via-[#2C3E50]/5 to-[#D4AF37]/15 p-6 text-center select-none">
+                  <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center mb-3 shadow-md">
+                    <Images className="w-8 h-8 text-[#D4AF37]" />
+                  </div>
+                  <h4 className="font-heading text-lg font-bold text-[#2C3E50]">
+                    {servico.titulo}
+                  </h4>
+                  <p className="text-xs text-[#616F7D] mt-1 max-w-sm">
+                    Gesso &amp; Drywall com padrão superior. Solicite fotos e registros desta
+                    solução pelo WhatsApp.
+                  </p>
+                </div>
               )}
             </div>
 
             {/* Miniaturas da galeria */}
-            {servico.galeria.length > 1 && (
+            {listaFotos.length > 1 && (
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                {servico.galeria.map((img, idx) => (
+                {listaFotos.map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -326,9 +372,9 @@ export const ServicoDetailPage: React.FC = () => {
             )}
 
             {/* Aviso quando sem fotos cadastradas */}
-            {servico.galeria.length === 0 && !servico.imagemPrincipal && (
+            {listaFotos.length === 0 && (
               <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] text-xs text-[#616F7D] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#2C3E50]" />
+                <ShieldCheck className="w-4 h-4 text-[#2C3E50] shrink-0" />
                 <span>
                   Fotos e registros deste serviço podem ser consultados diretamente com nossos
                   especialistas via WhatsApp.
@@ -343,12 +389,41 @@ export const ServicoDetailPage: React.FC = () => {
                 Por que escolher a Gesso Bettone para este serviço:
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {servico.beneficios.map((ben, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                    <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">{ben}</span>
-                  </div>
-                ))}
+                {servico.beneficios && servico.beneficios.length > 0 ? (
+                  servico.beneficios.map((ben, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">{ben}</span>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
+                        Mais de 30 anos de precisão e alto padrão em acabamentos
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
+                        Materiais certificados e isolamento termoacústico superior
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
+                        Execução limpa, rápida e alinhamento milimétrico
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
+                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
+                        Atendimento com visita técnica e orçamento transparente
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -417,7 +492,7 @@ export const ServicoDetailPage: React.FC = () => {
       <LandingParceiros />
 
       <LandingCTA
-        titulo={`Gostaria de aplicar ${servico.titulo.toLowerCase()} no seu espaço?`}
+        titulo={`Gostaria de aplicar ${(servico.titulo || 'este serviço').toLowerCase()} no seu espaço?`}
         subtitulo="Envie suas medidas, fotos do local ou planta pelo WhatsApp para receber um orçamento transparente e personalizado."
         botaoTexto="Falar com especialista agora"
       />

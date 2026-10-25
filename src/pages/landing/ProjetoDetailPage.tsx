@@ -70,28 +70,49 @@ export const ProjetoDetailPage: React.FC = () => {
     }
   }, [slug])
 
-  // Processamento e normalização das listas de fotos e vídeos
+  // Processamento e normalização das listas de fotos e vídeos com guardas totais
   const projeto = projetoDb
     ? {
-        slug: projetoDb.slug,
-        titulo: projetoDb.titulo,
-        categoria: projetoDb.categoria,
-        subtitulo: projetoDb.subtitulo,
-        cidade: projetoDb.cidade,
-        descricao: projetoDb.descricao,
-        detalhesTecnicos: projetoDb.detalhes_tecnicos,
-        fotosCount: projetoDb.fotos_count || projetoDb.galeria?.length || 0,
-        imagemCapa: projetoDb.imagem_capa,
-        arquivoCapa: projetoDb.arquivo_capa,
-        galeria: projetoDb.galeria || [],
-        arquivosGaleria: projetoDb.arquivos_galeria || [],
-        videos: projetoDb.videos || [],
-        arquivosVideos: projetoDb.arquivos_videos || [],
-        videosCount: projetoDb.videos_count || 0,
-        metaTitle: projetoDb.meta_title,
-        metaDescription: projetoDb.meta_description,
+        slug: projetoDb.slug || slug || '',
+        titulo: projetoDb.titulo || (slug ? slug.replace(/-/g, ' ') : 'Projeto'),
+        categoria: projetoDb.categoria || 'Portfólio',
+        subtitulo: projetoDb.subtitulo || '',
+        cidade: projetoDb.cidade || '',
+        descricao:
+          projetoDb.descricao ||
+          'Projeto e execução sob medida em gesso e drywall pela Gesso Bettone.',
+        detalhesTecnicos: Array.isArray(projetoDb.detalhes_tecnicos)
+          ? projetoDb.detalhes_tecnicos
+          : [],
+        fotosCount:
+          projetoDb.fotos_count ||
+          (Array.isArray(projetoDb.galeria) ? projetoDb.galeria.length : 0),
+        imagemCapa: projetoDb.imagem_capa || '',
+        arquivoCapa: projetoDb.arquivo_capa || '',
+        galeria: Array.isArray(projetoDb.galeria) ? projetoDb.galeria : [],
+        arquivosGaleria: Array.isArray(projetoDb.arquivos_galeria)
+          ? projetoDb.arquivos_galeria
+          : [],
+        videos: Array.isArray(projetoDb.videos) ? projetoDb.videos : [],
+        arquivosVideos: Array.isArray(projetoDb.arquivos_videos) ? projetoDb.arquivos_videos : [],
+        videosCount:
+          projetoDb.videos_count || (Array.isArray(projetoDb.videos) ? projetoDb.videos.length : 0),
+        metaTitle: projetoDb.meta_title || projetoDb.titulo || 'Projeto | Gesso Bettone',
+        metaDescription:
+          projetoDb.meta_description ||
+          projetoDb.descricao ||
+          'Projetos e acabamentos de alto padrão da Gesso Bettone.',
       }
     : projetoLocal
+      ? {
+          ...projetoLocal,
+          detalhesTecnicos: Array.isArray(projetoLocal.detalhesTecnicos)
+            ? projetoLocal.detalhesTecnicos
+            : [],
+          galeria: Array.isArray(projetoLocal.galeria) ? projetoLocal.galeria : [],
+          videos: Array.isArray(projetoLocal.videos) ? projetoLocal.videos : [],
+        }
+      : null
 
   // Compilar lista unificada de fotos para o visualizador e miniaturas
   const fotos: string[] = React.useMemo(() => {
@@ -99,32 +120,36 @@ export const ProjetoDetailPage: React.FC = () => {
     const list: string[] = []
 
     if (projetoDb) {
-      if (projetoDb.arquivo_capa) {
-        list.push(resolverUrlMidia('site_portfolio', projetoDb.id, projetoDb.arquivo_capa))
-      } else if (projetoDb.imagem_capa) {
-        list.push(projetoDb.imagem_capa)
-      }
+      try {
+        if (projetoDb.arquivo_capa) {
+          list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', projetoDb.arquivo_capa))
+        } else if (projetoDb.imagem_capa) {
+          list.push(projetoDb.imagem_capa)
+        }
 
-      if (projetoDb.arquivos_galeria && projetoDb.arquivos_galeria.length > 0) {
-        projetoDb.arquivos_galeria.forEach((arq: string) => {
-          if (arq !== projetoDb.arquivo_capa) {
-            list.push(resolverUrlMidia('site_portfolio', projetoDb.id, arq))
-          }
-        })
-      }
+        if (Array.isArray(projetoDb.arquivos_galeria) && projetoDb.arquivos_galeria.length > 0) {
+          projetoDb.arquivos_galeria.forEach((arq: string) => {
+            if (arq && arq !== projetoDb.arquivo_capa) {
+              list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', arq))
+            }
+          })
+        }
 
-      if (projetoDb.galeria && projetoDb.galeria.length > 0) {
-        projetoDb.galeria.forEach((gUrl: string) => {
-          if (gUrl !== projetoDb.imagem_capa && !list.includes(gUrl)) {
-            list.push(gUrl)
-          }
-        })
+        if (Array.isArray(projetoDb.galeria) && projetoDb.galeria.length > 0) {
+          projetoDb.galeria.forEach((gUrl: string) => {
+            if (gUrl && gUrl !== projetoDb.imagem_capa && !list.includes(gUrl)) {
+              list.push(gUrl)
+            }
+          })
+        }
+      } catch (fotoErr) {
+        console.warn('Erro ao montar lista de fotos do projeto:', fotoErr)
       }
     } else if (projetoLocal) {
       if (projetoLocal.imagemCapa) list.push(projetoLocal.imagemCapa)
-      if (projetoLocal.galeria) {
+      if (Array.isArray(projetoLocal.galeria)) {
         projetoLocal.galeria.forEach((g) => {
-          if (!list.includes(g)) list.push(g)
+          if (g && !list.includes(g)) list.push(g)
         })
       }
     }
@@ -139,21 +164,25 @@ export const ProjetoDetailPage: React.FC = () => {
     if (!projeto) return []
     const vList: string[] = []
 
-    if (projetoDb) {
-      if (projetoDb.arquivos_videos && projetoDb.arquivos_videos.length > 0) {
-        projetoDb.arquivos_videos.forEach((v: string) => {
-          vList.push(resolverUrlMidia('site_portfolio', projetoDb.id, v))
+    try {
+      if (projetoDb) {
+        if (Array.isArray(projetoDb.arquivos_videos) && projetoDb.arquivos_videos.length > 0) {
+          projetoDb.arquivos_videos.forEach((v: string) => {
+            if (v) vList.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', v))
+          })
+        }
+        if (Array.isArray(projetoDb.videos) && projetoDb.videos.length > 0) {
+          projetoDb.videos.forEach((vu: string) => {
+            if (vu && !vList.includes(vu)) vList.push(vu)
+          })
+        }
+      } else if (projetoLocal && Array.isArray(projetoLocal.videos)) {
+        projetoLocal.videos.forEach((vu) => {
+          if (vu && !vList.includes(vu)) vList.push(vu)
         })
       }
-      if (projetoDb.videos && projetoDb.videos.length > 0) {
-        projetoDb.videos.forEach((vu: string) => {
-          if (!vList.includes(vu)) vList.push(vu)
-        })
-      }
-    } else if (projetoLocal && projetoLocal.videos) {
-      projetoLocal.videos.forEach((vu) => {
-        if (!vList.includes(vu)) vList.push(vu)
-      })
+    } catch (vErr) {
+      console.warn('Erro ao montar lista de vídeos do projeto:', vErr)
     }
 
     return vList.filter((v) => typeof v === 'string' && v.trim().length > 0)
@@ -217,13 +246,15 @@ export const ProjetoDetailPage: React.FC = () => {
     return null
   }
 
-  const whatsappUrl = getWhatsAppUrlForProject(projeto.titulo)
+  const whatsappUrl = getWhatsAppUrlForProject(projeto.titulo || 'Projeto')
 
   const nextPhoto = () => {
+    if (fotos.length === 0) return
     setActivePhotoIndex((prev) => (prev + 1) % fotos.length)
   }
 
   const prevPhoto = () => {
+    if (fotos.length === 0) return
     setActivePhotoIndex((prev) => (prev - 1 + fotos.length) % fotos.length)
   }
 
@@ -277,11 +308,11 @@ export const ProjetoDetailPage: React.FC = () => {
         canonical={`/portfolio/${projeto.slug}`}
         ogImage={fotos[0] || projeto.imagemCapa}
         keywords={[
-          projeto.titulo.toLowerCase(),
+          (projeto.titulo || '').toLowerCase(),
           'projeto gesso bettone',
           'gesso são pedro',
           'drywall são pedro piracicaba',
-        ]}
+        ].filter(Boolean)}
         jsonLd={[breadcrumbsJsonLd, creativeWorkJsonLd]}
       />
 

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { FilterProvider } from '@/contexts/FilterContext'
 import Layout from '@/components/Layout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // Páginas da Landing Page Pública
 import PublicLayout from '@/components/landing/PublicLayout'
@@ -61,9 +62,33 @@ const AppRoutes = () => {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingHomePage />} />
         <Route path="/servicos" element={<ServicosListPage />} />
-        <Route path="/servicos/:slug" element={<ServicoDetailPage />} />
+        <Route
+          path="/servicos/:slug"
+          element={
+            <ErrorBoundary
+              fallbackTitle="Serviço indisponível no momento"
+              fallbackMessage="Não foi possível exibir os detalhes deste serviço. Você pode consultar nossa lista completa de serviços ou falar diretamente com nossa equipe no WhatsApp."
+              returnUrl="/servicos"
+              returnLabel="Ver todos os serviços"
+            >
+              <ServicoDetailPage />
+            </ErrorBoundary>
+          }
+        />
         <Route path="/portfolio" element={<PortfolioListPage />} />
-        <Route path="/portfolio/:slug" element={<ProjetoDetailPage />} />
+        <Route
+          path="/portfolio/:slug"
+          element={
+            <ErrorBoundary
+              fallbackTitle="Projeto indisponível no momento"
+              fallbackMessage="Não foi possível exibir os detalhes deste projeto. Você pode consultar nosso portfólio completo ou falar diretamente com nossa equipe."
+              returnUrl="/portfolio"
+              returnLabel="Ver portfólio completo"
+            >
+              <ProjetoDetailPage />
+            </ErrorBoundary>
+          }
+        />
         {/* Redirecionamento amigável para URLs de projetos do site anterior */}
         <Route path="/projetos/:slug" element={<ProjetoRedirect />} />
         <Route path="/sobre" element={<SobrePage />} />
