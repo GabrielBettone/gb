@@ -97,6 +97,147 @@ function parsePbFilterToSupabase(
   return filters
 }
 
+async function enrichSupabaseExpands(
+  records: any[],
+  expandStr?: string,
+  token?: string | null,
+): Promise<void> {
+  if (!expandStr || !Array.isArray(records) || records.length === 0) return
+  const expandKeys = expandStr
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean)
+
+  for (const expandKey of expandKeys) {
+    if (expandKey === 'orcamento') {
+      const orcIds = Array.from(
+        new Set(records.map((r) => r.orcamento).filter(Boolean)),
+      ) as string[]
+      if (orcIds.length > 0) {
+        try {
+          const orcs = await supabaseSelect<any>('orcamentos', {
+            filters: [{ column: 'id', operator: 'in', value: orcIds }],
+            accessToken: token || undefined,
+          })
+          const orcMap = new Map(orcs.map((o) => [o.id, o]))
+          records.forEach((r) => {
+            if (r.orcamento && orcMap.has(r.orcamento)) {
+              r.expand = { ...(r.expand || {}), orcamento: orcMap.get(r.orcamento) }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir orcamento via Supabase:', err)
+        }
+      }
+    } else if (expandKey === 'produto') {
+      const prodIds = Array.from(new Set(records.map((r) => r.produto).filter(Boolean))) as string[]
+      if (prodIds.length > 0) {
+        try {
+          const prods = await supabaseSelect<any>('produtos', {
+            filters: [{ column: 'id', operator: 'in', value: prodIds }],
+            accessToken: token || undefined,
+          })
+          const prodMap = new Map(prods.map((p) => [p.id, p]))
+          records.forEach((r) => {
+            if (r.produto && prodMap.has(r.produto)) {
+              r.expand = { ...(r.expand || {}), produto: prodMap.get(r.produto) }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir produto via Supabase:', err)
+        }
+      }
+    } else if (expandKey === 'grupo') {
+      const grupoIds = Array.from(new Set(records.map((r) => r.grupo).filter(Boolean))) as string[]
+      if (grupoIds.length > 0) {
+        try {
+          const grupos = await supabaseSelect<any>('clientes_grupos', {
+            filters: [{ column: 'id', operator: 'in', value: grupoIds }],
+            accessToken: token || undefined,
+          })
+          const grupoMap = new Map(grupos.map((g) => [g.id, g]))
+          records.forEach((r) => {
+            if (r.grupo && grupoMap.has(r.grupo)) {
+              r.expand = { ...(r.expand || {}), grupo: grupoMap.get(r.grupo) }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir grupo via Supabase:', err)
+        }
+      }
+    } else if (expandKey === 'produto_principal') {
+      const prodIds = Array.from(
+        new Set(records.map((r) => r.produto_principal).filter(Boolean)),
+      ) as string[]
+      if (prodIds.length > 0) {
+        try {
+          const prods = await supabaseSelect<any>('produtos', {
+            filters: [{ column: 'id', operator: 'in', value: prodIds }],
+            accessToken: token || undefined,
+          })
+          const prodMap = new Map(prods.map((p) => [p.id, p]))
+          records.forEach((r) => {
+            if (r.produto_principal && prodMap.has(r.produto_principal)) {
+              r.expand = {
+                ...(r.expand || {}),
+                produto_principal: prodMap.get(r.produto_principal),
+              }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir produto_principal via Supabase:', err)
+        }
+      }
+    } else if (expandKey === 'metodo_pagamento') {
+      const metIds = Array.from(
+        new Set(records.map((r) => r.metodo_pagamento).filter(Boolean)),
+      ) as string[]
+      if (metIds.length > 0) {
+        try {
+          const mets = await supabaseSelect<any>('metodos_pagamento', {
+            filters: [{ column: 'id', operator: 'in', value: metIds }],
+            accessToken: token || undefined,
+          })
+          const metMap = new Map(mets.map((m) => [m.id, m]))
+          records.forEach((r) => {
+            if (r.metodo_pagamento && metMap.has(r.metodo_pagamento)) {
+              r.expand = {
+                ...(r.expand || {}),
+                metodo_pagamento: metMap.get(r.metodo_pagamento),
+              }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir metodo_pagamento via Supabase:', err)
+        }
+      }
+    } else if (expandKey === 'cliente_cadastrado') {
+      const cliIds = Array.from(
+        new Set(records.map((r) => r.cliente_cadastrado).filter(Boolean)),
+      ) as string[]
+      if (cliIds.length > 0) {
+        try {
+          const clis = await supabaseSelect<any>('clientes', {
+            filters: [{ column: 'id', operator: 'in', value: cliIds }],
+            accessToken: token || undefined,
+          })
+          const cliMap = new Map(clis.map((c) => [c.id, c]))
+          records.forEach((r) => {
+            if (r.cliente_cadastrado && cliMap.has(r.cliente_cadastrado)) {
+              r.expand = {
+                ...(r.expand || {}),
+                cliente_cadastrado: cliMap.get(r.cliente_cadastrado),
+              }
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir cliente_cadastrado via Supabase:', err)
+        }
+      }
+    }
+  }
+}
+
 export const dataAdapter = {
   /**
    * Busca lista completa de uma tabela / coleção
@@ -130,101 +271,9 @@ export const dataAdapter = {
         accessToken: token || undefined,
       })
 
-      // Expansão leve para compatibilidade com PB (ex: expand: 'grupo')
+      // Expansão leve para compatibilidade com PB (ex: expand: 'orcamento,produto,grupo')
       if (options.expand && Array.isArray(records) && records.length > 0) {
-        const expandKeys = options.expand.split(',').map((k) => k.trim())
-        for (const expandKey of expandKeys) {
-          if (expandKey === 'grupo') {
-            const grupoIds = Array.from(
-              new Set(records.map((r) => r.grupo).filter(Boolean)),
-            ) as string[]
-            if (grupoIds.length > 0) {
-              try {
-                const grupos = await supabaseSelect<any>('clientes_grupos', {
-                  filters: [{ column: 'id', operator: 'in', value: grupoIds }],
-                  accessToken: token || undefined,
-                })
-                const grupoMap = new Map(grupos.map((g) => [g.id, g]))
-                records.forEach((r) => {
-                  if (r.grupo && grupoMap.has(r.grupo)) {
-                    r.expand = { ...(r.expand || {}), grupo: grupoMap.get(r.grupo) }
-                  }
-                })
-              } catch (err) {
-                console.warn('Erro ao expandir grupo via Supabase:', err)
-              }
-            }
-          } else if (expandKey === 'produto_principal') {
-            const prodIds = Array.from(
-              new Set(records.map((r) => r.produto_principal).filter(Boolean)),
-            ) as string[]
-            if (prodIds.length > 0) {
-              try {
-                const prods = await supabaseSelect<any>('produtos', {
-                  filters: [{ column: 'id', operator: 'in', value: prodIds }],
-                  accessToken: token || undefined,
-                })
-                const prodMap = new Map(prods.map((p) => [p.id, p]))
-                records.forEach((r) => {
-                  if (r.produto_principal && prodMap.has(r.produto_principal)) {
-                    r.expand = {
-                      ...(r.expand || {}),
-                      produto_principal: prodMap.get(r.produto_principal),
-                    }
-                  }
-                })
-              } catch (err) {
-                console.warn('Erro ao expandir produto_principal via Supabase:', err)
-              }
-            }
-          } else if (expandKey === 'metodo_pagamento') {
-            const metIds = Array.from(
-              new Set(records.map((r) => r.metodo_pagamento).filter(Boolean)),
-            ) as string[]
-            if (metIds.length > 0) {
-              try {
-                const mets = await supabaseSelect<any>('metodos_pagamento', {
-                  filters: [{ column: 'id', operator: 'in', value: metIds }],
-                  accessToken: token || undefined,
-                })
-                const metMap = new Map(mets.map((m) => [m.id, m]))
-                records.forEach((r) => {
-                  if (r.metodo_pagamento && metMap.has(r.metodo_pagamento)) {
-                    r.expand = {
-                      ...(r.expand || {}),
-                      metodo_pagamento: metMap.get(r.metodo_pagamento),
-                    }
-                  }
-                })
-              } catch (err) {
-                console.warn('Erro ao expandir metodo_pagamento via Supabase:', err)
-              }
-            }
-          } else if (expandKey === 'cliente_cadastrado') {
-            const cliIds = Array.from(
-              new Set(records.map((r) => r.cliente_cadastrado).filter(Boolean)),
-            ) as string[]
-            if (cliIds.length > 0) {
-              try {
-                const clis = await supabaseSelect<any>('clientes', {
-                  filters: [{ column: 'id', operator: 'in', value: cliIds }],
-                  accessToken: token || undefined,
-                })
-                const cliMap = new Map(clis.map((c) => [c.id, c]))
-                records.forEach((r) => {
-                  if (r.cliente_cadastrado && cliMap.has(r.cliente_cadastrado)) {
-                    r.expand = {
-                      ...(r.expand || {}),
-                      cliente_cadastrado: cliMap.get(r.cliente_cadastrado),
-                    }
-                  }
-                })
-              } catch (err) {
-                console.warn('Erro ao expandir cliente_cadastrado via Supabase:', err)
-              }
-            }
-          }
-        }
+        await enrichSupabaseExpands(records, options.expand, token)
       }
 
       return records as T[]
@@ -282,6 +331,9 @@ export const dataAdapter = {
       })
 
       const items = Array.isArray(results) ? results : []
+      if (options.expand && items.length > 0) {
+        await enrichSupabaseExpands(items, options.expand, token)
+      }
       return {
         page,
         perPage,
