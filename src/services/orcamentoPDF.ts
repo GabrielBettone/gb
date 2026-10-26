@@ -147,8 +147,14 @@ export async function imprimirOrcamentoPDF(
   const cnpjCadastrado = siteConfig?.cnpj || config?.cnpj || '53.242.055/0001-74'
   const emailEmpresa = siteConfig?.email_contato || config?.email || 'contato@gessobettone.com.br'
   const telefoneEmpresa = siteConfig?.whatsapp_principal || config?.telefone || '(19) 99767-1189'
-  const enderecoEmpresa = config?.endereco || 'Rua Valentim Amaral, 412 - Centro'
-  const cidadeEmpresa = config?.cidade || 'São Pedro/SP'
+  // Endereço configurado no site_settings (ou em orcamento_configuracoes); se vazio, omite no PDF
+  const enderecoConfigurado = (siteConfig?.endereco || config?.endereco || '').trim()
+  const cidadeEmpresa = config?.cidade ? config.cidade.trim() : ''
+  const enderecoLinha = enderecoConfigurado
+    ? cidadeEmpresa && !enderecoConfigurado.toLowerCase().includes(cidadeEmpresa.toLowerCase())
+      ? `${enderecoConfigurado} — ${cidadeEmpresa}`
+      : enderecoConfigurado
+    : ''
 
   // Regra de Exibir CNPJ:
   // Se orcamento.exibir_cnpj estiver explicitamente definido (true/false), tem prioridade.
@@ -522,7 +528,7 @@ export async function imprimirOrcamentoPDF(
         ${exibirCnpj && cnpjCadastrado ? `<div class="card-item"><strong>CNPJ:</strong> ${cnpjCadastrado}</div>` : ''}
         <div class="card-item"><strong>Telefone / WhatsApp:</strong> ${telefoneEmpresa}</div>
         <div class="card-item"><strong>E-mail:</strong> ${emailEmpresa}</div>
-        <div class="card-item"><strong>Endereço:</strong> ${enderecoEmpresa} — ${cidadeEmpresa}</div>
+        ${enderecoLinha ? `<div class="card-item"><strong>Endereço:</strong> ${enderecoLinha}</div>` : ''}
       </div>
 
       <div class="card-info">

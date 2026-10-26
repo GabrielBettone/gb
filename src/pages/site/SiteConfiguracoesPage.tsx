@@ -20,6 +20,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
   // Campos Contato, conversão e presença digital
   const [nomeSite, setNomeSite] = useState('Gesso Bettone')
   const [razaoSocial, setRazaoSocial] = useState('Gesso Bettone Comércio e Instalações Eireli')
+  const [endereco, setEndereco] = useState('')
   const [siteUrl, setSiteUrl] = useState('https://gessobettone.com.br')
   const [whatsappPrincipal, setWhatsappPrincipal] = useState('5519981093379')
   const [emailContato, setEmailContato] = useState('contato@gessobettone.com.br')
@@ -48,6 +49,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
         if (!isMounted) return
         setNomeSite(cfg.nome_site || 'Gesso Bettone')
         setRazaoSocial(cfg.razao_social || 'Gesso Bettone Comércio e Instalações Eireli')
+        setEndereco(cfg.endereco || '')
         setSiteUrl(cfg.site_url || 'https://gessobettone.com.br')
         setWhatsappPrincipal(cfg.whatsapp_principal || '5519981093379')
         setEmailContato(cfg.email_contato || 'contato@gessobettone.com.br')
@@ -77,10 +79,11 @@ export const SiteConfiguracoesPage: React.FC = () => {
     e.preventDefault()
     setSalvando(true)
     try {
-      const salvas = await salvarConfiguracoes(
+      const { settings: salvas, warningMissingColumn } = await salvarConfiguracoes(
         {
           nome_site: nomeSite,
           razao_social: razaoSocial.trim(),
+          endereco: endereco.trim(),
           site_url: siteUrl.trim(),
           whatsapp_principal: whatsappPrincipal,
           email_contato: emailContato,
@@ -98,9 +101,21 @@ export const SiteConfiguracoesPage: React.FC = () => {
         setLogoAtual(salvas.logo_url)
       }
       setNovoArquivoLogo(null)
-      toast({ title: 'Configurações salvas com sucesso!' })
-    } catch {
-      toast({ title: 'Erro ao salvar configurações', variant: 'destructive' })
+      if (warningMissingColumn) {
+        toast({
+          title: 'Configurações salvas parcialmente',
+          description: warningMissingColumn,
+          duration: 10000,
+        })
+      } else {
+        toast({ title: 'Configurações salvas com sucesso!' })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar configurações',
+        description: err?.message || 'Verifique sua conexão ou permissões no banco de dados.',
+        variant: 'destructive',
+      })
     } finally {
       setSalvando(false)
     }
@@ -233,6 +248,24 @@ export const SiteConfiguracoesPage: React.FC = () => {
                   <p className="text-[11px] text-[#616F7D]">
                     Utilizada em documentos formais e no cabeçalho/dados da empresa emissora no PDF
                     de orçamento (quando a opção de exibir CNPJ estiver ativa).
+                  </p>
+                </div>
+
+                {/* Endereço da Empresa */}
+                <div className="space-y-1.5 max-w-xl">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    Endereço da empresa
+                  </Label>
+                  <Textarea
+                    rows={2}
+                    value={endereco}
+                    onChange={(e) => setEndereco(e.target.value)}
+                    placeholder="Rua Exemplo, 123 — Centro, São Pedro/SP"
+                    className="bg-white border-[#DEE4EA]"
+                  />
+                  <p className="text-[11px] text-[#616F7D]">
+                    Exibido no bloco de dados da empresa emissora no PDF do orçamento. Se deixado em
+                    branco, a linha de endereço é omitida no PDF.
                   </p>
                 </div>
 

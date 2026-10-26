@@ -596,6 +596,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   chave TEXT NOT NULL UNIQUE DEFAULT 'geral',
   nome_site TEXT DEFAULT 'Gesso Bettone',
   razao_social TEXT,
+  endereco TEXT,
   whatsapp_principal TEXT,
   email_contato TEXT,
   mensagem_orcamento TEXT,
@@ -969,7 +970,7 @@ SET imagem_principal = '',
     arquivo_principal = NULL,
     arquivos_galeria = '[]'::jsonb;
 
--- 18.4 Garante coluna google_site_verification, site_url, razao_social e exibir_cnpj_pdf em site_settings
+-- 18.4 Garante coluna google_site_verification, site_url, razao_social, exibir_cnpj_pdf e endereco em site_settings
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_settings
@@ -978,6 +979,8 @@ ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS razao_social TEXT;
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS exibir_cnpj_pdf BOOLEAN DEFAULT true;
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS endereco TEXT;
 
 -- 18.5 Limpeza total dos dados iniciais de vendas e produtos (idempotente)
 -- Desvincula produto_principal de orçamentos para evitar violações de chave estrangeira

@@ -118,6 +118,7 @@ export interface SiteSettings {
   chave: string
   nome_site: string
   razao_social?: string
+  endereco?: string
   site_url?: string
   whatsapp_principal: string
   email_contato: string
@@ -1529,6 +1530,7 @@ const FALLBACK_SETTINGS: SiteSettings = {
   chave: 'geral',
   nome_site: 'Gesso Bettone',
   razao_social: 'Gesso Bettone Comércio e Instalações Eireli',
+  endereco: '',
   site_url: 'https://gessobettone.com.br',
   whatsapp_principal: '5519981093379',
   email_contato: 'contato@gessobettone.com.br',
@@ -1551,6 +1553,26 @@ const FALLBACK_SETTINGS: SiteSettings = {
   ],
 }
 
+/**
+ * Normaliza um erro retornado pelo Supabase ou PocketBase para detectar coluna inexistente
+ */
+function isMissingColumnError(err: any): { isMissing: boolean; column?: string } {
+  if (!err) return { isMissing: false }
+  const message =
+    `${err.message || ''} ${err.details || ''} ${err.hint || ''} ${JSON.stringify(err.payload || {})}`.toLowerCase()
+  if (
+    message.includes('column') &&
+    (message.includes('does not exist') ||
+      message.includes('não existe') ||
+      message.includes('unknown column') ||
+      message.includes('pgrst204'))
+  ) {
+    const match = message.match(/column [‘'"]?([a-zA-Z0-9_]+)[’'"]? does not exist/)
+    return { isMissing: true, column: match ? match[1] : undefined }
+  }
+  return { isMissing: false }
+}
+
 export async function obterConfiguracoes(): Promise<SiteSettings> {
   try {
     const record = await dataAdapter.getFirstListItem<any>('site_settings', 'chave = "geral"')
@@ -1569,6 +1591,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       chave: record.chave,
       nome_site: record.nome_site || FALLBACK_SETTINGS.nome_site,
       razao_social: record.razao_social ?? FALLBACK_SETTINGS.razao_social,
+      endereco: record.endereco ?? FALLBACK_SETTINGS.endereco,
       site_url: record.site_url || FALLBACK_SETTINGS.site_url,
       whatsapp_principal: record.whatsapp_principal || FALLBACK_SETTINGS.whatsapp_principal,
       email_contato: record.email_contato || FALLBACK_SETTINGS.email_contato,
@@ -1597,19 +1620,20 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
 export async function salvarConfiguracoes(
   settings: Partial<SiteSettings>,
   arquivoLogo?: File | null,
-): Promise<SiteSettings> {
+): Promise<{ settings: SiteSettings; warningMissingColumn?: string }> {
   let existingId: string | null = null
   try {
     const existingRecord = await dataAdapter.getFirstListItem<any>(
       'site_settings',
       'chave = "geral"',
     )
-    existingId = existingRecord.id
+    existingId = existingRecord?.id || null
   } catch {
     /* intentionally ignored */
   }
 
   let resultRecord: any
+  let warningMissingColumn: string | undefined
 
   if (isSelfHostedSupabase()) {
     const payload: any = {
@@ -1635,43 +1659,94 @@ export async function salvarConfiguracoes(
       payload.logo_url = supabaseGetPublicUrl('public-media', path)
     }
 
-    if (existingId) {
-      resultRecord = await dataAdapter.update<any>('site_settings', existingId, payload)
-    } else {
-      resultRecord = await dataAdapter.create<any>('site_settings', payload)
+    // Tentativa com todos os campos. Se falhar por coluna inexistente (ex: razao_social ou endereco),
+    // remove os campos novos e tenta novamente, avisando o usuário sobre a necessidade de aplicar o schema.sql.
+    const executeSupabaseSave = async (dataPayload: any) => {
+      if (existingId) {
+        return await dataAdapter.update<any>('site_settings', existingId, dataPayload)
+      } else {
+        return await dataAdapter.create<any>('site_settings', dataPayload)
+      }
+    }
+
+    try {
+      resultRecord = await executeSupabaseSave(payload)
+    } catch (saveErr: any) {
+      const missingCheck = isMissingColumnError(saveErr)
+      if (missingCheck.isMissing) {
+        console.warn('Coluna ausente detectada no Supabase:', saveErr)
+        // Degradação graciosa: tenta salvar sem endereco e sem razao_social
+        const degradedPayload = { ...payload }
+        const removedCols: string[] = []
+
+        if ('endereco' in degradedPayload) {
+          delete degradedPayload.endereco
+          removedCols.push('endereco')
+        }
+        if ('razao_social' in degradedPayload) {
+          delete degradedPayload.razao_social
+          removedCols.push('razao_social')
+        }
+
+        try {
+          resultRecord = await executeSupabaseSave(degradedPayload)
+          warningMissingColumn = `As colunas (${removedCols.join(', ')}) ainda não existem no banco Supabase. Os demais dados foram salvos! Execute o schema.sql atualizado no SQL Editor do Supabase para habilitar todos os campos.`
+        } catch (retryErr: any) {
+          const secondCheck = isMissingColumnError(retryErr)
+          if (secondCheck.isMissing) {
+            // Tenta remover campo específico identificado
+            if (secondCheck.column && secondCheck.column in degradedPayload) {
+              delete degradedPayload[secondCheck.column]
+              removedCols.push(secondCheck.column)
+              resultRecord = await executeSupabaseSave(degradedPayload)
+              warningMissingColumn = `A coluna "${secondCheck.column}" não existe no banco Supabase. Os demais dados foram salvos! Execute o script SQL no Supabase.`
+            } else {
+              throw retryErr
+            }
+          } else {
+            throw retryErr
+          }
+        }
+      } else {
+        throw saveErr
+      }
     }
 
     const logoUrl =
-      resultRecord.logo_url ||
-      (resultRecord.arquivo_logo
+      resultRecord?.logo_url ||
+      (resultRecord?.arquivo_logo
         ? supabaseGetPublicUrl('public-media', resultRecord.arquivo_logo)
         : '')
 
-    return {
-      id: resultRecord.id,
-      chave: resultRecord.chave,
-      nome_site: resultRecord.nome_site,
+    const finalSettings: SiteSettings = {
+      id: resultRecord?.id || existingId || '',
+      chave: resultRecord?.chave || 'geral',
+      nome_site: resultRecord?.nome_site ?? settings.nome_site ?? FALLBACK_SETTINGS.nome_site,
       razao_social:
-        resultRecord.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
-      site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
-      whatsapp_principal: resultRecord.whatsapp_principal,
-      email_contato: resultRecord.email_contato,
-      mensagem_orcamento: resultRecord.mensagem_orcamento,
-      instagram: resultRecord.instagram,
-      cnpj: resultRecord.cnpj,
-      exibir_cnpj_pdf: resultRecord.exibir_cnpj_pdf !== false,
-      exibir_depoimentos: !!resultRecord.exibir_depoimentos,
-      pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
-      cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
-      google_site_verification: resultRecord.google_site_verification || '',
-      arquivo_logo: resultRecord.arquivo_logo,
+        resultRecord?.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
+      endereco: resultRecord?.endereco ?? settings.endereco ?? FALLBACK_SETTINGS.endereco,
+      site_url: resultRecord?.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
+      whatsapp_principal: resultRecord?.whatsapp_principal ?? settings.whatsapp_principal ?? '',
+      email_contato: resultRecord?.email_contato ?? settings.email_contato ?? '',
+      mensagem_orcamento: resultRecord?.mensagem_orcamento ?? settings.mensagem_orcamento ?? '',
+      instagram: resultRecord?.instagram ?? settings.instagram ?? '',
+      cnpj: resultRecord?.cnpj ?? settings.cnpj ?? '',
+      exibir_cnpj_pdf: resultRecord?.exibir_cnpj_pdf !== false,
+      exibir_depoimentos: !!resultRecord?.exibir_depoimentos,
+      pagina_parceiros_ativa: !!resultRecord?.pagina_parceiros_ativa,
+      cidades_atendidas: parseJsonArray<string>(resultRecord?.cidades_atendidas),
+      google_site_verification: resultRecord?.google_site_verification || '',
+      arquivo_logo: resultRecord?.arquivo_logo,
       logo_url: logoUrl,
-      simulador_ativo: resultRecord.simulador_ativo !== false,
-      simulador_exigir_login: !!resultRecord.simulador_exigir_login,
-      simulador_cota_padrao: resultRecord.simulador_cota_padrao ?? 5,
+      simulador_ativo: resultRecord?.simulador_ativo !== false,
+      simulador_exigir_login: !!resultRecord?.simulador_exigir_login,
+      simulador_cota_padrao: resultRecord?.simulador_cota_padrao ?? 5,
     }
+
+    return { settings: finalSettings, warningMissingColumn }
   }
 
+  // Modo PocketBase
   if (arquivoLogo) {
     const formData = new FormData()
     formData.append('chave', 'geral')
@@ -1707,33 +1782,36 @@ export async function salvarConfiguracoes(
   }
 
   const pbBase = pb.baseUrl || ''
-  const logoUrl = resultRecord.arquivo_logo
+  const logoUrl = resultRecord?.arquivo_logo
     ? `${pbBase.replace(/\/+$/, '')}/api/files/${resultRecord.collectionId}/${resultRecord.id}/${resultRecord.arquivo_logo}`
-    : resultRecord.logo_url || ''
+    : resultRecord?.logo_url || ''
 
-  return {
-    id: resultRecord.id,
-    chave: resultRecord.chave,
-    nome_site: resultRecord.nome_site,
+  const finalSettings: SiteSettings = {
+    id: resultRecord?.id || '',
+    chave: resultRecord?.chave || 'geral',
+    nome_site: resultRecord?.nome_site,
     razao_social:
-      resultRecord.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
-    site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
-    whatsapp_principal: resultRecord.whatsapp_principal,
-    email_contato: resultRecord.email_contato,
-    mensagem_orcamento: resultRecord.mensagem_orcamento,
-    instagram: resultRecord.instagram,
-    cnpj: resultRecord.cnpj,
-    exibir_cnpj_pdf: resultRecord.exibir_cnpj_pdf !== false,
-    exibir_depoimentos: !!resultRecord.exibir_depoimentos,
-    pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
-    cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
-    google_site_verification: resultRecord.google_site_verification || '',
-    arquivo_logo: resultRecord.arquivo_logo,
+      resultRecord?.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
+    endereco: resultRecord?.endereco ?? settings.endereco ?? FALLBACK_SETTINGS.endereco,
+    site_url: resultRecord?.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
+    whatsapp_principal: resultRecord?.whatsapp_principal,
+    email_contato: resultRecord?.email_contato,
+    mensagem_orcamento: resultRecord?.mensagem_orcamento,
+    instagram: resultRecord?.instagram,
+    cnpj: resultRecord?.cnpj,
+    exibir_cnpj_pdf: resultRecord?.exibir_cnpj_pdf !== false,
+    exibir_depoimentos: !!resultRecord?.exibir_depoimentos,
+    pagina_parceiros_ativa: !!resultRecord?.pagina_parceiros_ativa,
+    cidades_atendidas: parseJsonArray<string>(resultRecord?.cidades_atendidas),
+    google_site_verification: resultRecord?.google_site_verification || '',
+    arquivo_logo: resultRecord?.arquivo_logo,
     logo_url: logoUrl,
-    simulador_ativo: resultRecord.simulador_ativo !== false,
-    simulador_exigir_login: !!resultRecord.simulador_exigir_login,
-    simulador_cota_padrao: resultRecord.simulador_cota_padrao ?? 5,
+    simulador_ativo: resultRecord?.simulador_ativo !== false,
+    simulador_exigir_login: !!resultRecord?.simulador_exigir_login,
+    simulador_cota_padrao: resultRecord?.simulador_cota_padrao ?? 5,
   }
+
+  return { settings: finalSettings }
 }
 
 // --- RASTREAMENTO REAL & ANALYTICS ---
