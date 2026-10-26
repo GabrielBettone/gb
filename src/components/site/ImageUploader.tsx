@@ -53,8 +53,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       return val
     }
     if (isSelfHostedSupabase() && val) {
+      const clean = val.replace(/^\/+/, '')
+      if (clean.startsWith('simulador/')) {
+        return supabaseGetPublicUrl('simulador', clean.slice('simulador/'.length))
+      }
+      if (clean.startsWith('public-media/')) {
+        return supabaseGetPublicUrl('public-media', clean.slice('public-media/'.length))
+      }
       const bucket = collectionName?.includes('simulador') ? 'simulador' : 'public-media'
-      return supabaseGetPublicUrl(bucket, val)
+      return supabaseGetPublicUrl(bucket, clean)
     }
     if (collectionName && recordId && val) {
       const pbBase = pb.baseUrl || ''

@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { SERVICOS, getWhatsAppUrlForService, CIDADES_ATENDIDAS } from '@/data/landingData'
+import { resolverUrlMidia } from '@/lib/watermark'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
 import LandingParceiros from '@/components/landing/LandingParceiros'
@@ -157,11 +158,21 @@ export const ServicoDetailPage: React.FC = () => {
   // Outros serviços para recomendação
   const outrosServicos = SERVICOS.filter((s) => s.slug !== servico.slug).slice(0, 3)
 
-  // Lista unificada e segura de fotos da galeria
+  // Lista unificada e segura de fotos da galeria:
+  // Se houver foto marcada como principal/destaque, ela vem na frente (posição 0)
+  const galeriaSemPrincipal = (servico.galeria || []).filter(
+    (f: string) => f && f !== servico.imagemPrincipal,
+  )
   const listaFotos: string[] = [
-    ...(servico.galeria || []),
     ...(servico.imagemPrincipal ? [servico.imagemPrincipal] : []),
-  ].filter((f) => typeof f === 'string' && f.trim().length > 0)
+    ...galeriaSemPrincipal,
+  ]
+    .map((f: string) =>
+      typeof f === 'string' && servicoDb?.id
+        ? resolverUrlMidia('site_services', servicoDb.id, f)
+        : f,
+    )
+    .filter((f) => typeof f === 'string' && f.trim().length > 0)
 
   // Garante que o índice selecionado é válido
   const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''

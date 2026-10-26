@@ -168,24 +168,45 @@ export function resolverUrlMidia(
   fileNameOrUrl: string,
 ): string {
   if (!fileNameOrUrl) return ''
-  if (fileNameOrUrl.startsWith('http://') || fileNameOrUrl.startsWith('https://')) {
+  if (
+    fileNameOrUrl.startsWith('http://') ||
+    fileNameOrUrl.startsWith('https://') ||
+    fileNameOrUrl.startsWith('data:') ||
+    fileNameOrUrl.startsWith('blob:')
+  ) {
     return fileNameOrUrl
   }
 
-  // Em modo Supabase, caminhos relativos de storage (ex: public-media/... ou simulador/...)
+  // Em modo Supabase: apenas 'public-media' e 'simulador' são buckets válidos.
+  // Caminhos como 'portfolio/arquivo.jpg', 'services/arquivo.jpg' ou 'partners/logo.jpg'
+  // são pastas DENTRO do bucket 'public-media' (nunca buckets separados).
   if (isSupabaseConfigured()) {
-    // Se começar com public-media/ ou similar
-    if (fileNameOrUrl.includes('/')) {
-      const parts = fileNameOrUrl.split('/')
-      const bucket = parts[0]
-      const path = parts.slice(1).join('/')
-      return supabaseGetPublicUrl(bucket, path)
+    const clean = fileNameOrUrl.replace(/^\/+/, '')
+
+    // Se já especifica o bucket explicitamente no início:
+    if (clean.startsWith('simulador/')) {
+      return supabaseGetPublicUrl('simulador', clean.slice('simulador/'.length))
     }
-    // Caso padrão em Supabase para uploads de mídia do site
-    return supabaseGetPublicUrl(
-      'public-media',
-      `${collectionIdOrName}/${recordId}/${fileNameOrUrl}`,
-    )
+    if (clean.startsWith('public-media/')) {
+      return supabaseGetPublicUrl('public-media', clean.slice('public-media/'.length))
+    }
+
+    // Se já contém subpasta (ex: 'portfolio/...', 'services/...', 'partners/...', 'uploads/...'):
+    if (clean.includes('/')) {
+      return supabaseGetPublicUrl('public-media', clean)
+    }
+
+    // Se for apenas o nome de arquivo sem subpasta (ex: 'capa.jpg'):
+    const pastaPadrao =
+      collectionIdOrName === 'site_portfolio'
+        ? 'portfolio'
+        : collectionIdOrName === 'site_services'
+          ? 'services'
+          : collectionIdOrName === 'site_partners'
+            ? 'partners'
+            : collectionIdOrName.replace(/^site_/, '')
+
+    return supabaseGetPublicUrl('public-media', `${pastaPadrao}/${clean}`)
   }
 
   const pbBase = pb.baseUrl || ''

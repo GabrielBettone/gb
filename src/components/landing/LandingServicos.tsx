@@ -142,17 +142,30 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
             >
               {/* Imagem do Serviço com Marca D'Água Automática */}
               <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                <WatermarkedImage
-                  src={
-                    servico.arquivo_principal
-                      ? resolverUrlMidia('site_services', servico.id, servico.arquivo_principal)
-                      : servico.imagem_principal
-                  }
-                  alt={servico.nome}
-                  loading="lazy"
-                  enableWatermark={true}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
+                {(() => {
+                  const fotoPrincipal = servico.arquivo_principal
+                    ? resolverUrlMidia('site_services', servico.id, servico.arquivo_principal)
+                    : servico.imagem_principal
+
+                  const primeiraFotoGaleria =
+                    servico.arquivos_galeria && servico.arquivos_galeria.length > 0
+                      ? resolverUrlMidia('site_services', servico.id, servico.arquivos_galeria[0])
+                      : servico.galeria && servico.galeria.length > 0
+                        ? resolverUrlMidia('site_services', servico.id, servico.galeria[0])
+                        : ''
+
+                  const fotoCapa = fotoPrincipal || primeiraFotoGaleria
+
+                  return (
+                    <WatermarkedImage
+                      src={fotoCapa}
+                      alt={servico.nome}
+                      loading="lazy"
+                      enableWatermark={true}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )
+                })()}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 {/* Badges */}
                 <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
@@ -216,8 +229,13 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
                     <ArrowRight className="w-3.5 h-3.5 ml-1 transition-transform group-hover:translate-x-1" />
                   </Link>
                   <span className="text-[11px] text-[#616F7D]">
-                    {servico.galeria?.length || 0}{' '}
-                    {(servico.galeria?.length || 0) === 1 ? 'foto' : 'fotos'}
+                    {(() => {
+                      const total =
+                        (servico.arquivos_galeria?.length || 0) +
+                        (servico.galeria?.length || 0) +
+                        (servico.arquivo_principal || servico.imagem_principal ? 1 : 0)
+                      return `${total} ${total === 1 ? 'foto' : 'fotos'}`
+                    })()}
                   </span>
                 </div>
               </div>

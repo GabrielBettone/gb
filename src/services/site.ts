@@ -205,6 +205,44 @@ export async function listarServicos(apenasAtivos = false): Promise<SiteServico[
   }
 }
 
+export async function obterServicoPorId(id: string): Promise<SiteServico | null> {
+  try {
+    const record = await dataAdapter.getOne<any>('site_services', id)
+    if (!record) return null
+    const catsParsed = parseJsonArray<string>(record.categorias)
+    const listaCategorias =
+      catsParsed.length > 0 ? catsParsed : record.categoria ? [record.categoria] : []
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria || listaCategorias[0] || '',
+      categorias: listaCategorias,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      descricao_curta: record.descricao_curta || '',
+      descricao_longa: record.descricao_longa || '',
+      beneficios: parseJsonArray<string>(record.beneficios),
+      imagem_principal: record.imagem_principal || '',
+      galeria: parseJsonArray<string>(record.galeria),
+      arquivo_principal: record.arquivo_principal || '',
+      arquivos_galeria: Array.isArray(record.arquivos_galeria)
+        ? record.arquivos_galeria
+        : record.arquivos_galeria
+          ? [record.arquivos_galeria]
+          : [],
+      meta_title: record.meta_title,
+      meta_description: record.meta_description,
+      keywords: parseJsonArray<string>(record.keywords),
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function obterServicoPorSlug(slug: string): Promise<SiteServico | null> {
   try {
     const cleanSlug = (slug || '').trim()

@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Pencil, Trash2, Star, Eye, ExternalLink, Search, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Star, Eye, ExternalLink, Search, X, Images } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import ImageUploader from '@/components/site/ImageUploader'
 import { resolverUrlMidia } from '@/lib/watermark'
@@ -387,22 +387,31 @@ export const SiteServicosPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          {s.arquivo_principal || s.imagem_principal ? (
-                            <img
-                              src={
-                                s.arquivo_principal
-                                  ? resolverUrlMidia('site_services', s.id, s.arquivo_principal)
-                                  : s.imagem_principal
-                              }
-                              alt={s.nome}
-                              crossOrigin="anonymous"
-                              className="w-10 h-10 rounded-lg object-cover border border-[#DEE4EA]"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center text-xs font-bold text-[#616F7D]">
-                              SEM FOTO
-                            </div>
-                          )}
+                          {(() => {
+                            const fotoPrincipal = s.arquivo_principal
+                              ? resolverUrlMidia('site_services', s.id, s.arquivo_principal)
+                              : s.imagem_principal
+                            const primeiraGaleria =
+                              s.arquivos_galeria && s.arquivos_galeria.length > 0
+                                ? resolverUrlMidia('site_services', s.id, s.arquivos_galeria[0])
+                                : s.galeria && s.galeria.length > 0
+                                  ? resolverUrlMidia('site_services', s.id, s.galeria[0])
+                                  : ''
+                            const fotoFinal = fotoPrincipal || primeiraGaleria
+
+                            return fotoFinal ? (
+                              <img
+                                src={fotoFinal}
+                                alt={s.nome}
+                                crossOrigin="anonymous"
+                                className="w-10 h-10 rounded-lg object-cover border border-[#DEE4EA]"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center text-[10px] font-bold text-[#616F7D] text-center px-1">
+                                SEM FOTO
+                              </div>
+                            )
+                          })()}
                           <div>
                             <span className="font-heading font-bold text-sm text-[#2C3E50] block">
                               {s.nome}
@@ -452,6 +461,14 @@ export const SiteServicosPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            to={`/painel/site/servicos/${s.id}/midias`}
+                            className="p-1.5 text-[#D4AF37] hover:text-[#B89425] hover:bg-[#DEE4EA] rounded-lg transition-colors font-semibold flex items-center gap-1 text-[11px]"
+                            title="Gerenciar mídias do serviço"
+                          >
+                            <Images className="w-4 h-4" />
+                            <span className="hidden lg:inline">Mídias</span>
+                          </Link>
                           <a
                             href={`/servicos/${s.slug}`}
                             target="_blank"

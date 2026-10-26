@@ -11,6 +11,7 @@ import {
   SitePortfolioItem,
   SiteCategoria,
 } from '@/services/site'
+import { resolverUrlMidia } from '@/lib/watermark'
 interface Props {
   limit?: number
   showFilter?: boolean
@@ -156,12 +157,31 @@ export const LandingPortfolio: React.FC<Props> = ({ limit, showFilter = true }) 
               >
                 {/* Imagem de Capa com Hover Effect e Marca d'água */}
                 <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                  <WatermarkedImage
-                    src={proj.imagem_capa}
-                    alt={proj.titulo}
-                    loading="lazy"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                  {(() => {
+                    const fotoCapaDireta = proj.arquivo_capa
+                      ? resolverUrlMidia('site_portfolio', proj.id, proj.arquivo_capa)
+                      : proj.imagem_capa
+                        ? resolverUrlMidia('site_portfolio', proj.id, proj.imagem_capa)
+                        : ''
+
+                    const primeiraFotoGaleria =
+                      proj.arquivos_galeria && proj.arquivos_galeria.length > 0
+                        ? resolverUrlMidia('site_portfolio', proj.id, proj.arquivos_galeria[0])
+                        : proj.galeria && proj.galeria.length > 0
+                          ? resolverUrlMidia('site_portfolio', proj.id, proj.galeria[0])
+                          : ''
+
+                    const fotoFinal = fotoCapaDireta || primeiraFotoGaleria
+
+                    return (
+                      <WatermarkedImage
+                        src={fotoFinal}
+                        alt={proj.titulo}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    )
+                  })()}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
 
                   {/* Tag Categoria */}

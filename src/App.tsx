@@ -31,6 +31,7 @@ import SiteServicosPage from '@/pages/site/SiteServicosPage'
 import SiteCategoriasPage from '@/pages/site/SiteCategoriasPage'
 import SitePortfolioPage from '@/pages/site/SitePortfolioPage'
 import SiteProjetoMidiasPage from '@/pages/site/SiteProjetoMidiasPage'
+import SiteServicoMidiasPage from '@/pages/site/SiteServicoMidiasPage'
 import SiteDepoimentosPage from '@/pages/site/SiteDepoimentosPage'
 import SiteParceirosPage from '@/pages/site/SiteParceirosPage'
 import SiteConfiguracoesPage from '@/pages/site/SiteConfiguracoesPage'
@@ -146,6 +147,7 @@ const AppRoutes = () => {
         {/* Rotas do Grupo Site (Gerenciador do Site Público) */}
         <Route path="/painel/site" element={<SiteDashboardPage />} />
         <Route path="/painel/site/servicos" element={<SiteServicosPage />} />
+        <Route path="/painel/site/servicos/:id/midias" element={<SiteServicoMidiasPage />} />
         <Route path="/painel/site/categorias" element={<SiteCategoriasPage />} />
         <Route path="/painel/site/portfolio" element={<SitePortfolioPage />} />
         <Route path="/painel/site/portfolio/:id/midias" element={<SiteProjetoMidiasPage />} />

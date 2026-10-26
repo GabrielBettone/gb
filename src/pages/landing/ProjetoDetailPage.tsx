@@ -124,7 +124,7 @@ export const ProjetoDetailPage: React.FC = () => {
         if (projetoDb.arquivo_capa) {
           list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', projetoDb.arquivo_capa))
         } else if (projetoDb.imagem_capa) {
-          list.push(projetoDb.imagem_capa)
+          list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', projetoDb.imagem_capa))
         }
 
         if (Array.isArray(projetoDb.arquivos_galeria) && projetoDb.arquivos_galeria.length > 0) {
@@ -137,8 +137,11 @@ export const ProjetoDetailPage: React.FC = () => {
 
         if (Array.isArray(projetoDb.galeria) && projetoDb.galeria.length > 0) {
           projetoDb.galeria.forEach((gUrl: string) => {
-            if (gUrl && gUrl !== projetoDb.imagem_capa && !list.includes(gUrl)) {
-              list.push(gUrl)
+            if (gUrl && gUrl !== projetoDb.imagem_capa) {
+              const resolvida = resolverUrlMidia('site_portfolio', projetoDb.id || '', gUrl)
+              if (!list.includes(resolvida)) {
+                list.push(resolvida)
+              }
             }
           })
         }

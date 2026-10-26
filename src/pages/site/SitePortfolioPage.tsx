@@ -396,22 +396,33 @@ export const SitePortfolioPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
-                        {p.arquivo_capa || p.imagem_capa ? (
-                          <img
-                            src={
-                              p.arquivo_capa
-                                ? resolverUrlMidia('site_portfolio', p.id, p.arquivo_capa)
-                                : p.imagem_capa
-                            }
-                            alt={p.titulo}
-                            crossOrigin="anonymous"
-                            className="w-12 h-9 rounded-lg object-cover border border-[#DEE4EA]"
-                          />
-                        ) : (
-                          <div className="w-12 h-9 rounded-lg bg-[#DEE4EA] flex items-center justify-center text-[10px] font-bold text-[#616F7D]">
-                            SEM CAPA
-                          </div>
-                        )}
+                        {(() => {
+                          const fotoCapa = p.arquivo_capa
+                            ? resolverUrlMidia('site_portfolio', p.id, p.arquivo_capa)
+                            : p.imagem_capa
+                              ? resolverUrlMidia('site_portfolio', p.id, p.imagem_capa)
+                              : ''
+                          const primeiraGaleria =
+                            p.arquivos_galeria && p.arquivos_galeria.length > 0
+                              ? resolverUrlMidia('site_portfolio', p.id, p.arquivos_galeria[0])
+                              : p.galeria && p.galeria.length > 0
+                                ? resolverUrlMidia('site_portfolio', p.id, p.galeria[0])
+                                : ''
+                          const fotoFinal = fotoCapa || primeiraGaleria
+
+                          return fotoFinal ? (
+                            <img
+                              src={fotoFinal}
+                              alt={p.titulo}
+                              crossOrigin="anonymous"
+                              className="w-10 h-10 rounded-lg object-cover border border-[#DEE4EA]"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-[#DEE4EA] flex items-center justify-center text-[10px] font-bold text-[#616F7D] text-center px-1">
+                              SEM CAPA
+                            </div>
+                          )
+                        })()}{' '}
                         <div>
                           <span className="font-heading font-bold text-sm text-[#2C3E50] block">
                             {p.titulo}

@@ -424,11 +424,25 @@ export const SiteProjetoMidiasPage: React.FC = () => {
       const novasVideosUrls = reordenadas
         .filter((m) => !m.isArquivoNativo && m.tipo === 'video')
         .map((m) => m.url)
+      const novosArquivosGaleria = reordenadas
+        .filter((m) => m.isArquivoNativo && m.tipo === 'foto' && m.fileName)
+        .map((m) => m.fileName as string)
+      const novosArquivosVideos = reordenadas
+        .filter((m) => m.isArquivoNativo && m.tipo === 'video' && m.fileName)
+        .map((m) => m.fileName as string)
 
-      await atualizarProjeto(projeto.id, {
+      const payloadAtualizacao: Partial<SitePortfolioItem> = {
         galeria: novasGaleriaUrls,
         videos: novasVideosUrls,
-      })
+      }
+      if (novosArquivosGaleria.length > 0) {
+        payloadAtualizacao.arquivos_galeria = novosArquivosGaleria
+      }
+      if (novosArquivosVideos.length > 0) {
+        payloadAtualizacao.arquivos_videos = novosArquivosVideos
+      }
+
+      await atualizarProjeto(projeto.id, payloadAtualizacao)
       toast({ title: 'Ordem das mídias atualizada!' })
     } catch {
       toast({ title: 'Erro ao salvar ordenação', variant: 'destructive' })
