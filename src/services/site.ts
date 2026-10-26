@@ -426,7 +426,6 @@ export async function criarServico(
           upsert: true,
         })
         galeriaPaths.push(path)
-        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_galeria = galeriaPaths
       payload.galeria = galeriaUrls
@@ -521,9 +520,13 @@ export async function atualizarServico(
     }
 
     if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      const currentGaleria = Array.isArray(payload.galeria) ? payload.galeria : []
-      const galeriaUrls: string[] = [...currentGaleria]
-      const galeriaPaths: string[] = []
+      // Buscar dados existentes caso payload não traga a lista atual para não sobrescrever nem duplicar
+      const currentArquivos = Array.isArray(payload.arquivos_galeria)
+        ? [...payload.arquivos_galeria]
+        : []
+      const currentGaleria = Array.isArray(payload.galeria) ? [...payload.galeria] : []
+      const galeriaUrls: string[] = currentGaleria
+      const galeriaPaths: string[] = currentArquivos
       for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
         const file = arquivos.arquivos_galeria[i]
         const ext = file.name.split('.').pop() || 'jpg'
@@ -534,9 +537,9 @@ export async function atualizarServico(
           upsert: true,
         })
         galeriaPaths.push(path)
-        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_galeria = galeriaPaths
+      // payload.galeria armazena APENAS URLs externas ou legadas adicionais, não duplicando os arquivos nativos de arquivos_galeria
       payload.galeria = galeriaUrls
     }
 
@@ -943,11 +946,13 @@ export async function criarProjeto(
           upsert: true,
         })
         galeriaPaths.push(path)
-        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_galeria = galeriaPaths
       payload.galeria = galeriaUrls
-      payload.fotos_count = galeriaUrls.length
+      payload.fotos_count =
+        galeriaPaths.length +
+        galeriaUrls.length +
+        (payload.arquivo_capa || payload.imagem_capa ? 1 : 0)
     }
 
     if (arquivos?.arquivos_videos && arquivos.arquivos_videos.length > 0) {
@@ -963,11 +968,10 @@ export async function criarProjeto(
           upsert: true,
         })
         videosPaths.push(path)
-        videosUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_videos = videosPaths
       payload.videos = videosUrls
-      payload.videos_count = videosUrls.length
+      payload.videos_count = videosPaths.length + videosUrls.length
     }
 
     const record = await dataAdapter.create<any>('site_portfolio', payload)
@@ -1066,9 +1070,12 @@ export async function atualizarProjeto(
     }
 
     if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      const currentGaleria = Array.isArray(payload.galeria) ? payload.galeria : []
-      const galeriaUrls: string[] = [...currentGaleria]
-      const galeriaPaths: string[] = []
+      const currentArquivos = Array.isArray(payload.arquivos_galeria)
+        ? [...payload.arquivos_galeria]
+        : []
+      const currentGaleria = Array.isArray(payload.galeria) ? [...payload.galeria] : []
+      const galeriaUrls: string[] = currentGaleria
+      const galeriaPaths: string[] = currentArquivos
       for (let i = 0; i < arquivos.arquivos_galeria.length; i++) {
         const file = arquivos.arquivos_galeria[i]
         const ext = file.name.split('.').pop() || 'jpg'
@@ -1079,17 +1086,22 @@ export async function atualizarProjeto(
           upsert: true,
         })
         galeriaPaths.push(path)
-        galeriaUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_galeria = galeriaPaths
       payload.galeria = galeriaUrls
-      payload.fotos_count = galeriaUrls.length
+      payload.fotos_count =
+        galeriaPaths.length +
+        galeriaUrls.length +
+        (payload.arquivo_capa || payload.imagem_capa ? 1 : 0)
     }
 
     if (arquivos?.arquivos_videos && arquivos.arquivos_videos.length > 0) {
-      const currentVideos = Array.isArray(payload.videos) ? payload.videos : []
-      const videosUrls: string[] = [...currentVideos]
-      const videosPaths: string[] = []
+      const currentArquivos = Array.isArray(payload.arquivos_videos)
+        ? [...payload.arquivos_videos]
+        : []
+      const currentVideos = Array.isArray(payload.videos) ? [...payload.videos] : []
+      const videosUrls: string[] = currentVideos
+      const videosPaths: string[] = currentArquivos
       for (let i = 0; i < arquivos.arquivos_videos.length; i++) {
         const file = arquivos.arquivos_videos[i]
         const ext = file.name.split('.').pop() || 'mp4'
@@ -1100,11 +1112,10 @@ export async function atualizarProjeto(
           upsert: true,
         })
         videosPaths.push(path)
-        videosUrls.push(supabaseGetPublicUrl('public-media', path))
       }
       payload.arquivos_videos = videosPaths
       payload.videos = videosUrls
-      payload.videos_count = videosUrls.length
+      payload.videos_count = videosPaths.length + videosUrls.length
     }
 
     const record = await dataAdapter.update<any>('site_portfolio', id, payload)

@@ -162,7 +162,7 @@ export const LandingServicos: React.FC<Props> = ({ limit, showFilter = false }) 
                       alt={servico.nome}
                       loading="lazy"
                       enableWatermark={true}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                     />
                   )
                 })()}

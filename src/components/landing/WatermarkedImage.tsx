@@ -19,28 +19,32 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
   ...props
 }) => {
   const [displaySrc, setDisplaySrc] = useState<string>(src)
-  const [loading, setLoading] = useState(false)
+  const [isWatermarkedInPixel, setIsWatermarkedInPixel] = useState(false)
+  const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
+    setHasError(false)
     if (!enableWatermark || !src) {
       setDisplaySrc(src)
+      setIsWatermarkedInPixel(false)
       return
     }
 
     // Se já está no cache
     if (watermarkCache.has(src)) {
       setDisplaySrc(watermarkCache.get(src)!)
+      setIsWatermarkedInPixel(true)
       return
     }
 
-    // Se a imagem já vier com watermark server-side do domínio original, manter
+    // Se a imagem já vier com watermark server-side do domínio original, já tem marca d'água impressa
     if (src.includes('watermark.php')) {
       setDisplaySrc(src)
+      setIsWatermarkedInPixel(true)
       return
     }
 
     let isMounted = true
-    setLoading(true)
 
     aplicarMarcaDagua(src, {
       posicao: 'canto-inferior-direito',
@@ -51,25 +55,22 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
         watermarkCache.set(src, objectUrl)
         if (isMounted) {
           setDisplaySrc(objectUrl)
+          setIsWatermarkedInPixel(true)
         }
       })
       .catch((err) => {
-        // Fallback gracioso para a imagem original se CORS/Canvas bloquear
-        console.debug('Não foi possível aplicar marca d água via canvas:', err)
+        // Fallback gracioso: usa a imagem original e o overlay HTML/SVG garante a marca visualmente
+        console.debug('Marca d água aplicada via overlay CSS/SVG:', err)
         if (isMounted) {
           setDisplaySrc(src)
+          setIsWatermarkedInPixel(false)
         }
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false)
       })
 
     return () => {
       isMounted = false
     }
   }, [src, enableWatermark])
-
-  const [hasError, setHasError] = useState(false)
 
   if (!displaySrc || hasError) {
     return (
@@ -87,14 +88,36 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
   }
 
   return (
-    <img
-      src={displaySrc}
-      alt={alt}
-      crossOrigin="anonymous"
-      onError={() => setHasError(true)}
-      className={className}
-      {...props}
-    />
+    <div className="relative w-full h-full overflow-hidden select-none">
+      <img
+        src={displaySrc}
+        alt={alt}
+        crossOrigin="anonymous"
+        onError={() => setHasError(true)}
+        className={className}
+        {...props}
+      />
+
+      {/* Selo/Marca D'água Elegante Garantido: aparece caso a imagem ainda não tenha sido carimbada no pixel do canvas */}
+      {enableWatermark && !isWatermarkedInPixel && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1C252B]/85 backdrop-blur-xs border border-[#D4AF37]/50 shadow-md select-none transition-opacity"
+        >
+          <div className="w-5 h-5 rounded bg-[#2C3E50] border border-[#D4AF37] text-[#D4AF37] font-bold text-[10px] flex items-center justify-center font-heading">
+            GB
+          </div>
+          <div className="flex flex-col text-left leading-none">
+            <span className="text-[11px] font-bold text-white tracking-wide font-sans">
+              Gesso Bettone
+            </span>
+            <span className="text-[8px] font-medium text-[#D4AF37] tracking-wider mt-0.5">
+              Gesso &amp; Drywall
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

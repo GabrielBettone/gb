@@ -35,118 +35,164 @@ export async function aplicarMarcaDagua(
       img.src = objectUrl
     }
 
+    const processarImagem = () => {
+      try {
+        // 1. Redimensionar preservando proporção
+        let width = img.naturalWidth || img.width
+        let height = img.naturalHeight || img.height
+
+        if (width === 0 || height === 0) {
+          reject(new Error('Dimensões inválidas da imagem.'))
+          return
+        }
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+
+        if (!ctx) {
+          reject(new Error('Não foi possível obter contexto 2D do Canvas.'))
+          return
+        }
+
+        // 2. Desenhar a imagem base
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // 3. Desenhar a marca d'água Gesso Bettone
+        ctx.save()
+        ctx.globalAlpha = opacidade
+
+        // Dimensionar marca d'água proporcionalmente
+        const escala = Math.max(0.6, Math.min(width, height) / 1000)
+        const badgeWidth = 240 * escala
+        const badgeHeight = 56 * escala
+        const margem = 24 * escala
+
+        let posX = width - badgeWidth - margem
+        let posY = height - badgeHeight - margem
+
+        if (posicao === 'canto-inferior-esquerdo') {
+          posX = margem
+          posY = height - badgeHeight - margem
+        } else if (posicao === 'centro') {
+          posX = (width - badgeWidth) / 2
+          posY = (height - badgeHeight) / 2
+        }
+
+        // Fundo em pílula semitransparente (Azul Ardósia translúcido)
+        ctx.fillStyle = 'rgba(28, 37, 43, 0.75)'
+        ctx.beginPath()
+        const radius = 10 * escala
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(posX, posY, badgeWidth, badgeHeight, radius)
+        } else {
+          ctx.rect(posX, posY, badgeWidth, badgeHeight)
+        }
+        ctx.fill()
+
+        // Borda sutil dourada
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)'
+        ctx.lineWidth = 1.5 * escala
+        ctx.stroke()
+
+        // Monograma GB em dourado
+        const boxSize = 38 * escala
+        const boxX = posX + 9 * escala
+        const boxY = posY + (badgeHeight - boxSize) / 2
+
+        ctx.fillStyle = '#2C3E50'
+        ctx.beginPath()
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(boxX, boxY, boxSize, boxSize, 6 * escala)
+        } else {
+          ctx.rect(boxX, boxY, boxSize, boxSize)
+        }
+        ctx.fill()
+        ctx.strokeStyle = '#D4AF37'
+        ctx.lineWidth = 1 * escala
+        ctx.stroke()
+
+        // Letras GB
+        ctx.fillStyle = '#D4AF37'
+        ctx.font = `bold ${18 * escala}px 'Tenor Sans', sans-serif`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText('GB', boxX + boxSize / 2, boxY + boxSize / 2 + 1)
+
+        // Texto "Gesso Bettone"
+        const textX = boxX + boxSize + 10 * escala
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'alphabetic'
+
+        ctx.fillStyle = '#FFFFFF'
+        ctx.font = `bold ${13 * escala}px 'Inter Tight', sans-serif`
+        ctx.fillText('Gesso Bettone', textX, posY + 23 * escala)
+
+        // Subtítulo "Gesso • Drywall"
+        ctx.fillStyle = '#D4AF37'
+        ctx.font = `${10 * escala}px 'Inter Tight', sans-serif`
+        ctx.fillText('Gesso & Drywall • São Pedro/SP', textX, posY + 40 * escala)
+
+        ctx.restore()
+
+        // 4. Exportar como Blob JPEG de alta qualidade
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              resolve(blob)
+            } else {
+              reject(new Error('Falha ao exportar blob do canvas.'))
+            }
+          },
+          'image/jpeg',
+          0.9,
+        )
+      } catch (err) {
+        reject(err)
+      }
+    }
+
     img.onload = () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl)
-
-      // 1. Redimensionar preservando proporção
-      let width = img.naturalWidth || img.width
-      let height = img.naturalHeight || img.height
-
-      if (width > maxWidth || height > maxHeight) {
-        const ratio = Math.min(maxWidth / width, maxHeight / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
-      }
-
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-
-      if (!ctx) {
-        reject(new Error('Não foi possível obter contexto 2D do Canvas.'))
-        return
-      }
-
-      // 2. Desenhar a imagem base
-      ctx.drawImage(img, 0, 0, width, height)
-
-      // 3. Desenhar a marca d'água Gesso Bettone
-      ctx.save()
-      ctx.globalAlpha = opacidade
-
-      // Dimensionar marca d'água proporcionalmente
-      const escala = Math.max(0.6, Math.min(width, height) / 1000)
-      const badgeWidth = 240 * escala
-      const badgeHeight = 56 * escala
-      const margem = 24 * escala
-
-      let posX = width - badgeWidth - margem
-      let posY = height - badgeHeight - margem
-
-      if (posicao === 'canto-inferior-esquerdo') {
-        posX = margem
-        posY = height - badgeHeight - margem
-      } else if (posicao === 'centro') {
-        posX = (width - badgeWidth) / 2
-        posY = (height - badgeHeight) / 2
-      }
-
-      // Fundo em pílula semitransparente (Azul Ardósia translúcido)
-      ctx.fillStyle = 'rgba(28, 37, 43, 0.75)'
-      ctx.beginPath()
-      const radius = 10 * escala
-      ctx.roundRect(posX, posY, badgeWidth, badgeHeight, radius)
-      ctx.fill()
-
-      // Borda sutil dourada
-      ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)'
-      ctx.lineWidth = 1.5 * escala
-      ctx.stroke()
-
-      // Monograma GB em dourado
-      const boxSize = 38 * escala
-      const boxX = posX + 9 * escala
-      const boxY = posY + (badgeHeight - boxSize) / 2
-
-      ctx.fillStyle = '#2C3E50'
-      ctx.beginPath()
-      ctx.roundRect(boxX, boxY, boxSize, boxSize, 6 * escala)
-      ctx.fill()
-      ctx.strokeStyle = '#D4AF37'
-      ctx.lineWidth = 1 * escala
-      ctx.stroke()
-
-      // Letras GB
-      ctx.fillStyle = '#D4AF37'
-      ctx.font = `bold ${18 * escala}px 'Tenor Sans', sans-serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('GB', boxX + boxSize / 2, boxY + boxSize / 2 + 1)
-
-      // Texto "Gesso Bettone"
-      const textX = boxX + boxSize + 10 * escala
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'alphabetic'
-
-      ctx.fillStyle = '#FFFFFF'
-      ctx.font = `bold ${13 * escala}px 'Inter Tight', sans-serif`
-      ctx.fillText('Gesso Bettone', textX, posY + 23 * escala)
-
-      // Subtítulo "Gesso • Drywall"
-      ctx.fillStyle = '#D4AF37'
-      ctx.font = `${10 * escala}px 'Inter Tight', sans-serif`
-      ctx.fillText('Gesso & Drywall • São Pedro/SP', textX, posY + 40 * escala)
-
-      ctx.restore()
-
-      // 4. Exportar como Blob JPEG ou WEBP de alta qualidade
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob)
-          } else {
-            reject(new Error('Falha ao exportar blob do canvas.'))
-          }
-        },
-        'image/jpeg',
-        0.9,
-      )
+      processarImagem()
     }
 
     img.onerror = () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl)
-      reject(new Error('Erro ao carregar a imagem para aplicar marca d água.'))
+      // Se falhar ao carregar via URL direta por CORS, tentar via fetch blob
+      if (typeof imagemFonte === 'string' && imagemFonte.startsWith('http')) {
+        fetch(imagemFonte)
+          .then((res) => {
+            if (!res.ok) throw new Error('Falha no fetch HTTP')
+            return res.blob()
+          })
+          .then((blob) => {
+            const fallbackUrl = URL.createObjectURL(blob)
+            const fallbackImg = new Image()
+            fallbackImg.onload = () => {
+              URL.revokeObjectURL(fallbackUrl)
+              // Substitui img e processa
+              img.width = fallbackImg.naturalWidth
+              img.height = fallbackImg.naturalHeight
+              processarImagem()
+            }
+            fallbackImg.onerror = () => {
+              URL.revokeObjectURL(fallbackUrl)
+              reject(new Error('Erro no fallback de imagem.'))
+            }
+            fallbackImg.src = fallbackUrl
+          })
+          .catch((err) => reject(err))
+      } else {
+        reject(new Error('Erro ao carregar a imagem para aplicar marca d água.'))
+      }
     }
   })
 }

@@ -127,8 +127,15 @@ export const SiteServicosPage: React.FC = () => {
     const princVal = s.arquivo_principal || s.imagem_principal || ''
     setImagemPrincipal(princVal)
 
-    // Combina galeria nativa + galeria legado
-    const listaGaleria = [...(s.arquivos_galeria || []), ...(s.galeria || [])].filter(Boolean)
+    // Combina galeria nativa + galeria legado sem duplicação
+    const setUrls = new Set<string>()
+    const listaGaleria: string[] = []
+    ;[...(s.arquivos_galeria || []), ...(s.galeria || [])].forEach((item) => {
+      if (item && !setUrls.has(item)) {
+        setUrls.add(item)
+        listaGaleria.push(item)
+      }
+    })
     setImagensGaleriaList(listaGaleria)
     setGaleriaStr((s.galeria || []).join('\n'))
 

@@ -89,10 +89,17 @@ export const SiteServicoMidiasPage: React.FC = () => {
         })
       }
 
-      // URLs de galeria externa
+      // URLs de galeria externa (apenas as que NÃO forem espelho de arquivos_galeria)
       if (serv.galeria && serv.galeria.length > 0) {
+        const pathsNativos = new Set(serv.arquivos_galeria || [])
         serv.galeria.forEach((gUrl, idx) => {
-          if (gUrl !== serv.imagem_principal) {
+          // Se a URL na verdade aponta para um dos arquivos_galeria já adicionados, ignorar para não duplicar
+          const jaAdicionada =
+            gUrl === serv.imagem_principal ||
+            midiasList.some((m) => m.url === gUrl) ||
+            Array.from(pathsNativos).some((p) => gUrl.includes(p))
+
+          if (!jaAdicionada) {
             midiasList.push({
               id: `legacy_gal_${idx}_${gUrl.slice(-15)}`,
               url: gUrl,
@@ -437,12 +444,18 @@ export const SiteServicoMidiasPage: React.FC = () => {
                     }`}
                   >
                     {/* Visualização da Foto */}
-                    <div className="relative aspect-video bg-black/90 overflow-hidden group">
+                    <div className="relative aspect-video bg-[#1C252B] overflow-hidden group flex items-center justify-center">
+                      <img
+                        src={midia.url}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-25 scale-110 pointer-events-none"
+                      />
                       <img
                         src={midia.url}
                         alt={`Foto #${index + 1}`}
                         crossOrigin="anonymous"
-                        className="w-full h-full object-cover"
+                        className="relative z-1 max-w-full max-h-full object-contain"
                         loading="lazy"
                       />
 

@@ -398,10 +398,18 @@ export const ProjetoDetailPage: React.FC = () => {
               <div className="relative rounded-2xl overflow-hidden shadow-md bg-[#1B2631] border border-[#DEE4EA] aspect-[4/5] flex items-center justify-center group">
                 {fotos.length > 0 ? (
                   <>
+                    {/* Fundo desfocado para preenchimento de laterais sem corte brusco */}
+                    <img
+                      src={fotos[activePhotoIndex]}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none select-none"
+                    />
+
                     <WatermarkedImage
                       src={fotos[activePhotoIndex]}
                       alt={`${projeto.titulo} — foto ${activePhotoIndex + 1}`}
-                      className="w-full h-full object-cover cursor-pointer"
+                      className="relative z-10 w-full h-full object-contain object-center cursor-pointer"
                       onClick={() => setFullscreenOpen(true)}
                     />
 
@@ -661,11 +669,20 @@ export const ProjetoDetailPage: React.FC = () => {
       {/* Modal de Foto em Tela Cheia */}
       <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
         <DialogContent className="max-w-5xl p-2 bg-black/95 border-none text-white flex flex-col items-center">
-          <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden">
+          <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden bg-black/60 rounded-xl">
+            {/* Fundo sutil desfocado no lightbox */}
+            {fotos[activePhotoIndex] && (
+              <img
+                src={fotos[activePhotoIndex]}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-20 scale-120 pointer-events-none select-none"
+              />
+            )}
             <WatermarkedImage
               src={fotos[activePhotoIndex]}
               alt={`${projeto.titulo} em tela cheia`}
-              className="max-w-full max-h-full object-contain"
+              className="relative z-10 max-w-full max-h-[75vh] w-auto h-auto object-contain object-center mx-auto"
             />
             {fotos.length > 1 && (
               <>

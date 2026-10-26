@@ -309,13 +309,21 @@ export const ServicoDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado Esquerdo: Galeria de Fotos */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#2C3E50]/5 aspect-[16/10]">
+            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] flex items-center justify-center">
               {fotoAtualUrl ? (
                 <>
+                  {/* Fundo desfocado sutil para preencher bordas de fotos verticais/retrato sem distorcer */}
+                  <img
+                    src={fotoAtualUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none select-none"
+                  />
+
                   <WatermarkedImage
                     src={fotoAtualUrl}
                     alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
-                    className="w-full h-full object-cover transition-all duration-300"
+                    className="relative z-10 w-full h-full object-contain object-center transition-all duration-300"
                   />
 
                   {listaFotos.length > 1 && (
@@ -366,16 +374,16 @@ export const ServicoDetailPage: React.FC = () => {
                     key={idx}
                     type="button"
                     onClick={() => setActivePhotoIndex(idx)}
-                    className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
+                    className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all bg-[#1C252B] ${
                       activePhotoIndex === idx
-                        ? 'border-[#2C3E50] scale-105 shadow-sm'
+                        ? 'border-[#D4AF37] scale-105 shadow-sm'
                         : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   >
                     <img
                       src={img}
                       alt={`Miniatura ${idx + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center"
                     />
                   </button>
                 ))}

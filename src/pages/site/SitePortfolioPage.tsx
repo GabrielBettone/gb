@@ -155,7 +155,14 @@ export const SitePortfolioPage: React.FC = () => {
     const capaVal = p.arquivo_capa || p.imagem_capa || ''
     setImagemCapa(capaVal)
 
-    const listaGaleria = [...(p.arquivos_galeria || []), ...(p.galeria || [])].filter(Boolean)
+    const setUrls = new Set<string>()
+    const listaGaleria: string[] = []
+    ;[...(p.arquivos_galeria || []), ...(p.galeria || [])].forEach((item) => {
+      if (item && !setUrls.has(item)) {
+        setUrls.add(item)
+        listaGaleria.push(item)
+      }
+    })
     setImagensGaleriaList(listaGaleria)
     setGaleriaStr((p.galeria || []).join('\n'))
 

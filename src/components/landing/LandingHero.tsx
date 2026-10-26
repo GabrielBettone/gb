@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react'
-import { obterConfiguracoes, SiteSettings } from '@/services/site'
+import { obterConfiguracoes, listarServicos, SiteSettings, SiteServico } from '@/services/site'
+import { resolverUrlMidia } from '@/lib/watermark'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 
 interface HeroSlide {
   image: string
@@ -20,7 +22,7 @@ interface HeroSlide {
   serviceSlug: string
 }
 
-const HERO_SLIDES: HeroSlide[] = [
+const HERO_SLIDES_FALLBACK: HeroSlide[] = [
   {
     image:
       'https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg',
@@ -66,18 +68,83 @@ const HERO_SLIDES: HeroSlide[] = [
 export const LandingHero: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [settings, setSettings] = useState<SiteSettings | null>(null)
+  const [slides, setSlides] = useState<HeroSlide[]>(HERO_SLIDES_FALLBACK)
 
   useEffect(() => {
-    obterConfiguracoes().then(setSettings)
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)
-    }, 5500)
-    return () => clearInterval(timer)
+    let ativo = true
+    obterConfiguracoes().then((st) => {
+      if (ativo) setSettings(st)
+    })
+
+    // Busca serviços cadastrados para montar os slides dinâmicos
+    listarServicos(true)
+      .then((servicos: SiteServico[]) => {
+        if (!ativo) return
+
+        // 1. Filtrar primeiro serviços ativos com destaque marcado
+        const servicosDestaque = servicos.filter((s) => s.ativo !== false && !!s.destaque)
+        // Se houver menos de 2 destaques, complementar com outros serviços ativos
+        const servicosCandidatos =
+          servicosDestaque.length > 0 ? servicosDestaque : servicos.filter((s) => s.ativo !== false)
+
+        const novosSlides: HeroSlide[] = []
+
+        servicosCandidatos.forEach((serv) => {
+          // Extrai a melhor foto para o serviço:
+          // 1. arquivo_principal (foto nativa marcada como principal/destaque)
+          // 2. imagem_principal (URL legada)
+          // 3. primeira foto da galeria nativa
+          // 4. primeira foto da galeria externa
+          let fotoUrl = ''
+
+          if (serv.arquivo_principal) {
+            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.arquivo_principal)
+          } else if (serv.imagem_principal) {
+            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.imagem_principal)
+          } else if (serv.arquivos_galeria && serv.arquivos_galeria.length > 0) {
+            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.arquivos_galeria[0])
+          } else if (serv.galeria && serv.galeria.length > 0) {
+            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.galeria[0])
+          }
+
+          if (fotoUrl) {
+            const categoriaTag =
+              (serv.categorias && serv.categorias[0]) || serv.categoria || 'Gesso & Drywall'
+            novosSlides.push({
+              image: fotoUrl,
+              title: serv.nome,
+              subtitle: serv.descricao_curta || 'Acabamento refinado e alto padrão sob medida',
+              tag: serv.destaque ? `★ Destaque • ${categoriaTag}` : categoriaTag,
+              serviceSlug: serv.slug,
+            })
+          }
+        })
+
+        if (novosSlides.length > 0) {
+          setSlides(novosSlides)
+        } else {
+          setSlides(HERO_SLIDES_FALLBACK)
+        }
+      })
+      .catch((err) => {
+        console.warn('Erro ao carregar serviços para o carrossel do Hero:', err)
+      })
+
+    return () => {
+      ativo = false
+    }
   }, [])
 
-  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)
-  const prevSlide = () =>
-    setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)
+  useEffect(() => {
+    if (slides.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length)
+    }, 5500)
+    return () => clearInterval(timer)
+  }, [slides.length])
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length)
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
 
   return (
     <section className="relative bg-[#2C3E50] text-white overflow-hidden">
@@ -165,70 +232,77 @@ export const LandingHero: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Carrossel com fotos reais */}
+        {/* Lado Direito: Carrossel com fotos reais e marca d'água */}
         <div className="lg:col-span-5 relative">
           <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black aspect-[4/3] sm:aspect-[16/11]">
-            {HERO_SLIDES.map((slide, idx) => (
+            {slides.map((slide, idx) => (
               <div
                 key={slide.image + idx}
                 className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
                   idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
-                <img
-                  src={slide.image}
-                  alt={slide.title}
-                  className="w-full h-full object-cover"
-                  loading={idx === 0 ? 'eager' : 'lazy'}
-                />
-                {/* Gradiente de sombra sobre a foto para legibilidade */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                <Link to={`/servicos/${slide.serviceSlug}`} className="block w-full h-full">
+                  <WatermarkedImage
+                    src={slide.image}
+                    alt={slide.title}
+                    enableWatermark={true}
+                    className="w-full h-full object-cover object-center"
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                  />
+                  {/* Gradiente de sombra sobre a foto para legibilidade */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
 
-                {/* Legenda inferior */}
-                <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#2C3E50] text-[10px] font-bold tracking-wider uppercase mb-1.5">
-                    {slide.tag}
-                  </span>
-                  <h3 className="font-heading text-lg font-bold text-white drop-shadow-sm leading-snug">
-                    {slide.title}
-                  </h3>
-                  <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{slide.subtitle}</p>
-                </div>
+                  {/* Legenda inferior */}
+                  <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#2C3E50] text-[10px] font-bold tracking-wider uppercase mb-1.5">
+                      {slide.tag}
+                    </span>
+                    <h3 className="font-heading text-lg font-bold text-white drop-shadow-sm leading-snug">
+                      {slide.title}
+                    </h3>
+                    <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{slide.subtitle}</p>
+                  </div>
+                </Link>
               </div>
             ))}
 
             {/* Controles de Navegação */}
-            <button
-              type="button"
-              onClick={prevSlide}
-              aria-label="Foto anterior"
-              className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={nextSlide}
-              aria-label="Próxima foto"
-              className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-
-            {/* Pontos de paginação */}
-            <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur">
-              {HERO_SLIDES.map((_, idx) => (
+            {slides.length > 1 && (
+              <>
                 <button
-                  key={idx}
                   type="button"
-                  onClick={() => setCurrentSlide(idx)}
-                  aria-label={`Ir para foto ${idx + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${
-                    idx === currentSlide ? 'w-5 bg-[#D4AF37]' : 'w-1.5 bg-white/50'
-                  }`}
-                />
-              ))}
-            </div>
+                  onClick={prevSlide}
+                  aria-label="Foto anterior"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={nextSlide}
+                  aria-label="Próxima foto"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* Pontos de paginação */}
+                <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur">
+                  {slides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setCurrentSlide(idx)}
+                      aria-label={`Ir para foto ${idx + 1}`}
+                      className={`h-1.5 rounded-full transition-all ${
+                        idx === currentSlide ? 'w-5 bg-[#D4AF37]' : 'w-1.5 bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

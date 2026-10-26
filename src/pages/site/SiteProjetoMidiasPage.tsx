@@ -144,10 +144,16 @@ export const SiteProjetoMidiasPage: React.FC = () => {
         })
       }
 
-      // URLs de galeria externa (fotos ou vídeos)
+      // URLs de galeria externa (apenas itens que NÃO correspondam a arquivos_galeria já adicionados)
       if (proj.galeria && proj.galeria.length > 0) {
+        const pathsNativos = new Set(proj.arquivos_galeria || [])
         proj.galeria.forEach((gUrl, idx) => {
-          if (gUrl !== proj.imagem_capa) {
+          const jaExiste =
+            gUrl === proj.imagem_capa ||
+            midiasList.some((m) => m.url === gUrl) ||
+            Array.from(pathsNativos).some((p) => gUrl.includes(p))
+
+          if (!jaExiste) {
             midiasList.push({
               id: `legacy_gal_${idx}_${gUrl.slice(-15)}`,
               url: gUrl,
@@ -159,10 +165,16 @@ export const SiteProjetoMidiasPage: React.FC = () => {
         })
       }
 
-      // URLs de vídeos externos (videos json)
+      // URLs de vídeos externos (apenas vídeos que NÃO correspondam a arquivos_videos)
       if (proj.videos && proj.videos.length > 0) {
+        const vidPathsNativos = new Set(proj.arquivos_videos || [])
         proj.videos.forEach((vUrl, idx) => {
-          if (vUrl !== proj.imagem_capa) {
+          const jaExiste =
+            vUrl === proj.imagem_capa ||
+            midiasList.some((m) => m.url === vUrl) ||
+            Array.from(vidPathsNativos).some((p) => vUrl.includes(p))
+
+          if (!jaExiste) {
             midiasList.push({
               id: `legacy_vid_${idx}_${vUrl.slice(-15)}`,
               url: vUrl,
@@ -590,23 +602,31 @@ export const SiteProjetoMidiasPage: React.FC = () => {
                     }`}
                   >
                     {/* Visualização de Mídia (Foto ou Vídeo) */}
-                    <div className="relative aspect-video bg-black/90 overflow-hidden group">
+                    <div className="relative aspect-video bg-[#1C252B] overflow-hidden group flex items-center justify-center">
                       {isVideo ? (
                         <video
                           src={midia.url}
                           preload="metadata"
                           controls
                           playsInline
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                       ) : (
-                        <img
-                          src={midia.url}
-                          alt={`Mídia #${index + 1}`}
-                          crossOrigin="anonymous"
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
+                        <>
+                          <img
+                            src={midia.url}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover blur-md opacity-25 scale-110 pointer-events-none"
+                          />
+                          <img
+                            src={midia.url}
+                            alt={`Mídia #${index + 1}`}
+                            crossOrigin="anonymous"
+                            className="relative z-1 max-w-full max-h-full object-contain"
+                            loading="lazy"
+                          />
+                        </>
                       )}
 
                       {/* Cabo de arrastar ≡ */}
