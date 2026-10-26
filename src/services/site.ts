@@ -117,12 +117,14 @@ export interface SiteSettings {
   id?: string
   chave: string
   nome_site: string
+  razao_social?: string
   site_url?: string
   whatsapp_principal: string
   email_contato: string
   mensagem_orcamento: string
   instagram: string
   cnpj: string
+  exibir_cnpj_pdf?: boolean
   exibir_depoimentos: boolean
   cidades_atendidas: string[]
   pagina_parceiros_ativa: boolean
@@ -1526,12 +1528,14 @@ export async function listarCliquesParceiros(anoMes?: string): Promise<PartnerCl
 const FALLBACK_SETTINGS: SiteSettings = {
   chave: 'geral',
   nome_site: 'Gesso Bettone',
+  razao_social: 'Gesso Bettone Comércio e Instalações Eireli',
   site_url: 'https://gessobettone.com.br',
   whatsapp_principal: '5519981093379',
   email_contato: 'contato@gessobettone.com.br',
   mensagem_orcamento: 'Olá! Vim pelo site da Gesso Bettone e gostaria de solicitar um orçamento.',
   instagram: 'https://www.instagram.com/gessobettone_saopedro',
   cnpj: '53.242.055/0001-74',
+  exibir_cnpj_pdf: true,
   exibir_depoimentos: true,
   pagina_parceiros_ativa: true,
   cidades_atendidas: [
@@ -1564,12 +1568,14 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       id: record.id,
       chave: record.chave,
       nome_site: record.nome_site || FALLBACK_SETTINGS.nome_site,
+      razao_social: record.razao_social ?? FALLBACK_SETTINGS.razao_social,
       site_url: record.site_url || FALLBACK_SETTINGS.site_url,
       whatsapp_principal: record.whatsapp_principal || FALLBACK_SETTINGS.whatsapp_principal,
       email_contato: record.email_contato || FALLBACK_SETTINGS.email_contato,
       mensagem_orcamento: record.mensagem_orcamento || FALLBACK_SETTINGS.mensagem_orcamento,
       instagram: record.instagram || FALLBACK_SETTINGS.instagram,
       cnpj: record.cnpj || FALLBACK_SETTINGS.cnpj,
+      exibir_cnpj_pdf: record.exibir_cnpj_pdf !== false,
       exibir_depoimentos: record.exibir_depoimentos !== false,
       pagina_parceiros_ativa: record.pagina_parceiros_ativa !== false,
       cidades_atendidas: parseJsonArray<string>(
@@ -1645,12 +1651,15 @@ export async function salvarConfiguracoes(
       id: resultRecord.id,
       chave: resultRecord.chave,
       nome_site: resultRecord.nome_site,
+      razao_social:
+        resultRecord.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
       site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
       whatsapp_principal: resultRecord.whatsapp_principal,
       email_contato: resultRecord.email_contato,
       mensagem_orcamento: resultRecord.mensagem_orcamento,
       instagram: resultRecord.instagram,
       cnpj: resultRecord.cnpj,
+      exibir_cnpj_pdf: resultRecord.exibir_cnpj_pdf !== false,
       exibir_depoimentos: !!resultRecord.exibir_depoimentos,
       pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
       cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),
@@ -1706,12 +1715,15 @@ export async function salvarConfiguracoes(
     id: resultRecord.id,
     chave: resultRecord.chave,
     nome_site: resultRecord.nome_site,
+    razao_social:
+      resultRecord.razao_social ?? settings.razao_social ?? FALLBACK_SETTINGS.razao_social,
     site_url: resultRecord.site_url || settings.site_url || FALLBACK_SETTINGS.site_url,
     whatsapp_principal: resultRecord.whatsapp_principal,
     email_contato: resultRecord.email_contato,
     mensagem_orcamento: resultRecord.mensagem_orcamento,
     instagram: resultRecord.instagram,
     cnpj: resultRecord.cnpj,
+    exibir_cnpj_pdf: resultRecord.exibir_cnpj_pdf !== false,
     exibir_depoimentos: !!resultRecord.exibir_depoimentos,
     pagina_parceiros_ativa: !!resultRecord.pagina_parceiros_ativa,
     cidades_atendidas: parseJsonArray<string>(resultRecord.cidades_atendidas),

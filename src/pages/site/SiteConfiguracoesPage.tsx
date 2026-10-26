@@ -19,6 +19,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
 
   // Campos Contato, conversão e presença digital
   const [nomeSite, setNomeSite] = useState('Gesso Bettone')
+  const [razaoSocial, setRazaoSocial] = useState('Gesso Bettone Comércio e Instalações Eireli')
   const [siteUrl, setSiteUrl] = useState('https://gessobettone.com.br')
   const [whatsappPrincipal, setWhatsappPrincipal] = useState('5519981093379')
   const [emailContato, setEmailContato] = useState('contato@gessobettone.com.br')
@@ -27,6 +28,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
   )
   const [instagram, setInstagram] = useState('https://www.instagram.com/gessobettone_saopedro')
   const [cnpj, setCnpj] = useState('53.242.055/0001-74')
+  const [exibirCnpjPdf, setExibirCnpjPdf] = useState(true)
   const [googleSiteVerification, setGoogleSiteVerification] = useState('')
   const [exibirDepoimentos, setExibirDepoimentos] = useState(true)
 
@@ -45,6 +47,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
       .then((cfg) => {
         if (!isMounted) return
         setNomeSite(cfg.nome_site || 'Gesso Bettone')
+        setRazaoSocial(cfg.razao_social || 'Gesso Bettone Comércio e Instalações Eireli')
         setSiteUrl(cfg.site_url || 'https://gessobettone.com.br')
         setWhatsappPrincipal(cfg.whatsapp_principal || '5519981093379')
         setEmailContato(cfg.email_contato || 'contato@gessobettone.com.br')
@@ -54,6 +57,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
         )
         setInstagram(cfg.instagram || 'https://www.instagram.com/gessobettone_saopedro')
         setCnpj(cfg.cnpj || '53.242.055/0001-74')
+        setExibirCnpjPdf(cfg.exibir_cnpj_pdf !== false)
         setGoogleSiteVerification(cfg.google_site_verification || '')
         setExibirDepoimentos(cfg.exibir_depoimentos !== false)
         setCidades(cfg.cidades_atendidas || [])
@@ -76,12 +80,14 @@ export const SiteConfiguracoesPage: React.FC = () => {
       const salvas = await salvarConfiguracoes(
         {
           nome_site: nomeSite,
+          razao_social: razaoSocial.trim(),
           site_url: siteUrl.trim(),
           whatsapp_principal: whatsappPrincipal,
           email_contato: emailContato,
           mensagem_orcamento: mensagemOrcamento,
           instagram,
           cnpj,
+          exibir_cnpj_pdf: exibirCnpjPdf,
           google_site_verification: googleSiteVerification.trim(),
           exibir_depoimentos: exibirDepoimentos,
           cidades_atendidas: cidades,
@@ -202,7 +208,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Nome / Título do Site e URL do Domínio */}
+                {/* Nome / Título do Site e Razão Social */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-[#2C3E50]">
                     Nome / título do site
@@ -212,6 +218,22 @@ export const SiteConfiguracoesPage: React.FC = () => {
                     onChange={(e) => setNomeSite(e.target.value)}
                     className="max-w-xl bg-white border-[#DEE4EA]"
                   />
+                </div>
+
+                <div className="space-y-1.5 max-w-xl">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    Razão social da empresa
+                  </Label>
+                  <Input
+                    value={razaoSocial}
+                    onChange={(e) => setRazaoSocial(e.target.value)}
+                    placeholder="Ex: Gesso Bettone Comércio e Instalações Eireli"
+                    className="bg-white border-[#DEE4EA]"
+                  />
+                  <p className="text-[11px] text-[#616F7D]">
+                    Utilizada em documentos formais e no cabeçalho/dados da empresa emissora no PDF
+                    de orçamento (quando a opção de exibir CNPJ estiver ativa).
+                  </p>
                 </div>
 
                 {/* URL Base do Site para Robots & Sitemap */}
@@ -316,27 +338,52 @@ export const SiteConfiguracoesPage: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Checkbox "Exibir depoimentos no site público" exatamente como no Print */}
-                <div className="pt-4 border-t border-[#DEE4EA] max-w-xl space-y-2">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="check-depoimentos"
-                      checked={exibirDepoimentos}
-                      onChange={(e) => setExibirDepoimentos(e.target.checked)}
-                      className="w-5 h-5 rounded border-gray-300 text-[#2C3E50] focus:ring-[#D4AF37]"
-                    />
-                    <label
-                      htmlFor="check-depoimentos"
-                      className="text-xs font-semibold text-[#2C3E50] cursor-pointer"
-                    >
-                      Exibir depoimentos no site público
-                    </label>
+                {/* Opções de Exibição (CNPJ no PDF e Depoimentos no site) */}
+                <div className="pt-4 border-t border-[#DEE4EA] max-w-xl space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="check-exibir-cnpj-pdf"
+                        checked={exibirCnpjPdf}
+                        onChange={(e) => setExibirCnpjPdf(e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-[#2C3E50] focus:ring-[#D4AF37]"
+                      />
+                      <label
+                        htmlFor="check-exibir-cnpj-pdf"
+                        className="text-xs font-semibold text-[#2C3E50] cursor-pointer"
+                      >
+                        Exibir CNPJ no orçamento (PDF)
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-[#616F7D] pl-8 leading-relaxed">
+                      Quando ativo: exibe a Razão Social em todo lugar no PDF onde antes constava o
+                      nome fantasia, além de CNPJ, e-mail e WhatsApp. Quando inativo: exibe o nome
+                      fantasia ({nomeSite || 'Gesso Bettone'}), e-mail e WhatsApp, ocultando o CNPJ.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#616F7D] pl-8 leading-relaxed">
-                    Quando desativado, a seção de depoimentos e o botão "Deixe seu depoimento" não
-                    aparecem no site público. Os registros permanecem salvos no Admin.
-                  </p>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="check-depoimentos"
+                        checked={exibirDepoimentos}
+                        onChange={(e) => setExibirDepoimentos(e.target.checked)}
+                        className="w-5 h-5 rounded border-gray-300 text-[#2C3E50] focus:ring-[#D4AF37]"
+                      />
+                      <label
+                        htmlFor="check-depoimentos"
+                        className="text-xs font-semibold text-[#2C3E50] cursor-pointer"
+                      >
+                        Exibir depoimentos no site público
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-[#616F7D] pl-8 leading-relaxed">
+                      Quando desativado, a seção de depoimentos e o botão "Deixe seu depoimento" não
+                      aparecem no site público. Os registros permanecem salvos no Admin.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Botão Salvar */}

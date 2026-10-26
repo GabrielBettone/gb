@@ -26,6 +26,7 @@ import {
   parseItensPorLocal,
 } from '@/services/orcamentos'
 import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
+import { obterConfiguracoes as obterConfiguracoesSite } from '@/services/site'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 
@@ -50,7 +51,20 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      obterConfiguracoesOrcamento().then(setConfigGeral).catch(console.error)
+      Promise.all([obterConfiguracoesOrcamento(), obterConfiguracoesSite()])
+        .then(([orcConfig, siteConfig]) => {
+          setConfigGeral({
+            ...orcConfig,
+            razao_social: siteConfig.razao_social || orcConfig.razao_social,
+            nome_fantasia: siteConfig.nome_site || orcConfig.nome_fantasia,
+            cnpj: siteConfig.cnpj || orcConfig.cnpj,
+            email: siteConfig.email_contato || orcConfig.email,
+            telefone: siteConfig.whatsapp_principal || orcConfig.telefone,
+            exibir_cnpj_padrao: siteConfig.exibir_cnpj_pdf !== false,
+            logo_url: siteConfig.logo_url || orcConfig.logo_url,
+          })
+        })
+        .catch(console.error)
     }
   }, [open])
 

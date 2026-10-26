@@ -1,6 +1,7 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { parseItens, parseItensPorLocal } from '@/services/orcamentos'
 import { parseCompromisso } from '@/services/orcamentoModulo'
+import { obterConfiguracoes as obterConfiguracoesSite } from '@/services/site'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import logoSvgDefault from '@/assets/logo-6927a.svg'
 import logoPngFallback from '@/assets/logo-gesso-bettone-eb5aa.png'
@@ -129,7 +130,43 @@ export async function imprimirOrcamentoPDF(
     })
   }
 
-  const exibirCnpj = orcamento.exibir_cnpj ?? config?.exibir_cnpj_padrao ?? true
+  // Se não foi passado config ou se faltam dados, tenta carregar as configurações do site
+  let siteConfig: any = null
+  try {
+    siteConfig = await obterConfiguracoesSite()
+  } catch {
+    /* fallback local */
+  }
+
+  // Resolução dos dados da empresa
+  const nomeFantasiaBase = siteConfig?.nome_site || config?.nome_fantasia || 'Gesso Bettone'
+  const razaoSocialCadastrada =
+    siteConfig?.razao_social ||
+    config?.razao_social ||
+    'Gesso Bettone Comércio e Instalações Eireli'
+  const cnpjCadastrado = siteConfig?.cnpj || config?.cnpj || '53.242.055/0001-74'
+  const emailEmpresa = siteConfig?.email_contato || config?.email || 'contato@gessobettone.com.br'
+  const telefoneEmpresa = siteConfig?.whatsapp_principal || config?.telefone || '(19) 99767-1189'
+  const enderecoEmpresa = config?.endereco || 'Rua Valentim Amaral, 412 - Centro'
+  const cidadeEmpresa = config?.cidade || 'São Pedro/SP'
+
+  // Regra de Exibir CNPJ:
+  // Se orcamento.exibir_cnpj estiver explicitamente definido (true/false), tem prioridade.
+  // Caso contrário, usa config.exibir_cnpj_padrao ou siteConfig.exibir_cnpj_pdf (default true).
+  const exibirCnpj =
+    orcamento.exibir_cnpj !== undefined && orcamento.exibir_cnpj !== null
+      ? Boolean(orcamento.exibir_cnpj)
+      : config?.exibir_cnpj_padrao !== undefined
+        ? Boolean(config.exibir_cnpj_padrao)
+        : siteConfig?.exibir_cnpj_pdf !== undefined
+          ? Boolean(siteConfig.exibir_cnpj_pdf)
+          : true
+
+  // Regra verbatim do usuário:
+  // "Se exibir cnpj estiver ativo, puxa razão social em todo lugar que esteja Gesso Bettone + numero cnpj + email + whatsapp"
+  // "Se estiver inativo, exibe como Gesso Bettone + email + whatsapp" (sem cnpj em lugar nenhum)
+  const nomeExibicao = exibirCnpj ? razaoSocialCadastrada || nomeFantasiaBase : nomeFantasiaBase
+
   const valorTotal = orcamento.valor_total || 0
   const valorAVista = orcamento.valor_a_vista || valorTotal
   const valorAPrazo = orcamento.valor_a_prazo || valorTotal
@@ -144,7 +181,7 @@ export async function imprimirOrcamentoPDF(
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Orçamento ${orcamento.numero} — Gesso Bettone</title>
+  <title>Orçamento ${orcamento.numero} — ${nomeExibicao}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=Petit+Formal+Script&family=Tenor+Sans&display=swap" rel="stylesheet">
@@ -460,13 +497,13 @@ export async function imprimirOrcamentoPDF(
         <div class="logo-badge" style="background: transparent; border: none; box-shadow: none; width: auto; height: auto; display: flex; align-items: center;">
           <img
             src="${logoDataUrl}"
-            alt="Gesso Bettone"
+            alt="${nomeExibicao}"
             style="height: 58px; max-width: 180px; object-fit: contain; display: block;"
             onerror="if (this.src !== '${pngFallbackAbs}') { this.src = '${pngFallbackAbs}'; }"
           />
         </div>
         <div>
-          <h1 class="brand-title">${config?.nome_fantasia || 'GESSO BETTONE'}</h1>
+          <h1 class="brand-title">${nomeExibicao}</h1>
           <p class="brand-sub">Comércio & Instalações de Gesso, Drywall e Acabamentos Finos</p>
         </div>
       </div>
@@ -481,11 +518,11 @@ export async function imprimirOrcamentoPDF(
     <div class="grid-info">
       <div class="card-info">
         <div class="card-title">Dados da Empresa Emissora</div>
-        <div class="card-item"><strong>Razão Social:</strong> ${config?.razao_social || 'Gesso Bettone Comércio e Instalações Eireli'}</div>
-        ${exibirCnpj && (config?.cnpj || '32.185.940/0001-72') ? `<div class="card-item"><strong>CNPJ:</strong> ${config?.cnpj || '32.185.940/0001-72'}</div>` : ''}
-        <div class="card-item"><strong>Telefone / WhatsApp:</strong> ${config?.telefone || '(19) 99767-1189'}</div>
-        <div class="card-item"><strong>E-mail:</strong> ${config?.email || 'contato@gessobettone.com.br'}</div>
-        <div class="card-item"><strong>Endereço:</strong> ${config?.endereco || 'Rua Valentim Amaral, 412 - Centro'} — ${config?.cidade || 'São Pedro/SP'}</div>
+        <div class="card-item"><strong>${exibirCnpj ? 'Razão Social' : 'Empresa'}:</strong> ${nomeExibicao}</div>
+        ${exibirCnpj && cnpjCadastrado ? `<div class="card-item"><strong>CNPJ:</strong> ${cnpjCadastrado}</div>` : ''}
+        <div class="card-item"><strong>Telefone / WhatsApp:</strong> ${telefoneEmpresa}</div>
+        <div class="card-item"><strong>E-mail:</strong> ${emailEmpresa}</div>
+        <div class="card-item"><strong>Endereço:</strong> ${enderecoEmpresa} — ${cidadeEmpresa}</div>
       </div>
 
       <div class="card-info">
@@ -622,7 +659,7 @@ export async function imprimirOrcamentoPDF(
     <!-- ASSINATURAS -->
     <div class="footer-sign">
       <div>
-        <div class="sign-brand">Gesso Bettone</div>
+        <div class="sign-brand" style="${exibirCnpj ? "font-family: 'Tenor Sans', Georgia, serif; font-size: 13pt; font-weight: 700;" : ''}">${nomeExibicao}</div>
         <div style="font-size: 8pt; color: #616F7D; margin-top: 2px;">
           Excelência e Tradição em Acabamentos
         </div>

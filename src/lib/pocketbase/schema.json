@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T00:51:23.863Z",
+  "generatedAt": "2026-10-26T16:37:15.108Z",
   "collections": [
     {
       "name": "users",
@@ -1229,6 +1229,18 @@
         {
           "name": "logo_url",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exibir_cnpj_pdf",
+          "type": "bool",
           "required": false,
           "system": false
         }
