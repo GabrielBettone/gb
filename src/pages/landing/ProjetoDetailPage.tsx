@@ -115,51 +115,65 @@ export const ProjetoDetailPage: React.FC = () => {
       : null
 
   // Compilar lista unificada de fotos para o visualizador e miniaturas
+  // Lê arquivo_capa + arquivos_galeria + imagem_capa + galeria legada sem duplicar,
+  // priorizando capa no início e preservando ordenação
   const fotos: string[] = React.useMemo(() => {
     if (!projeto) return []
     const list: string[] = []
+    const rawKeysSet = new Set<string>()
+
+    const addPhoto = (val: any) => {
+      if (!val || typeof val !== 'string') return
+      const trimmed = val.trim()
+      if (!trimmed) return
+
+      let resolved = trimmed
+      if (projetoDb?.id) {
+        resolved = resolverUrlMidia('site_portfolio', projetoDb.id, trimmed)
+      }
+
+      const key = trimmed.toLowerCase()
+      const resolvedKey = resolved.toLowerCase()
+      if (!rawKeysSet.has(key) && !rawKeysSet.has(resolvedKey) && !list.includes(resolved)) {
+        rawKeysSet.add(key)
+        rawKeysSet.add(resolvedKey)
+        list.push(resolved)
+      }
+    }
 
     if (projetoDb) {
       try {
+        // 1. Capa / destaque primeiro
         if (projetoDb.arquivo_capa) {
-          list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', projetoDb.arquivo_capa))
+          addPhoto(projetoDb.arquivo_capa)
         } else if (projetoDb.imagem_capa) {
-          list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', projetoDb.imagem_capa))
+          addPhoto(projetoDb.imagem_capa)
         }
 
+        // 2. Arquivos nativos de galeria
         if (Array.isArray(projetoDb.arquivos_galeria) && projetoDb.arquivos_galeria.length > 0) {
           projetoDb.arquivos_galeria.forEach((arq: string) => {
-            if (arq && arq !== projetoDb.arquivo_capa) {
-              list.push(resolverUrlMidia('site_portfolio', projetoDb.id || '', arq))
-            }
+            if (arq) addPhoto(arq)
           })
         }
 
+        // 3. URLs externas / legadas de galeria
         if (Array.isArray(projetoDb.galeria) && projetoDb.galeria.length > 0) {
           projetoDb.galeria.forEach((gUrl: string) => {
-            if (gUrl && gUrl !== projetoDb.imagem_capa) {
-              const resolvida = resolverUrlMidia('site_portfolio', projetoDb.id || '', gUrl)
-              if (!list.includes(resolvida)) {
-                list.push(resolvida)
-              }
-            }
+            if (gUrl) addPhoto(gUrl)
           })
         }
       } catch (fotoErr) {
         console.warn('Erro ao montar lista de fotos do projeto:', fotoErr)
       }
     } else if (projetoLocal) {
-      if (projetoLocal.imagemCapa) list.push(projetoLocal.imagemCapa)
+      if (projetoLocal.imagemCapa) addPhoto(projetoLocal.imagemCapa)
       if (Array.isArray(projetoLocal.galeria)) {
-        projetoLocal.galeria.forEach((g) => {
-          if (g && !list.includes(g)) list.push(g)
-        })
+        projetoLocal.galeria.forEach((g) => addPhoto(g))
       }
     }
 
-    // Filtra strings vazias
-    const validas = list.filter((f) => typeof f === 'string' && f.trim().length > 0)
-    return validas
+    return list.filter((f) => typeof f === 'string' && f.trim().length > 0)
   }, [projetoDb, projetoLocal])
 
   // Compilar lista unificada de vídeos
@@ -198,6 +212,12 @@ export const ProjetoDetailPage: React.FC = () => {
   const [fotosCardPage, setFotosCardPage] = useState(0)
   const fotosPerPage = 4
   const totalFotosCardPages = Math.max(1, Math.ceil(fotos.length / fotosPerPage))
+
+  useEffect(() => {
+    if (activePhotoIndex >= fotos.length) {
+      setActivePhotoIndex(0)
+    }
+  }, [fotos.length, activePhotoIndex])
 
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(0)
   const activeVideoIndex = selectedVideoIndex < videos.length ? selectedVideoIndex : 0
@@ -497,16 +517,22 @@ export const ProjetoDetailPage: React.FC = () => {
                           key={globalIdx}
                           type="button"
                           onClick={() => setActivePhotoIndex(globalIdx)}
-                          className={`relative aspect-[4/3] rounded-lg overflow-hidden border-2 transition-all ${
+                          className={`relative aspect-[4/3] rounded-lg overflow-hidden border-2 transition-all bg-[#1C252B] flex items-center justify-center ${
                             isSelected
                               ? 'border-[#D4AF37] shadow-sm'
-                              : 'border-transparent hover:border-[#2C3E50]/40'
+                              : 'border-[#DEE4EA] hover:border-[#2C3E50]/40'
                           }`}
                         >
                           <img
                             src={imgUrl}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 pointer-events-none select-none"
+                          />
+                          <img
+                            src={imgUrl}
                             alt={`Miniatura ${globalIdx + 1}`}
-                            className="w-full h-full object-cover"
+                            className="relative z-1 max-w-full max-h-full object-contain"
                             loading="lazy"
                           />
                         </button>

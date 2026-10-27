@@ -7,6 +7,7 @@ import LandingCTA from '@/components/landing/LandingCTA'
 import LandingParceiros from '@/components/landing/LandingParceiros'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
   MessageCircle,
@@ -16,6 +17,7 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  Maximize2,
   ShieldCheck,
   Star,
 } from 'lucide-react'
@@ -26,6 +28,8 @@ export const ServicoDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [carregamentoConcluido, setCarregamentoConcluido] = useState(false)
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const servicoLocal = SERVICOS.find((s) => s.slug === slug)
 
   React.useEffect(() => {
@@ -72,8 +76,9 @@ export const ServicoDetailPage: React.FC = () => {
     }
   }, [slug])
 
-  const servico = servicoDb
-    ? {
+  const servico = React.useMemo(() => {
+    if (servicoDb) {
+      return {
         slug: servicoDb.slug || slug || '',
         titulo: servicoDb.nome || (slug ? slug.replace(/-/g, ' ') : 'Serviço'),
         categoria: servicoDb.categoria || 'Serviços',
@@ -84,8 +89,6 @@ export const ServicoDetailPage: React.FC = () => {
           servicoDb.descricao_curta ||
           'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
         beneficios: Array.isArray(servicoDb.beneficios) ? servicoDb.beneficios : [],
-        imagemPrincipal: servicoDb.imagem_principal || '',
-        galeria: Array.isArray(servicoDb.galeria) ? servicoDb.galeria : [],
         metaTitle: servicoDb.meta_title || servicoDb.nome || 'Serviço | Gesso Bettone',
         metaDescription:
           servicoDb.meta_description ||
@@ -94,15 +97,86 @@ export const ServicoDetailPage: React.FC = () => {
           'Serviços em gesso e drywall da Gesso Bettone.',
         keywords: Array.isArray(servicoDb.keywords) ? servicoDb.keywords : [],
       }
-    : servicoLocal
-      ? {
-          ...servicoLocal,
-          beneficios: Array.isArray(servicoLocal.beneficios) ? servicoLocal.beneficios : [],
-          galeria: Array.isArray(servicoLocal.galeria) ? servicoLocal.galeria : [],
-          keywords: Array.isArray(servicoLocal.keywords) ? servicoLocal.keywords : [],
+    }
+    if (servicoLocal) {
+      return {
+        ...servicoLocal,
+        beneficios: Array.isArray(servicoLocal.beneficios) ? servicoLocal.beneficios : [],
+        galeria: Array.isArray(servicoLocal.galeria) ? servicoLocal.galeria : [],
+        keywords: Array.isArray(servicoLocal.keywords) ? servicoLocal.keywords : [],
+      }
+    }
+    return null
+  }, [servicoDb, servicoLocal, slug])
+
+  // Montagem robusta da lista de fotos unificada:
+  // Lê arquivo_principal + arquivos_galeria + imagem_principal + galeria legada sem duplicar,
+  // priorizando foto de destaque na frente e preservando ordem.
+  const listaFotos: string[] = React.useMemo(() => {
+    const list: string[] = []
+    const rawKeysSet = new Set<string>()
+
+    const addPhoto = (val: any) => {
+      if (!val || typeof val !== 'string') return
+      const trimmed = val.trim()
+      if (!trimmed) return
+
+      let resolved = trimmed
+      if (servicoDb?.id) {
+        resolved = resolverUrlMidia('site_services', servicoDb.id, trimmed)
+      }
+
+      // Evita duplicar tanto pela chave bruta quanto pela URL resolvida
+      const key = trimmed.toLowerCase()
+      const resolvedKey = resolved.toLowerCase()
+      if (!rawKeysSet.has(key) && !rawKeysSet.has(resolvedKey) && !list.includes(resolved)) {
+        rawKeysSet.add(key)
+        rawKeysSet.add(resolvedKey)
+        list.push(resolved)
+      }
+    }
+
+    if (servicoDb) {
+      try {
+        // 1. Foto de destaque/principal primeiro
+        if (servicoDb.arquivo_principal) {
+          addPhoto(servicoDb.arquivo_principal)
+        } else if (servicoDb.imagem_principal) {
+          addPhoto(servicoDb.imagem_principal)
         }
-      : null
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+
+        // 2. Arquivos nativos de galeria (armazenados em arquivos_galeria, ex: 19 fotos)
+        if (Array.isArray(servicoDb.arquivos_galeria)) {
+          servicoDb.arquivos_galeria.forEach((arq: any) => {
+            if (arq) addPhoto(arq)
+          })
+        }
+
+        // 3. URLs externas / legadas do campo galeria
+        if (Array.isArray(servicoDb.galeria)) {
+          servicoDb.galeria.forEach((g: any) => {
+            if (g) addPhoto(g)
+          })
+        }
+      } catch (err) {
+        console.warn('Erro ao montar lista de fotos do serviço:', err)
+      }
+    } else if (servicoLocal) {
+      if (servicoLocal.imagemPrincipal) addPhoto(servicoLocal.imagemPrincipal)
+      if (Array.isArray(servicoLocal.galeria)) {
+        servicoLocal.galeria.forEach((g) => addPhoto(g))
+      }
+    }
+
+    return list.filter((f) => typeof f === 'string' && f.trim().length > 0)
+  }, [servicoDb, servicoLocal])
+
+  // Ajusta índice ativo caso a lista mude
+  useEffect(() => {
+    if (activePhotoIndex >= listaFotos.length) {
+      setActivePhotoIndex(0)
+    }
+  }, [listaFotos.length, activePhotoIndex])
 
   // Enquanto carrega e não temos nem local nem DB, exibe skeleton/loading elegante
   if (loading && !servico) {
@@ -157,22 +231,6 @@ export const ServicoDetailPage: React.FC = () => {
 
   // Outros serviços para recomendação
   const outrosServicos = SERVICOS.filter((s) => s.slug !== servico.slug).slice(0, 3)
-
-  // Lista unificada e segura de fotos da galeria:
-  // Se houver foto marcada como principal/destaque, ela vem na frente (posição 0)
-  const galeriaSemPrincipal = (servico.galeria || []).filter(
-    (f: string) => f && f !== servico.imagemPrincipal,
-  )
-  const listaFotos: string[] = [
-    ...(servico.imagemPrincipal ? [servico.imagemPrincipal] : []),
-    ...galeriaSemPrincipal,
-  ]
-    .map((f: string) =>
-      typeof f === 'string' && servicoDb?.id
-        ? resolverUrlMidia('site_services', servicoDb.id, f)
-        : f,
-    )
-    .filter((f) => typeof f === 'string' && f.trim().length > 0)
 
   // Garante que o índice selecionado é válido
   const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''
@@ -309,22 +367,33 @@ export const ServicoDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Lado Esquerdo: Galeria de Fotos */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] flex items-center justify-center">
+            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] flex items-center justify-center group">
               {fotoAtualUrl ? (
                 <>
-                  {/* Fundo desfocado sutil para preencher bordas de fotos verticais/retrato sem distorcer */}
+                  {/* Fundo desfocado sutil para preencher bordas de fotos verticais e horizontais sem corte brusco */}
                   <img
                     src={fotoAtualUrl}
                     alt=""
                     aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-30 scale-110 pointer-events-none select-none"
+                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
                   />
 
                   <WatermarkedImage
                     src={fotoAtualUrl}
                     alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
-                    className="relative z-10 w-full h-full object-contain object-center transition-all duration-300"
+                    className="relative z-10 w-full h-full object-contain object-center transition-all duration-300 cursor-pointer"
+                    onClick={() => setLightboxOpen(true)}
                   />
+
+                  {/* Botão Ampliar discreto no canto */}
+                  <button
+                    type="button"
+                    onClick={() => setLightboxOpen(true)}
+                    className="absolute top-3 right-3 z-20 bg-black/60 hover:bg-black/85 text-white p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                    title="Ampliar foto em tela cheia"
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
 
                   {listaFotos.length > 1 && (
                     <>
@@ -332,19 +401,19 @@ export const ServicoDetailPage: React.FC = () => {
                         type="button"
                         onClick={prevPhoto}
                         aria-label="Foto anterior"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
                       >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="w-6 h-6" />
                       </button>
                       <button
                         type="button"
                         onClick={nextPhoto}
                         aria-label="Próxima foto"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
                       >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="w-6 h-6" />
                       </button>
-                      <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-medium">
+                      <div className="absolute bottom-3 right-3 z-20 bg-black/70 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-semibold">
                         {activePhotoIndex + 1} / {listaFotos.length}
                       </div>
                     </>
@@ -366,24 +435,31 @@ export const ServicoDetailPage: React.FC = () => {
               )}
             </div>
 
-            {/* Miniaturas da galeria */}
+            {/* Miniaturas da galeria (com fundo blur translúcido e object-contain, sem distorcer) */}
             {listaFotos.length > 1 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
                 {listaFotos.map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setActivePhotoIndex(idx)}
-                    className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all bg-[#1C252B] ${
+                    className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all bg-[#1C252B] flex items-center justify-center ${
                       activePhotoIndex === idx
                         ? 'border-[#D4AF37] scale-105 shadow-sm'
-                        : 'border-transparent opacity-70 hover:opacity-100'
+                        : 'border-[#DEE4EA] opacity-75 hover:opacity-100'
                     }`}
                   >
                     <img
                       src={img}
+                      alt=""
+                      aria-hidden="true"
+                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 pointer-events-none select-none"
+                    />
+                    <img
+                      src={img}
                       alt={`Miniatura ${idx + 1}`}
-                      className="w-full h-full object-cover object-center"
+                      className="relative z-1 max-w-full max-h-full object-contain"
+                      loading="lazy"
                     />
                   </button>
                 ))}
@@ -507,6 +583,52 @@ export const ServicoDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Lightbox em Tela Cheia (Dialog) para Serviço */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-5xl p-2 bg-black/95 border-none text-white flex flex-col items-center">
+          <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden bg-black/70 rounded-xl">
+            {fotoAtualUrl && (
+              <img
+                src={fotoAtualUrl}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-25 scale-120 pointer-events-none select-none"
+              />
+            )}
+            <WatermarkedImage
+              src={fotoAtualUrl}
+              alt={`${servico.titulo} em tela cheia`}
+              className="relative z-10 max-w-full max-h-[75vh] w-auto h-auto object-contain object-center mx-auto"
+            />
+            {listaFotos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={prevPhoto}
+                  aria-label="Foto anterior"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors shadow-md"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={nextPhoto}
+                  aria-label="Próxima foto"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors shadow-md"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+          </div>
+          {listaFotos.length > 0 && (
+            <div className="py-2 text-center text-xs text-white/70">
+              Foto {activePhotoIndex + 1} de {listaFotos.length} — {servico.titulo}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <LandingParceiros />
 

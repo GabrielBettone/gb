@@ -1,11 +1,37 @@
 // Utilitário de marca d'água e processamento de imagem para a Gesso Bettone
 import pb from '@/lib/pocketbase/client'
 import { isSupabaseConfigured, supabaseGetPublicUrl } from '@/lib/supabase/client'
+import logoSvgAsset from '@/assets/logo-6927a.svg'
+
+// Cache da imagem do logotipo oficial carregada em memória para uso no Canvas
+let cachedLogoImage: HTMLImageElement | null = null
+
+function carregarImagemLogo(): Promise<HTMLImageElement> {
+  if (cachedLogoImage && cachedLogoImage.complete && cachedLogoImage.naturalWidth > 0) {
+    return Promise.resolve(cachedLogoImage)
+  }
+  return new Promise((resolve, reject) => {
+    const imgLogo = new Image()
+    imgLogo.crossOrigin = 'anonymous'
+    imgLogo.onload = () => {
+      cachedLogoImage = imgLogo
+      resolve(imgLogo)
+    }
+    imgLogo.onerror = (e) => {
+      console.warn(
+        'Não foi possível carregar logo oficial para canvas, usando fallback vetorial:',
+        e,
+      )
+      reject(e)
+    }
+    imgLogo.src = logoSvgAsset
+  })
+}
 
 /**
  * Aplica a marca d'água elegante da Gesso Bettone sobre uma imagem (File, Blob ou URL)
  * e retorna um novo Blob com a marca d'água impressa diretamente nos pixels da imagem.
- * Logo compacto "GB • Gesso Bettone" com tipografia e monograma translúcido em branco/dourado.
+ * Inclui o logotipo oficial em vetor SVG + tipografia oficial + subtítulo institucional.
  */
 export async function aplicarMarcaDagua(
   imagemFonte: File | Blob | string,
@@ -14,6 +40,8 @@ export async function aplicarMarcaDagua(
     opacidade?: number
     maxWidth?: number
     maxHeight?: number
+    telefone?: string
+    siteUrl?: string
   } = {},
 ): Promise<Blob> {
   const {
