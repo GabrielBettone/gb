@@ -27,13 +27,38 @@ interface DragState {
   orcamentoId: string
   mode: DragMode
   startX: number
+  lastX: number
   origInicioMs: number
   origFimMs: number
   currentInicioMs: number
   currentFimMs: number
+  hasMoved: boolean
 }
 
 const DIA_MS = 24 * 60 * 60 * 1000
+
+// Parse defensivo e simétrico em data local (ano, mês, dia) sem derivação de fuso horário
+const parseDataGantt = (str?: string | null): Date | null => {
+  if (!str) return null
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) {
+    const y = parseInt(m[1], 10)
+    const month = parseInt(m[2], 10) - 1
+    const d = parseInt(m[3], 10)
+    return new Date(y, month, d, 12, 0, 0, 0)
+  }
+  const d = new Date(str)
+  if (isNaN(d.getTime())) return null
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0, 0)
+}
+
+// Formatação simétrica correspondente: YYYY-MM-DD 12:00:00.000Z
+const formatIsoGantt = (d: Date): string => {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day} 12:00:00.000Z`
+}
 
 export const GanttView: React.FC<GanttViewProps> = ({
   orcamentos,
@@ -85,27 +110,45 @@ export const GanttView: React.FC<GanttViewProps> = ({
       let dInicio: Date
       let dFim: Date
 
-      if (orc.data_inicio_prevista) {
-        dInicio = new Date(orc.data_inicio_prevista)
+      const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
+      if (parsedInicio) {
+        dInicio = parsedInicio
       } else {
         // Fallback: hoje + 1 dia
-        dInicio = new Date(hoje.getTime() + DIA_MS)
+        dInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
       }
 
-      if (orc.data_fim_prevista) {
-        dFim = new Date(orc.data_fim_prevista)
+      const parsedFim = parseDataGantt(orc.data_fim_prevista)
+      if (parsedFim) {
+        dFim = parsedFim
       } else {
         // Fallback: 5 dias após início
-        dFim = new Date(dInicio.getTime() + 5 * DIA_MS)
+        dFim = new Date(
+          dInicio.getFullYear(),
+          dInicio.getMonth(),
+          dInicio.getDate() + 5,
+          12,
+          0,
+          0,
+          0,
+        )
       }
 
       // Garante que o fim seja >= início
       if (dFim < dInicio) {
-        dFim = new Date(dInicio.getTime() + DIA_MS)
+        dFim = new Date(
+          dInicio.getFullYear(),
+          dInicio.getMonth(),
+          dInicio.getDate() + 1,
+          12,
+          0,
+          0,
+          0,
+        )
       }
 
       // Se este item estiver em drag ativo, usa as datas atuais do drag
-      if (dragState && dragState.orcamentoId === orc.id) {
+      if (dragState && dragState.orcamentoId === orc.id && dragState.hasMoved) {
         dInicio = new Date(dragState.currentInicioMs)
         dFim = new Date(dragState.currentFimMs)
       }
@@ -135,16 +178,17 @@ export const GanttView: React.FC<GanttViewProps> = ({
     dFim: Date,
   ) => {
     e.stopPropagation()
-    e.preventDefault()
-
+    // Guarda o ponto inicial sem tratar como arrasto ativo ainda
     setDragState({
       orcamentoId: orcId,
       mode,
       startX: e.clientX,
+      lastX: e.clientX,
       origInicioMs: dInicio.getTime(),
       origFimMs: dFim.getTime(),
       currentInicioMs: dInicio.getTime(),
       currentFimMs: dFim.getTime(),
+      hasMoved: false,
     })
   }
 
@@ -152,8 +196,16 @@ export const GanttView: React.FC<GanttViewProps> = ({
     (e: MouseEvent) => {
       if (!dragState) return
 
-      const deltaX = e.clientX - dragState.startX
-      const deltaDias = Math.round(deltaX / pixelsPorDia)
+      const deltaXTotal = e.clientX - dragState.startX
+      const isRealDrag = Math.abs(deltaXTotal) >= 4
+
+      if (!isRealDrag && !dragState.hasMoved) {
+        // Movimento insignificante (< 4px): é clique simples, não altera datas
+        setDragState((prev) => (prev ? { ...prev, lastX: e.clientX } : null))
+        return
+      }
+
+      const deltaDias = Math.round(deltaXTotal / pixelsPorDia)
       const deltaMs = deltaDias * DIA_MS
 
       if (dragState.mode === 'move') {
@@ -164,6 +216,8 @@ export const GanttView: React.FC<GanttViewProps> = ({
           prev
             ? {
                 ...prev,
+                lastX: e.clientX,
+                hasMoved: true,
                 currentInicioMs: novoInicio,
                 currentFimMs: novoInicio + duracao,
               }
@@ -176,7 +230,16 @@ export const GanttView: React.FC<GanttViewProps> = ({
         if (novoInicio > dragState.origFimMs - DIA_MS) {
           novoInicio = dragState.origFimMs - DIA_MS
         }
-        setDragState((prev) => (prev ? { ...prev, currentInicioMs: novoInicio } : null))
+        setDragState((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastX: e.clientX,
+                hasMoved: true,
+                currentInicioMs: novoInicio,
+              }
+            : null,
+        )
       } else if (dragState.mode === 'resize-right') {
         // Estica ou encolhe a borda direita (fim)
         let novoFim = dragState.origFimMs + deltaMs
@@ -184,7 +247,16 @@ export const GanttView: React.FC<GanttViewProps> = ({
         if (novoFim < dragState.origInicioMs + DIA_MS) {
           novoFim = dragState.origInicioMs + DIA_MS
         }
-        setDragState((prev) => (prev ? { ...prev, currentFimMs: novoFim } : null))
+        setDragState((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastX: e.clientX,
+                hasMoved: true,
+                currentFimMs: novoFim,
+              }
+            : null,
+        )
       }
     },
     [dragState, pixelsPorDia],
@@ -193,19 +265,45 @@ export const GanttView: React.FC<GanttViewProps> = ({
   const handleMouseUp = useCallback(() => {
     if (!dragState) return
 
-    const { orcamentoId, currentInicioMs, currentFimMs } = dragState
-    const dInicio = new Date(currentInicioMs)
-    const dFim = new Date(currentFimMs)
+    const {
+      orcamentoId,
+      startX,
+      lastX,
+      hasMoved,
+      origInicioMs,
+      origFimMs,
+      currentInicioMs,
+      currentFimMs,
+    } = dragState
 
-    const formatIso = (d: Date) => {
-      const year = d.getFullYear()
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${year}-${month}-${day} 12:00:00.000Z`
+    // 1. Se o deslocamento absoluto foi menor que 4px ou não houve movimento real, descarta SEM persistir
+    const deltaTotal = Math.abs(lastX - startX)
+    if (!hasMoved || deltaTotal < 4) {
+      setDragState(null)
+      return
     }
 
-    // Persiste no banco de dados se houve mudança
-    onAtualizarDatas(orcamentoId, formatIso(dInicio), formatIso(dFim))
+    const dInicio = new Date(currentInicioMs)
+    const dFim = new Date(currentFimMs)
+    const dOrigInicio = new Date(origInicioMs)
+    const dOrigFim = new Date(origFimMs)
+
+    const novaInicioStr = formatIsoGantt(dInicio)
+    const novaFimStr = formatIsoGantt(dFim)
+    const origInicioStr = formatIsoGantt(dOrigInicio)
+    const origFimStr = formatIsoGantt(dOrigFim)
+
+    // 2. Se as datas formatadas forem idênticas às originais (ou se ms for idêntico), descarta sem persistir
+    if (
+      (currentInicioMs === origInicioMs && currentFimMs === origFimMs) ||
+      (novaInicioStr === origInicioStr && novaFimStr === origFimStr)
+    ) {
+      setDragState(null)
+      return
+    }
+
+    // 3. Persiste no banco de dados com round-trip simétrico
+    onAtualizarDatas(orcamentoId, novaInicioStr, novaFimStr)
     setDragState(null)
   }, [dragState, onAtualizarDatas])
 

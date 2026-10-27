@@ -30,7 +30,15 @@ export const ServicoDetailPage: React.FC = () => {
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const servicoLocal = SERVICOS.find((s) => s.slug === slug)
+  const servicoLocal = useMemo(() => {
+    if (!slug) return null
+    const clean = slug.toLowerCase().trim()
+    return (
+      SERVICOS.find((s) => s.slug?.toLowerCase() === clean) ||
+      SERVICOS.find((s) => s.slug?.toLowerCase().replace(/-/g, '') === clean.replace(/-/g, '')) ||
+      null
+    )
+  }, [slug])
 
   React.useEffect(() => {
     let ativo = true
@@ -88,32 +96,94 @@ export const ServicoDetailPage: React.FC = () => {
 
   const servico = React.useMemo(() => {
     if (servicoDb) {
+      const nomeLimpo =
+        typeof servicoDb.nome === 'string' && servicoDb.nome.trim().length > 0
+          ? servicoDb.nome.trim()
+          : slug
+            ? slug.replace(/-/g, ' ')
+            : 'Serviço'
+
+      const beneficiosNormalizados: string[] = []
+      if (Array.isArray(servicoDb.beneficios)) {
+        servicoDb.beneficios.forEach((b: any) => {
+          if (typeof b === 'string' && b.trim()) beneficiosNormalizados.push(b.trim())
+        })
+      } else if (typeof servicoDb.beneficios === 'string') {
+        try {
+          const parsed = JSON.parse(servicoDb.beneficios)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((b: any) => {
+              if (typeof b === 'string' && b.trim()) beneficiosNormalizados.push(b.trim())
+            })
+          }
+        } catch {
+          if (servicoDb.beneficios.trim()) beneficiosNormalizados.push(servicoDb.beneficios.trim())
+        }
+      }
+
+      const keywordsNormalizadas: string[] = []
+      if (Array.isArray(servicoDb.keywords)) {
+        servicoDb.keywords.forEach((k: any) => {
+          if (typeof k === 'string' && k.trim()) keywordsNormalizadas.push(k.trim())
+        })
+      } else if (typeof servicoDb.keywords === 'string') {
+        try {
+          const parsed = JSON.parse(servicoDb.keywords)
+          if (Array.isArray(parsed)) {
+            parsed.forEach((k: any) => {
+              if (typeof k === 'string' && k.trim()) keywordsNormalizadas.push(k.trim())
+            })
+          }
+        } catch {
+          if (servicoDb.keywords.trim()) keywordsNormalizadas.push(servicoDb.keywords.trim())
+        }
+      }
+
       return {
-        slug: servicoDb.slug || slug || '',
-        titulo: servicoDb.nome || (slug ? slug.replace(/-/g, ' ') : 'Serviço'),
-        categoria: servicoDb.categoria || 'Serviços',
-        destaque: !!servicoDb.destaque,
-        descricaoCurta: servicoDb.descricao_curta || '',
-        descricaoCompleta:
+        slug: String(servicoDb.slug || slug || ''),
+        titulo: nomeLimpo,
+        categoria: String(servicoDb.categoria || 'Serviços'),
+        destaque: Boolean(servicoDb.destaque),
+        descricaoCurta: String(servicoDb.descricao_curta || ''),
+        descricaoCompleta: String(
           servicoDb.descricao_longa ||
-          servicoDb.descricao_curta ||
-          'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
-        beneficios: Array.isArray(servicoDb.beneficios) ? servicoDb.beneficios : [],
-        metaTitle: servicoDb.meta_title || servicoDb.nome || 'Serviço | Gesso Bettone',
-        metaDescription:
+            servicoDb.descricao_curta ||
+            'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
+        ),
+        beneficios: beneficiosNormalizados,
+        metaTitle: String(servicoDb.meta_title || nomeLimpo || 'Serviço | Gesso Bettone'),
+        metaDescription: String(
           servicoDb.meta_description ||
-          servicoDb.descricao_curta ||
-          servicoDb.descricao_longa ||
-          'Serviços em gesso e drywall da Gesso Bettone.',
-        keywords: Array.isArray(servicoDb.keywords) ? servicoDb.keywords : [],
+            servicoDb.descricao_curta ||
+            servicoDb.descricao_longa ||
+            'Serviços em gesso e drywall da Gesso Bettone.',
+        ),
+        keywords: keywordsNormalizadas,
       }
     }
     if (servicoLocal) {
       return {
-        ...servicoLocal,
+        slug: String(servicoLocal.slug || slug || ''),
+        titulo: String(servicoLocal.titulo || 'Serviço'),
+        categoria: String(servicoLocal.categoria || 'Serviços'),
+        destaque: Boolean(servicoLocal.destaque),
+        descricaoCurta: String(servicoLocal.descricaoCurta || ''),
+        descricaoCompleta: String(
+          servicoLocal.descricaoCompleta ||
+            servicoLocal.descricaoCurta ||
+            'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
+        ),
         beneficios: Array.isArray(servicoLocal.beneficios) ? servicoLocal.beneficios : [],
         galeria: Array.isArray(servicoLocal.galeria) ? servicoLocal.galeria : [],
         keywords: Array.isArray(servicoLocal.keywords) ? servicoLocal.keywords : [],
+        metaTitle: String(
+          servicoLocal.metaTitle || servicoLocal.titulo || 'Serviço | Gesso Bettone',
+        ),
+        metaDescription: String(
+          servicoLocal.metaDescription ||
+            servicoLocal.descricaoCurta ||
+            'Serviços em gesso e drywall da Gesso Bettone.',
+        ),
       }
     }
     return null
@@ -127,19 +197,34 @@ export const ServicoDetailPage: React.FC = () => {
     const rawKeysSet = new Set<string>()
 
     const addPhoto = (val: any) => {
-      if (!val || typeof val !== 'string') return
+      if (!val) return
+      // Se for array aninhado de strings/arquivos
+      if (Array.isArray(val)) {
+        val.forEach((item) => addPhoto(item))
+        return
+      }
+      if (typeof val !== 'string') return
       const trimmed = val.trim()
       if (!trimmed) return
 
       let resolved = trimmed
-      if (servicoDb?.id) {
-        resolved = resolverUrlMidia('site_services', servicoDb.id, trimmed)
+      try {
+        if (servicoDb?.id) {
+          resolved = resolverUrlMidia('site_services', servicoDb.id, trimmed)
+        }
+      } catch (resErr) {
+        console.warn('Erro ao resolver URL de mídia:', resErr)
       }
 
       // Evita duplicar tanto pela chave bruta quanto pela URL resolvida
       const key = trimmed.toLowerCase()
-      const resolvedKey = resolved.toLowerCase()
-      if (!rawKeysSet.has(key) && !rawKeysSet.has(resolvedKey) && !list.includes(resolved)) {
+      const resolvedKey = (resolved || '').toLowerCase()
+      if (
+        resolved &&
+        !rawKeysSet.has(key) &&
+        !rawKeysSet.has(resolvedKey) &&
+        !list.includes(resolved)
+      ) {
         rawKeysSet.add(key)
         rawKeysSet.add(resolvedKey)
         list.push(resolved)
@@ -151,15 +236,27 @@ export const ServicoDetailPage: React.FC = () => {
         // 1. Foto de destaque/principal primeiro
         if (servicoDb.arquivo_principal) {
           addPhoto(servicoDb.arquivo_principal)
-        } else if (servicoDb.imagem_principal) {
+        }
+        if (servicoDb.imagem_principal) {
           addPhoto(servicoDb.imagem_principal)
         }
 
-        // 2. Arquivos nativos de galeria (armazenados em arquivos_galeria, ex: 19 fotos)
+        // 2. Arquivos nativos de galeria (armazenados em arquivos_galeria)
         if (Array.isArray(servicoDb.arquivos_galeria)) {
           servicoDb.arquivos_galeria.forEach((arq: any) => {
             if (arq) addPhoto(arq)
           })
+        } else if (typeof servicoDb.arquivos_galeria === 'string') {
+          try {
+            const parsed = JSON.parse(servicoDb.arquivos_galeria)
+            if (Array.isArray(parsed)) {
+              parsed.forEach((arq: any) => addPhoto(arq))
+            } else {
+              addPhoto(servicoDb.arquivos_galeria)
+            }
+          } catch {
+            addPhoto(servicoDb.arquivos_galeria)
+          }
         }
 
         // 3. URLs externas / legadas do campo galeria
@@ -167,6 +264,17 @@ export const ServicoDetailPage: React.FC = () => {
           servicoDb.galeria.forEach((g: any) => {
             if (g) addPhoto(g)
           })
+        } else if (typeof servicoDb.galeria === 'string') {
+          try {
+            const parsed = JSON.parse(servicoDb.galeria)
+            if (Array.isArray(parsed)) {
+              parsed.forEach((g: any) => addPhoto(g))
+            } else {
+              addPhoto(servicoDb.galeria)
+            }
+          } catch {
+            addPhoto(servicoDb.galeria)
+          }
         }
       } catch (err) {
         console.warn('Erro ao montar lista de fotos do serviço:', err)
@@ -187,6 +295,86 @@ export const ServicoDetailPage: React.FC = () => {
       setActivePhotoIndex(0)
     }
   }, [listaFotos.length, activePhotoIndex])
+
+  const tituloSeguro =
+    servico && typeof servico.titulo === 'string' && servico.titulo.trim()
+      ? servico.titulo.trim()
+      : 'Serviço'
+
+  const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''
+  const precoMinimo = servicoDb?.preco_minimo || undefined
+
+  // JSON-LD Service + Breadcrumbs protegido contra undefined/null (chamado incondicionalmente no topo)
+  const serviceJsonLd = useMemo(() => {
+    if (!servico) return undefined
+    try {
+      return [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            {
+              '@type': 'ListItem',
+              position: 1,
+              name: 'Início',
+              item: 'https://gessobettone.com.br/',
+            },
+            {
+              '@type': 'ListItem',
+              position: 2,
+              name: 'Serviços',
+              item: 'https://gessobettone.com.br/servicos',
+            },
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: tituloSeguro,
+              item: `https://gessobettone.com.br/servicos/${servico.slug || ''}`,
+            },
+          ],
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Service',
+          name: tituloSeguro,
+          serviceType: tituloSeguro,
+          category: servico.categoria || 'Serviços',
+          description:
+            servico.descricaoCompleta || servico.descricaoCurta || 'Serviço Gesso Bettone',
+          provider: {
+            '@type': 'LocalBusiness',
+            name: 'Gesso Bettone',
+            telephone: '+55-19-98109-3379',
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: 'São Pedro',
+              addressRegion: 'SP',
+              addressCountry: 'BR',
+            },
+          },
+          areaServed: Array.isArray(CIDADES_ATENDIDAS)
+            ? CIDADES_ATENDIDAS.map((c) => ({
+                '@type': 'AdministrativeArea',
+                name: String(c),
+              }))
+            : [],
+          ...(precoMinimo
+            ? {
+                offers: {
+                  '@type': 'Offer',
+                  priceCurrency: 'BRL',
+                  price: String(precoMinimo),
+                  availability: 'https://schema.org/InStock',
+                },
+              }
+            : {}),
+          ...(fotoAtualUrl ? { image: fotoAtualUrl } : {}),
+        },
+      ]
+    } catch {
+      return undefined
+    }
+  }, [servico, tituloSeguro, precoMinimo, fotoAtualUrl])
 
   // Enquanto carrega e não temos nem local nem DB, exibe skeleton/loading elegante
   if (loading && !servico) {
@@ -237,79 +425,12 @@ export const ServicoDetailPage: React.FC = () => {
     return null
   }
 
-  const whatsappUrl = getWhatsAppUrlForService(servico.titulo || 'Serviço')
+  const whatsappUrl = getWhatsAppUrlForService(tituloSeguro)
 
   // Outros serviços para recomendação
-  const outrosServicos = SERVICOS.filter((s) => s.slug !== servico.slug).slice(0, 3)
-
-  // Garante que o índice selecionado é válido
-  const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''
-
-  const precoMinimo = servicoDb?.preco_minimo || undefined
-
-  // JSON-LD Service + Breadcrumbs protegido contra undefined/null
-  const serviceJsonLd = [
-    {
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        {
-          '@type': 'ListItem',
-          position: 1,
-          name: 'Início',
-          item: 'https://gessobettone.com.br/',
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: 'Serviços',
-          item: 'https://gessobettone.com.br/servicos',
-        },
-        {
-          '@type': 'ListItem',
-          position: 3,
-          name: servico.titulo || 'Serviço',
-          item: `https://gessobettone.com.br/servicos/${servico.slug}`,
-        },
-      ],
-    },
-    {
-      '@context': 'https://schema.org',
-      '@type': 'Service',
-      name: servico.titulo || 'Serviço',
-      serviceType: servico.titulo || 'Serviço',
-      category: servico.categoria || 'Serviços',
-      description: servico.descricaoCompleta || servico.descricaoCurta || 'Serviço Gesso Bettone',
-      provider: {
-        '@type': 'LocalBusiness',
-        name: 'Gesso Bettone',
-        telephone: '+55-19-98109-3379',
-        address: {
-          '@type': 'PostalAddress',
-          addressLocality: 'São Pedro',
-          addressRegion: 'SP',
-          addressCountry: 'BR',
-        },
-      },
-      areaServed: Array.isArray(CIDADES_ATENDIDAS)
-        ? CIDADES_ATENDIDAS.map((c) => ({
-            '@type': 'AdministrativeArea',
-            name: c,
-          }))
-        : [],
-      ...(precoMinimo
-        ? {
-            offers: {
-              '@type': 'Offer',
-              priceCurrency: 'BRL',
-              price: String(precoMinimo),
-              availability: 'https://schema.org/InStock',
-            },
-          }
-        : {}),
-      ...(fotoAtualUrl ? { image: fotoAtualUrl } : {}),
-    },
-  ]
+  const outrosServicos = (SERVICOS || [])
+    .filter((s) => s && s.slug && s.slug !== servico.slug)
+    .slice(0, 3)
 
   const nextPhoto = () => {
     if (listaFotos.length === 0) return
@@ -559,15 +680,16 @@ export const ServicoDetailPage: React.FC = () => {
                   <span>Atendimento com visita técnica em:</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {CIDADES_ATENDIDAS.map((cidade) => (
-                    <span
-                      key={cidade}
-                      className="px-2.5 py-1 rounded-md bg-[#f4f4f4] border border-[#DEE4EA] text-[11px] text-[#2C3E50]"
-                    >
-                      {cidade}
-                    </span>
-                  ))}
-                </div>
+                  {Array.isArray(CIDADES_ATENDIDAS) &&
+                    CIDADES_ATENDIDAS.map((cidade) => (
+                      <span
+                        key={String(cidade)}
+                        className="px-2.5 py-1 rounded-md bg-[#f4f4f4] border border-[#DEE4EA] text-[11px] text-[#2C3E50]"
+                      >
+                        {String(cidade)}
+                      </span>
+                    ))}
+                </div>{' '}
               </div>
 
               <div className="pt-4">
@@ -657,7 +779,7 @@ export const ServicoDetailPage: React.FC = () => {
       <LandingParceiros />
 
       <LandingCTA
-        titulo={`Gostaria de aplicar ${(servico.titulo || 'este serviço').toLowerCase()} no seu espaço?`}
+        titulo={`Gostaria de aplicar ${tituloSeguro.toLowerCase()} no seu espaço?`}
         subtitulo="Envie suas medidas, fotos do local ou planta pelo WhatsApp para receber um orçamento transparente e personalizado."
         botaoTexto="Falar com especialista agora"
       />
