@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import logoPngAsset from '@/assets/logo-gesso-bettone-eb5aa.png'
 import { aplicarMarcaDagua } from '@/lib/watermark'
 
 interface WatermarkedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -98,21 +99,26 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
         {...props}
       />
 
-      {/* Selo/Marca D'água Elegante Garantido: aparece caso a imagem ainda não tenha sido carimbada no pixel do canvas */}
+      {/* Selo/Marca D'água Elegante Garantido: traz o logotipo oficial da Gesso Bettone + texto nítido */}
       {enableWatermark && !isWatermarkedInPixel && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-2.5 right-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1C252B]/85 backdrop-blur-xs border border-[#D4AF37]/50 shadow-md select-none transition-opacity"
+          className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C252B]/90 backdrop-blur-sm border border-[#D4AF37]/75 shadow-lg select-none transition-opacity"
         >
-          <div className="w-5 h-5 rounded bg-[#2C3E50] border border-[#D4AF37] text-[#D4AF37] font-bold text-[10px] flex items-center justify-center font-heading">
-            GB
+          <div className="w-7 h-7 rounded-lg bg-white p-0.5 border border-[#D4AF37]/60 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+            <img
+              src={logoPngAsset}
+              alt=""
+              className="w-full h-full object-contain"
+              loading="eager"
+            />
           </div>
           <div className="flex flex-col text-left leading-none">
-            <span className="text-[11px] font-bold text-white tracking-wide font-sans">
+            <span className="text-xs font-bold text-white tracking-wide font-sans drop-shadow-xs">
               Gesso Bettone
             </span>
-            <span className="text-[8px] font-medium text-[#D4AF37] tracking-wider mt-0.5">
-              Gesso &amp; Drywall
+            <span className="text-[9px] font-semibold text-[#D4AF37] tracking-wider mt-0.5">
+              Gesso &amp; Drywall • Alto Padrão
             </span>
           </div>
         </div>

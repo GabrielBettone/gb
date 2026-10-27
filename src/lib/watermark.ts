@@ -2,6 +2,7 @@
 import pb from '@/lib/pocketbase/client'
 import { isSupabaseConfigured, supabaseGetPublicUrl } from '@/lib/supabase/client'
 import logoSvgAsset from '@/assets/logo-6927a.svg'
+import logoPngAsset from '@/assets/logo-gesso-bettone-eb5aa.png'
 
 // Cache da imagem do logotipo oficial carregada em memória para uso no Canvas
 let cachedLogoImage: HTMLImageElement | null = null
@@ -12,19 +13,22 @@ function carregarImagemLogo(): Promise<HTMLImageElement> {
   }
   return new Promise((resolve, reject) => {
     const imgLogo = new Image()
-    imgLogo.crossOrigin = 'anonymous'
+    // Como é asset local empacotado pelo Vite (mesma origem ou data-uri), não exige crossOrigin restritivo
     imgLogo.onload = () => {
       cachedLogoImage = imgLogo
       resolve(imgLogo)
     }
-    imgLogo.onerror = (e) => {
-      console.warn(
-        'Não foi possível carregar logo oficial para canvas, usando fallback vetorial:',
-        e,
-      )
-      reject(e)
+    imgLogo.onerror = () => {
+      // Fallback para o PNG caso o SVG falhe no browser antigo
+      const fallbackPng = new Image()
+      fallbackPng.onload = () => {
+        cachedLogoImage = fallbackPng
+        resolve(fallbackPng)
+      }
+      fallbackPng.onerror = (err) => reject(err)
+      fallbackPng.src = logoPngAsset
     }
-    imgLogo.src = logoSvgAsset
+    imgLogo.src = logoPngAsset || logoSvgAsset
   })
 }
 
@@ -63,7 +67,7 @@ export async function aplicarMarcaDagua(
       img.src = objectUrl
     }
 
-    const processarImagem = () => {
+    const processarImagem = async () => {
       try {
         // 1. Redimensionar preservando proporção
         let width = img.naturalWidth || img.width
@@ -93,15 +97,26 @@ export async function aplicarMarcaDagua(
         // 2. Desenhar a imagem base
         ctx.drawImage(img, 0, 0, width, height)
 
-        // 3. Desenhar a marca d'água Gesso Bettone
+        // 3. Tentar carregar o logotipo oficial para carimbo
+        let logoImg: HTMLImageElement | null = null
+        try {
+          logoImg = await carregarImagemLogo()
+        } catch (logoErr) {
+          console.debug('Logo image carregar falhou, usando monograma vetorial', logoErr)
+        }
+
+        // 4. Desenhar a marca d'água Gesso Bettone VISÍVEL e elegante
         ctx.save()
-        ctx.globalAlpha = opacidade
+        ctx.globalAlpha = Math.min(1, Math.max(0.7, opacidade))
 
         // Dimensionar marca d'água proporcionalmente
-        const escala = Math.max(0.6, Math.min(width, height) / 1000)
-        const badgeWidth = 240 * escala
-        const badgeHeight = 56 * escala
-        const margem = 24 * escala
+        // Aumentado ligeiramente para garantir perfeita visibilidade conforme solicitado pelo usuário
+        const menorLado = Math.min(width, height)
+        const escala = Math.max(0.75, Math.min(menorLado / 750, 2.2))
+
+        const badgeWidth = 270 * escala
+        const badgeHeight = 64 * escala
+        const margem = Math.max(16, 22 * escala)
 
         let posX = width - badgeWidth - margem
         let posY = height - badgeHeight - margem
@@ -114,10 +129,16 @@ export async function aplicarMarcaDagua(
           posY = (height - badgeHeight) / 2
         }
 
-        // Fundo em pílula semitransparente (Azul Ardósia translúcido)
-        ctx.fillStyle = 'rgba(28, 37, 43, 0.75)'
+        // Sombra de fundo suave para destacar a marca em qualquer foto (escura ou clara)
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.45)'
+        ctx.shadowBlur = 10 * escala
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 3 * escala
+
+        // Fundo em pílula semitransparente (Azul Ardósia #1C252B com boa opacidade 0.88)
+        ctx.fillStyle = 'rgba(28, 37, 43, 0.90)'
         ctx.beginPath()
-        const radius = 10 * escala
+        const radius = 12 * escala
         if (typeof ctx.roundRect === 'function') {
           ctx.roundRect(posX, posY, badgeWidth, badgeHeight, radius)
         } else {
@@ -125,52 +146,69 @@ export async function aplicarMarcaDagua(
         }
         ctx.fill()
 
-        // Borda sutil dourada
-        ctx.strokeStyle = 'rgba(212, 175, 55, 0.45)'
-        ctx.lineWidth = 1.5 * escala
+        // Reset de sombra para traços internos
+        ctx.shadowColor = 'transparent'
+        ctx.shadowBlur = 0
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+
+        // Borda dourada nítida
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.85)'
+        ctx.lineWidth = 1.8 * escala
         ctx.stroke()
 
-        // Monograma GB em dourado
-        const boxSize = 38 * escala
+        // Container do Logo Oficial
+        const boxSize = 46 * escala
         const boxX = posX + 9 * escala
         const boxY = posY + (badgeHeight - boxSize) / 2
 
-        ctx.fillStyle = '#2C3E50'
+        // Fundo branco sutil no logo para contraste perfeito do logotipo original
+        ctx.fillStyle = '#FFFFFF'
         ctx.beginPath()
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(boxX, boxY, boxSize, boxSize, 6 * escala)
+          ctx.roundRect(boxX, boxY, boxSize, boxSize, 8 * escala)
         } else {
           ctx.rect(boxX, boxY, boxSize, boxSize)
         }
         ctx.fill()
-        ctx.strokeStyle = '#D4AF37'
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.6)'
         ctx.lineWidth = 1 * escala
         ctx.stroke()
 
-        // Letras GB
-        ctx.fillStyle = '#D4AF37'
-        ctx.font = `bold ${18 * escala}px 'Tenor Sans', sans-serif`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText('GB', boxX + boxSize / 2, boxY + boxSize / 2 + 1)
+        if (logoImg && logoImg.width > 0) {
+          // Renderiza o logo oficial da Gesso Bettone centralizado dentro da caixinha
+          const logoPadding = 4 * escala
+          const drawLogoW = boxSize - logoPadding * 2
+          const drawLogoH = boxSize - logoPadding * 2
+          ctx.drawImage(logoImg, boxX + logoPadding, boxY + logoPadding, drawLogoW, drawLogoH)
+        } else {
+          // Monograma GB em dourado como fallback vetorial
+          ctx.fillStyle = '#2C3E50'
+          ctx.fillRect(boxX + 2, boxY + 2, boxSize - 4, boxSize - 4)
+          ctx.fillStyle = '#D4AF37'
+          ctx.font = `bold ${20 * escala}px 'Tenor Sans', sans-serif`
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText('GB', boxX + boxSize / 2, boxY + boxSize / 2 + 1)
+        }
 
-        // Texto "Gesso Bettone"
-        const textX = boxX + boxSize + 10 * escala
+        // Texto principal: "Gesso Bettone"
+        const textX = boxX + boxSize + 11 * escala
         ctx.textAlign = 'left'
         ctx.textBaseline = 'alphabetic'
 
         ctx.fillStyle = '#FFFFFF'
-        ctx.font = `bold ${13 * escala}px 'Inter Tight', sans-serif`
-        ctx.fillText('Gesso Bettone', textX, posY + 23 * escala)
+        ctx.font = `bold ${15 * escala}px 'Inter Tight', sans-serif`
+        ctx.fillText('Gesso Bettone', textX, posY + 27 * escala)
 
-        // Subtítulo "Gesso • Drywall"
+        // Subtítulo oficial dourado: "Gesso & Drywall • Alto Padrão"
         ctx.fillStyle = '#D4AF37'
-        ctx.font = `${10 * escala}px 'Inter Tight', sans-serif`
-        ctx.fillText('Gesso & Drywall • São Pedro/SP', textX, posY + 40 * escala)
+        ctx.font = `600 ${10.5 * escala}px 'Inter Tight', sans-serif`
+        ctx.fillText('Gesso & Drywall • Alto Padrão', textX, posY + 46 * escala)
 
         ctx.restore()
 
-        // 4. Exportar como Blob JPEG de alta qualidade
+        // 5. Exportar como Blob JPEG de alta qualidade
         canvas.toBlob(
           (blob) => {
             if (blob) {
@@ -180,7 +218,7 @@ export async function aplicarMarcaDagua(
             }
           },
           'image/jpeg',
-          0.9,
+          0.92,
         )
       } catch (err) {
         reject(err)

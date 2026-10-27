@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { SERVICOS, getWhatsAppUrlForService, CIDADES_ATENDIDAS } from '@/data/landingData'
 import { resolverUrlMidia } from '@/lib/watermark'
@@ -283,7 +283,7 @@ export const ServicoDetailPage: React.FC = () => {
         '@type': 'AdministrativeArea',
         name: c,
       })),
-      ...(servico.imagemPrincipal ? { image: servico.imagemPrincipal } : {}),
+      ...(fotoAtualUrl ? { image: fotoAtualUrl } : {}),
     },
   ]
 
@@ -303,7 +303,7 @@ export const ServicoDetailPage: React.FC = () => {
         title={servico.metaTitle}
         description={servico.metaDescription}
         canonical={`/servicos/${servico.slug}`}
-        ogImage={servico.imagemPrincipal}
+        ogImage={fotoAtualUrl || undefined}
         keywords={servico.keywords}
         jsonLd={serviceJsonLd}
       />

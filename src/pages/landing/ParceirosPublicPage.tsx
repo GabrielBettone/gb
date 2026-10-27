@@ -236,7 +236,7 @@ export const ParceirosPublicPage: React.FC = () => {
                   <div>
                     <div className="w-24 h-24 rounded-2xl bg-[#f4f4f4] border border-[#DEE4EA] p-3 flex items-center justify-center mb-5 overflow-hidden group-hover:scale-105 transition-transform">
                       {p.logo ? (
-                        <img
+                        <WatermarkedImage
                           src={p.logo}
                           alt={`Logo ${p.nome}`}
                           className="max-h-full max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all"

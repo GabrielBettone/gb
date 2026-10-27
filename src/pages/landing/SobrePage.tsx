@@ -5,6 +5,7 @@ import LandingCidades from '@/components/landing/LandingCidades'
 import LandingParceiros from '@/components/landing/LandingParceiros'
 import LandingCTA from '@/components/landing/LandingCTA'
 import { CheckCircle2, ShieldCheck, Award, Users } from 'lucide-react'
+import WatermarkedImage from '@/components/landing/WatermarkedImage'
 
 export const SobrePage: React.FC = () => {
   return (
@@ -94,7 +95,7 @@ export const SobrePage: React.FC = () => {
           </div>
           <div className="lg:col-span-6">
             <div className="relative rounded-2xl overflow-hidden shadow-xl border border-[#DEE4EA]">
-              <img
+              <WatermarkedImage
                 src="https://gessobettone.com.br/watermark.php?src=%2Fuploads%2Fservices%2F156c0c6b5734cd5a91f3f5a371396fce.jpg"
                 alt="Equipe Gesso Bettone executando forro de alto padrão"
                 className="w-full h-full object-cover"
