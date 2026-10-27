@@ -235,10 +235,11 @@ export async function salvarConfiguracoesOrcamento(
       existingId = rec.id
     } catch {
       try {
-        const anyRec = await dataAdapter.getList<OrcamentoConfiguracao>('orcamento_configuracoes', {
-          page: 1,
-          perPage: 1,
-        })
+        const anyRec = await dataAdapter.getList<OrcamentoConfiguracao>(
+          'orcamento_configuracoes',
+          1,
+          1,
+        )
         if (anyRec.items && anyRec.items.length > 0) {
           existingId = anyRec.items[0].id
         }

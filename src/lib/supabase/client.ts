@@ -65,6 +65,8 @@ export interface SupabaseSelectOptions {
 export interface SupabaseWriteOptions {
   accessToken?: string
   returning?: 'minimal' | 'representation'
+  upsert?: boolean
+  onConflict?: string
 }
 
 interface SupabaseConfiguration {
@@ -288,12 +290,24 @@ export async function supabaseInsert<T>(
   records: Record<string, unknown> | Record<string, unknown>[],
   options: SupabaseWriteOptions = {},
 ): Promise<T[]> {
-  const prefer = options.returning === 'minimal' ? 'return=minimal' : 'return=representation'
+  const preferParts: string[] = [
+    options.returning === 'minimal' ? 'return=minimal' : 'return=representation',
+  ]
+  if (options.upsert) {
+    preferParts.push('resolution=merge-duplicates')
+  }
+
+  const queryParams = new URLSearchParams()
+  if (options.upsert && options.onConflict) {
+    queryParams.set('on_conflict', options.onConflict)
+  }
+  const queryString = queryParams.toString() ? `?${queryParams.toString()}` : ''
+
   const result = await request<T[] | undefined>(
-    `/rest/v1/${encodeURIComponent(table)}`,
+    `/rest/v1/${encodeURIComponent(table)}${queryString}`,
     {
       method: 'POST',
-      headers: { Prefer: prefer },
+      headers: { Prefer: preferParts.join(',') },
       body: JSON.stringify(records),
     },
     options.accessToken,
