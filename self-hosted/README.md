@@ -238,59 +238,22 @@ supabase functions deploy site-midias-inventario
 - [ ] Cadastro de teste de um novo orçamento e cliente realizado com sucesso.
 - [ ] Site público exibindo seções de Serviços, Portfólio, Sobre e Contato.
 
-## Limpeza de Dados Demo — Começar o Site do Zero (Supabase)
+## Atualizações do Banco de Dados (schema.sql — 100% Seguro e Idempotente)
 
-Para o usuário que deseja iniciar o website 100% zerado e cadastrar seus próprios serviços, projetos e parceiros reais a partir do painel administrativo, execute a seção de limpeza no **SQL Editor** do Supabase:
+O arquivo `self-hosted/supabase/schema.sql` contém **apenas instruções DDL idempotentes** (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, índices, triggers, grants e policies).
+
+> **IMPORTANTE:** O script `schema.sql` principal **NUNCA apaga nem sobrescreve dados** já cadastrados no seu Supabase. Você pode executá-lo no SQL Editor do Supabase a cada nova versão do aplicativo com total segurança para aplicar novas colunas, tabelas e permissões sem perder projetos, serviços, imagens ou vendas.
+
+## Limpeza de Dados Demo — Começar o Site do Zero (OPCIONAL / DESTRUTIVO)
+
+Se você estiver configurando o sistema pela primeira vez e quiser deliberadamente zerar os dados de demonstração (projetos de teste, parceiros demo, dados demo de vendas e imagens de exemplo dos serviços), utilize o arquivo **separado e opcional**:
+
+`self-hosted/supabase/schema_cleanup.sql`
 
 1. Acesse seu projeto no Supabase > **SQL Editor** > **New query**.
-2. Cole e execute o comando abaixo (também presente no final de `self-hosted/supabase/schema.sql`):
-
-```sql
--- 1. Apaga todos os projetos de portfólio de demonstração
-DELETE FROM public.site_portfolio;
-
--- 2. Apaga todos os parceiros de demonstração e suas categorias
-DELETE FROM public.partner_clicks;
-DELETE FROM public.site_partners;
-DELETE FROM public.partner_categories;
-
--- 3. Limpa imagens default de serviços, mantendo a lista de 14 serviços reais do catálogo
-UPDATE public.site_services
-SET imagem_principal = '',
-    galeria = '[]'::jsonb,
-    arquivo_principal = NULL,
-    arquivos_galeria = '[]'::jsonb;
-
--- 4. Adiciona suporte ao código de verificação do Google Search Console
-ALTER TABLE IF EXISTS public.site_settings
-  ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
-```
-
-3. Clique em **Run**. Todas as imagens padrão e dados de exemplo serão removidos com segurança e as páginas públicas exibirão estados vazios elegantes até o novo cadastro de mídias pelo painel em `/painel/site`.
-
-## Limpeza de Linhas Duplicadas na Conciliação de Pagamentos
-
-Se houver parcelas repetidas do mesmo orçamento geradas por transições repetidas no Kanban, execute o script SQL idempotente abaixo no **SQL Editor** do Supabase:
-
-```sql
-WITH ranking AS (
-  SELECT
-    id,
-    ROW_NUMBER() OVER (
-      PARTITION BY COALESCE(orcamento, orcamento_id), numero_parcela, valor_previsto
-      ORDER BY
-        CASE WHEN status = 'paga' THEN 1 WHEN status = 'a_pagar' THEN 2 ELSE 3 END,
-        created_at DESC,
-        id DESC
-    ) as rn
-  FROM public.pagamentos_parcelas
-)
-UPDATE public.pagamentos_parcelas p
-SET status = 'cancelada',
-    observacoes_baixa = COALESCE(p.observacoes_baixa, '') || ' [Duplicata cancelada automaticamente]'
-FROM ranking r
-WHERE p.id = r.id AND r.rn > 1 AND p.status != 'paga';
-```
+2. Abra o arquivo `self-hosted/supabase/schema_cleanup.sql`, copie seu conteúdo e cole no editor.
+3. Clique em **Run**.
+4. **Nunca execute esse script em atualizações de rotina**, apenas quando quiser deliberadamente começar do zero.
 
 ## Indexação no Google (SEO Completo & Google Search Console)
 

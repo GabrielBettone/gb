@@ -308,26 +308,8 @@ CREATE TRIGGER trigger_pagamentos_parcelas_updated_at
   BEFORE UPDATE ON public.pagamentos_parcelas
   FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
 
--- DEDUPLICAÇÃO IDEMPOTENTE DE PARCELAS DUPLICADAS:
--- Mantém a parcela mais recente de cada combinação (orcamento, numero_parcela, valor_previsto)
--- e cancela as parcelas em aberto duplicadas que foram geradas por transições repetidas.
-WITH ranking AS (
-  SELECT
-    id,
-    ROW_NUMBER() OVER (
-      PARTITION BY COALESCE(orcamento, orcamento_id), numero_parcela, valor_previsto
-      ORDER BY
-        CASE WHEN status = 'paga' THEN 1 WHEN status = 'a_pagar' THEN 2 ELSE 3 END,
-        created_at DESC,
-        id DESC
-    ) as rn
-  FROM public.pagamentos_parcelas
-)
-UPDATE public.pagamentos_parcelas p
-SET status = 'cancelada',
-    observacoes_baixa = COALESCE(p.observacoes_baixa, '') || ' [Duplicata cancelada automaticamente]'
-FROM ranking r
-WHERE p.id = r.id AND r.rn > 1 AND p.status != 'paga';
+-- (Deduplicação de parcelas movida para self-hosted/supabase/schema_cleanup.sql
+-- para garantir que o schema.sql seja estritamente DDL idempotente sem modificar dados de tabelas)
 
 -- 10. TABELA DE VENDAS (vinculada aos produtos e orçamentos)
 CREATE TABLE IF NOT EXISTS public.vendas (
@@ -977,39 +959,23 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authen
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
 
 -- ============================================================================
--- 18. LIMPEZA DE DADOS DEMO — RODA 1X PARA COMEÇAR DO ZERO (Idempotente)
+-- 18. ESTRUTURAS COMPLEMENTARES E COLUNAS DE CONFIGURAÇÃO (Idempotente DDL)
 -- ============================================================================
--- Executável no SQL Editor do Supabase para zerar projetos, parceiros e imagens
--- de exemplo, mantendo o catálogo oficial dos serviços intacto para produção:
--- 1) Apaga TODOS os projetos do portfólio (site_portfolio, incluindo Camila Ferraz)
--- 2) Apaga TODOS os parceiros de exemplo e categorias de parceiros
--- 3) Zera imagem_principal, galeria e arquivos de exemplo em site_services,
---    preservando os nomes, descrições e estrutura dos serviços do negócio.
+-- OBSERVAÇÃO: Todas as instruções destrutivas (DELETE de portfólio, parceiros,
+-- vendas, produtos e UPDATE de zeração de imagens de serviços) foram REMOVIDAS
+-- deste arquivo para garantir que a execução deste schema.sql NUNCA apague
+-- dados já cadastrados pelo usuário.
+-- Se desejar limpar dados de demonstração deliberadamente para começar do zero,
+-- utilize o arquivo opcional separado: self-hosted/supabase/schema_cleanup.sql
 -- ============================================================================
 
--- 18.1 Limpeza total dos projetos de demonstração
-DELETE FROM public.site_portfolio;
-
--- 18.2 Limpeza total dos parceiros de demonstração e categorias
-DELETE FROM public.partner_clicks;
-DELETE FROM public.site_partners;
-DELETE FROM public.partner_categories;
-
--- 18.3 Zera imagens default/demo dos serviços mantendo o catálogo oficial
-UPDATE public.site_services
-SET imagem_principal = '',
-    galeria = '[]'::jsonb,
-    arquivo_principal = NULL,
-    arquivos_galeria = '[]'::jsonb;
-
--- 18.4 Garante coluna google_site_verification e site_url em site_settings,
--- e garante a limpeza de colunas duplicadas caso tenham sido criadas anteriormente
+-- Garante coluna google_site_verification e site_url em site_settings
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT 'https://gessobettone.com.br';
 
--- Remove colunas duplicadas de site_settings (os dados de razao social, endereco e toggle de CNPJ pertencem a orcamento_configuracoes)
+-- Remove colunas duplicadas legadas de site_settings (os dados de razao social, endereco e toggle de CNPJ pertencem a orcamento_configuracoes)
 ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS razao_social;
 ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS endereco;
 ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS exibir_cnpj_pdf;
@@ -1024,11 +990,3 @@ ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS te
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS cidade TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS nosso_compromisso JSONB DEFAULT '[]'::jsonb;
-
--- 18.5 Limpeza total dos dados iniciais de vendas e produtos (idempotente)
--- Desvincula produto_principal de orçamentos para evitar violações de chave estrangeira
-UPDATE public.orcamentos SET produto_principal = NULL WHERE produto_principal IS NOT NULL;
-DELETE FROM public.alertas;
-DELETE FROM public.importacoes;
-DELETE FROM public.vendas;
-DELETE FROM public.produtos;
