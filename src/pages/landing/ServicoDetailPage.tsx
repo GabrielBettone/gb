@@ -40,29 +40,39 @@ export const ServicoDetailPage: React.FC = () => {
 
       import('@/services/site')
         .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
-          return obterServicoPorSlug(slug).then((s) => {
-            if (!ativo) return
-            if (s) {
-              setServicoDb(s)
-              try {
-                registrarEventoAnalytics({
-                  tipo: 'click_servico',
-                  servico_slug: s.slug || slug,
-                  servico_nome: s.nome || '',
-                  categoria_nome: s.categoria || '',
-                })
-              } catch (analyticsErr) {
-                console.debug('Analytics não registrado:', analyticsErr)
+          return obterServicoPorSlug(slug)
+            .then((s) => {
+              if (!ativo) return
+              if (s) {
+                setServicoDb(s)
+                try {
+                  registrarEventoAnalytics({
+                    tipo: 'click_servico',
+                    servico_slug: s.slug || slug,
+                    servico_nome: s.nome || '',
+                    categoria_nome: s.categoria || '',
+                  })
+                } catch (analyticsErr) {
+                  console.debug('Analytics não registrado:', analyticsErr)
+                }
               }
-            }
-            setCarregamentoConcluido(true)
-            setLoading(false)
-          })
+              setCarregamentoConcluido(true)
+              setLoading(false)
+            })
+            .catch((innerErr) => {
+              if (!ativo) return
+              console.warn(
+                'Falha na busca remota do serviço, usando fallback local se disponível:',
+                innerErr,
+              )
+              setCarregamentoConcluido(true)
+              setLoading(false)
+            })
         })
         .catch((err) => {
           if (!ativo) return
-          console.error('Erro ao carregar serviço:', err)
-          setErroCarregamento('Não foi possível carregar os detalhes deste serviço no momento.')
+          console.error('Erro ao carregar módulo de serviços:', err)
+          // Se tiver fallback local (SERVICOS), não trava a tela
           setCarregamentoConcluido(true)
           setLoading(false)
         })
@@ -235,6 +245,8 @@ export const ServicoDetailPage: React.FC = () => {
   // Garante que o índice selecionado é válido
   const fotoAtualUrl = listaFotos[activePhotoIndex] || listaFotos[0] || ''
 
+  const precoMinimo = servicoDb?.preco_minimo || undefined
+
   // JSON-LD Service + Breadcrumbs protegido contra undefined/null
   const serviceJsonLd = [
     {
@@ -279,10 +291,22 @@ export const ServicoDetailPage: React.FC = () => {
           addressCountry: 'BR',
         },
       },
-      areaServed: CIDADES_ATENDIDAS.map((c) => ({
-        '@type': 'AdministrativeArea',
-        name: c,
-      })),
+      areaServed: Array.isArray(CIDADES_ATENDIDAS)
+        ? CIDADES_ATENDIDAS.map((c) => ({
+            '@type': 'AdministrativeArea',
+            name: c,
+          }))
+        : [],
+      ...(precoMinimo
+        ? {
+            offers: {
+              '@type': 'Offer',
+              priceCurrency: 'BRL',
+              price: String(precoMinimo),
+              availability: 'https://schema.org/InStock',
+            },
+          }
+        : {}),
       ...(fotoAtualUrl ? { image: fotoAtualUrl } : {}),
     },
   ]

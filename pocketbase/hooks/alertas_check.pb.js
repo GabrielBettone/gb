@@ -1,6 +1,6 @@
 // Hook agendado a cada 10 minutos para verificação das regras de alerta
 cronAdd('alertas_check', '*/10 * * * *', (e) => {
-  const app = e.app
+  const app = e?.app || $app
   const trintaDiasAtras = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const dataIsoFiltro = trintaDiasAtras.toISOString().replace('T', ' ').substring(0, 19) + 'Z'
 

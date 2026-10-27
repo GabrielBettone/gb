@@ -990,3 +990,34 @@ ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS te
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS cidade TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS nosso_compromisso JSONB DEFAULT '[]'::jsonb;
+
+-- ============================================================================
+-- 19. PREDEFINIÇÕES DE FILTROS DO FUNIL / GANTT (Idempotente DDL)
+-- Permite salvar combinações multi-select de etapas (ex: "Compromissos", "Trabalhos")
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.orcamento_filtros_predefinidos (
+  id TEXT PRIMARY KEY DEFAULT ('pred_' || substr(md5(random()::text), 1, 12)),
+  nome TEXT NOT NULL,
+  etapas JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_pred_nome ON public.orcamento_filtros_predefinidos (nome);
+
+-- RLS & Grants para orcamento_filtros_predefinidos
+ALTER TABLE public.orcamento_filtros_predefinidos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "orcamento_filtros_predefinidos_auth_all" ON public.orcamento_filtros_predefinidos;
+CREATE POLICY "orcamento_filtros_predefinidos_auth_all" ON public.orcamento_filtros_predefinidos
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+GRANT ALL ON TABLE public.orcamento_filtros_predefinidos TO anon, authenticated, service_role;
+
+-- Predefinições iniciais de exemplo (idempotente com ON CONFLICT caso id ou nome exista)
+INSERT INTO public.orcamento_filtros_predefinidos (id, nome, etapas)
+VALUES
+  ('pred_compromissos', 'Compromissos', '["Orçamentos a realizar", "Aprovados aguardando início", "Trabalhos iniciados"]'::jsonb),
+  ('pred_trabalhos', 'Trabalhos', '["Aprovados aguardando início", "Trabalhos iniciados"]'::jsonb),
+  ('pred_obras_andamento', 'Obras em Andamento', '["Trabalhos iniciados"]'::jsonb)
+ON CONFLICT (id) DO NOTHING;

@@ -16,6 +16,13 @@ import {
   type OrcamentoEtapa,
 } from '@/services/orcamentoEtapas'
 import { listarGrupos, listarMetodosPagamento } from '@/services/orcamentoModulo'
+import {
+  listarPredefinicoes,
+  criarPredefinicao,
+  excluirPredefinicao,
+  type PredefinicaoFiltroEtapas,
+} from '@/services/orcamentoPredefinicoes'
+import { FiltroEtapasMultiSelect } from '@/components/orcamentos/FiltroEtapasMultiSelect'
 import { KanbanView } from '@/components/orcamentos/KanbanView'
 import { GanttView } from '@/components/orcamentos/GanttView'
 import { TabelaView } from '@/components/orcamentos/TabelaView'
@@ -104,9 +111,10 @@ export const Orcamentos: React.FC = () => {
   // Modo de visualização dentro do Funil: kanban, gantt ou tabela
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'tabela'>('kanban')
 
-  // Filtros locais do funil
+  // Filtros locais do funil (com suporte a múltipla escolha de etapas e predefinições)
   const [busca, setBusca] = useState('')
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
+  const [filtroEtapas, setFiltroEtapas] = useState<string[]>([])
+  const [predefinicoes, setPredefinicoes] = useState<PredefinicaoFiltroEtapas[]>([])
   const [filtroCanal, setFiltroCanal] = useState<string>('todos')
 
   // Modais
@@ -124,7 +132,7 @@ export const Orcamentos: React.FC = () => {
     try {
       if (exibirFeedback) setAtualizando(true)
 
-      const [orcsRes, etapasRes, prodsRes, grpsRes, metsRes] = await Promise.allSettled([
+      const [orcsRes, etapasRes, prodsRes, grpsRes, metsRes, predsRes] = await Promise.allSettled([
         listarOrcamentos(),
         listarEtapas(),
         dataAdapter.getFullList<Produto>('produtos', {
@@ -133,6 +141,7 @@ export const Orcamentos: React.FC = () => {
         }),
         listarGrupos(),
         listarMetodosPagamento(),
+        listarPredefinicoes(),
       ])
 
       if (etapasRes.status === 'fulfilled') {
@@ -163,6 +172,12 @@ export const Orcamentos: React.FC = () => {
         setMetodos(metsRes.value)
       } else {
         console.warn('Falha ao listar métodos de pagamento:', metsRes.reason)
+      }
+
+      if (predsRes.status === 'fulfilled') {
+        setPredefinicoes(predsRes.value)
+      } else {
+        console.warn('Falha ao listar predefinições de filtros:', predsRes.reason)
       }
 
       setVersaoDados((v) => v + 1)
@@ -271,6 +286,45 @@ export const Orcamentos: React.FC = () => {
     }
   }
 
+  // Gerenciamento de Predefinições de Filtros Salvas pelo Usuário
+  const handleSalvarPredefinicao = async (nome: string, etapasSelecionadas: string[]) => {
+    try {
+      const nova = await criarPredefinicao(nome, etapasSelecionadas)
+      setPredefinicoes((prev) => {
+        const filtrada = prev.filter((p) => p.id !== nova.id && p.nome !== nova.nome)
+        return [...filtrada, nova]
+      })
+      toast({
+        title: 'Predefinição salva!',
+        description: `O filtro "${nova.nome}" foi salvo com ${nova.etapas.length} etapa(s).`,
+      })
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar predefinição',
+        description: err?.message || 'Não foi possível salvar o filtro.',
+      })
+    }
+  }
+
+  const handleExcluirPredefinicao = async (id: string) => {
+    try {
+      const pred = predefinicoes.find((p) => p.id === id)
+      await excluirPredefinicao(id)
+      setPredefinicoes((prev) => prev.filter((p) => p.id !== id))
+      toast({
+        title: 'Predefinição removida',
+        description: pred ? `"${pred.nome}" foi excluída.` : 'Filtro removido.',
+      })
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir predefinição',
+        description: err?.message || 'Falha ao remover.',
+      })
+    }
+  }
+
   // Exclusão
   // Gerenciamento de Etapas Customizadas
   const handleAbrirNovaEtapa = () => {
@@ -371,14 +425,16 @@ export const Orcamentos: React.FC = () => {
     }
   }
 
-  // Filtragem dos orçamentos para a visualização Funil
+  // Filtragem dos orçamentos para a visualização Funil (Gantt, Kanban e Tabela)
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.toLowerCase().trim()
 
     return orcamentos.filter((orc) => {
-      if (filtroStatus !== 'todos' && orc.status !== filtroStatus) {
+      // Filtro Multi-Select de Etapas: se houver seleção, o status deve estar contido
+      if (filtroEtapas.length > 0 && !filtroEtapas.includes(orc.status)) {
         return false
       }
+
       if (filtroCanal !== 'todos' && orc.canal_origem !== filtroCanal) {
         return false
       }
@@ -401,7 +457,7 @@ export const Orcamentos: React.FC = () => {
 
       return true
     })
-  }, [orcamentos, busca, filtroStatus, filtroCanal])
+  }, [orcamentos, busca, filtroEtapas, filtroCanal])
 
   // Métricas de resumo rápido
   const metricas = useMemo(() => {
@@ -669,7 +725,7 @@ export const Orcamentos: React.FC = () => {
               </div>
 
               {/* Filtros e Busca */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 md:max-w-2xl justify-end">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 md:max-w-3xl justify-end">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-[#8A94A0] absolute left-3 top-1/2 -translate-y-1/2" />
                   <Input
@@ -681,25 +737,25 @@ export const Orcamentos: React.FC = () => {
                   />
                 </div>
 
-                <div className="w-full sm:w-44">
-                  <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                    <SelectTrigger className="h-9 text-xs bg-white">
-                      <SelectValue placeholder="Todas as etapas" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos" className="text-xs">
-                        Todas as Etapas
-                      </SelectItem>
-                      {(etapas.length > 0 ? etapas.map((e) => e.nome) : ETAPAS_ORCAMENTO).map(
-                        (st) => (
-                          <SelectItem key={st} value={st} className="text-xs">
-                            {st}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* FILTRO MULTI-SELECT DE ETAPAS DO FUNIL COM PREDEFINIÇÕES SALVAS */}
+                <FiltroEtapasMultiSelect
+                  etapasDisponiveis={
+                    etapas.length > 0
+                      ? etapas
+                      : ETAPAS_ORCAMENTO.map((nome, idx) => ({
+                          id: `padrao_${idx}`,
+                          nome,
+                          cor: '#2C3E50',
+                          ordem: idx + 1,
+                          padrao: true,
+                        }))
+                  }
+                  etapasSelecionadas={filtroEtapas}
+                  onEtapasChange={setFiltroEtapas}
+                  predefinicoes={predefinicoes}
+                  onSalvarPredefinicao={handleSalvarPredefinicao}
+                  onExcluirPredefinicao={handleExcluirPredefinicao}
+                />
 
                 <div className="w-full sm:w-36">
                   <Select value={filtroCanal} onValueChange={setFiltroCanal}>
@@ -727,6 +783,79 @@ export const Orcamentos: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* BARRA DE FEEDBACK DE FILTROS ATIVOS SE HOUVER FILTRO DE ETAPAS OU BUSCA */}
+            {(filtroEtapas.length > 0 || busca.trim() || filtroCanal !== 'todos') && (
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#F6F7F9] border border-[#DEE4EA] rounded-lg text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[#616F7D] font-medium">Filtros aplicados:</span>
+                  {filtroEtapas.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {filtroEtapas.map((etp) => (
+                        <span
+                          key={etp}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#2C3E50] text-[#D4AF37]"
+                        >
+                          {etp}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setFiltroEtapas(filtroEtapas.filter((item) => item !== etp))
+                            }
+                            className="hover:opacity-75"
+                            title="Remover etapa"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {busca.trim() && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-[#2C3E50] border border-[#DEE4EA]">
+                      Busca: "{busca}"
+                      <button
+                        type="button"
+                        onClick={() => setBusca('')}
+                        className="hover:opacity-75"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {filtroCanal !== 'todos' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-[#2C3E50] border border-[#DEE4EA]">
+                      Canal: {filtroCanal}
+                      <button
+                        type="button"
+                        onClick={() => setFiltroCanal('todos')}
+                        className="hover:opacity-75"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-[#616F7D] text-[11px]">
+                    Mostrando <strong>{orcamentosFiltrados.length}</strong> de{' '}
+                    <strong>{orcamentos.length}</strong> orçamentos
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiltroEtapas([])
+                      setBusca('')
+                      setFiltroCanal('todos')
+                    }}
+                    className="text-[11px] font-semibold text-[#C4453C] hover:underline"
+                  >
+                    Limpar todos os filtros
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* ÁREA DE VISUALIZAÇÃO ATIVA DO FUNIL */}
             {loading ? (
