@@ -91,8 +91,8 @@ export const AbaConfiguracoes: React.FC = () => {
 
     setSalvando(true)
     try {
-      await salvarConfiguracoesOrcamento({
-        id: configId,
+      const salvas = await salvarConfiguracoesOrcamento({
+        id: configId || undefined,
         razao_social: razaoSocial.trim(),
         nome_fantasia: nomeFantasia.trim(),
         cnpj: cnpj.trim(),
@@ -103,8 +103,11 @@ export const AbaConfiguracoes: React.FC = () => {
         endereco: endereco.trim(),
         cidade: cidade.trim(),
       })
+      if (salvas?.id) {
+        setConfigId(salvas.id)
+      }
       toast({
-        title: 'Configurações do orçamento salvas!',
+        title: 'Configurações salvas com sucesso!',
         description: 'Os dados da empresa e o compromisso foram atualizados para os próximos PDFs.',
       })
     } catch (err: any) {

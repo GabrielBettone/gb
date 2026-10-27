@@ -57,7 +57,6 @@ import {
   obterConfiguracoesOrcamento,
 } from '@/services/orcamentoModulo'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
-import { obterConfiguracoes as obterConfiguracoesSite } from '@/services/site'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { useToast } from '@/hooks/use-toast'
 
@@ -134,28 +133,18 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
     async function carregarAuxiliares() {
       try {
-        const [c, g, m, s, cfg, siteCfg] = await Promise.all([
+        const [c, g, m, s, cfg] = await Promise.all([
           listarClientes(),
           listarGrupos(),
           listarMetodosPagamento(),
           listarOrcamentoServicos(),
           obterConfiguracoesOrcamento(),
-          obterConfiguracoesSite(),
         ])
         setClientesList(c)
         setGruposList(g)
         setMetodosList(m)
         setServicosPrecoList(s)
-        setConfigGeral({
-          ...cfg,
-          razao_social: siteCfg.razao_social || cfg.razao_social,
-          nome_fantasia: siteCfg.nome_site || cfg.nome_fantasia,
-          cnpj: siteCfg.cnpj || cfg.cnpj,
-          email: siteCfg.email_contato || cfg.email,
-          telefone: siteCfg.whatsapp_principal || cfg.telefone,
-          exibir_cnpj_padrao: siteCfg.exibir_cnpj_pdf !== false,
-          logo_url: siteCfg.logo_url || cfg.logo_url,
-        })
+        setConfigGeral(cfg)
       } catch (err) {
         console.error('Erro ao carregar dados auxiliares do orçamento:', err)
       }

@@ -453,6 +453,36 @@ export const dataAdapter = {
   },
 
   /**
+   * Realiza upsert (insere ou atualiza em conflito de chave primária/on conflict)
+   */
+  async upsert<T = any>(
+    collection: string,
+    data: Record<string, any>,
+    options?: { onConflict?: string },
+  ): Promise<T> {
+    if (isSelfHostedSupabase()) {
+      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+      const results = await supabaseInsert<T>(collection, data, {
+        accessToken: token || undefined,
+        returning: 'representation',
+        upsert: true,
+        onConflict: options?.onConflict,
+      })
+      return results[0]
+    }
+
+    // No PocketBase: se id fornecido tenta update; senão create
+    if (data.id) {
+      try {
+        return await pb.collection(collection).update<T>(data.id, data)
+      } catch {
+        return await pb.collection(collection).create<T>(data)
+      }
+    }
+    return pb.collection(collection).create<T>(data)
+  },
+
+  /**
    * Cria um novo registro
    */
   async create<T = any>(collection: string, data: Record<string, any> | FormData): Promise<T> {

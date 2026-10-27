@@ -595,14 +595,11 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   id TEXT PRIMARY KEY DEFAULT ('sett_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
   chave TEXT NOT NULL UNIQUE DEFAULT 'geral',
   nome_site TEXT DEFAULT 'Gesso Bettone',
-  razao_social TEXT,
-  endereco TEXT,
   whatsapp_principal TEXT,
   email_contato TEXT,
   mensagem_orcamento TEXT,
   instagram TEXT,
   cnpj TEXT,
-  exibir_cnpj_pdf BOOLEAN DEFAULT true,
   exibir_depoimentos BOOLEAN DEFAULT true,
   cidades_atendidas JSONB DEFAULT '[]'::jsonb,
   pagina_parceiros_ativa BOOLEAN DEFAULT true,
@@ -970,17 +967,28 @@ SET imagem_principal = '',
     arquivo_principal = NULL,
     arquivos_galeria = '[]'::jsonb;
 
--- 18.4 Garante coluna google_site_verification, site_url, razao_social, exibir_cnpj_pdf e endereco em site_settings
+-- 18.4 Garante coluna google_site_verification e site_url em site_settings,
+-- e garante a limpeza de colunas duplicadas caso tenham sido criadas anteriormente
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT 'https://gessobettone.com.br';
-ALTER TABLE IF EXISTS public.site_settings
-  ADD COLUMN IF NOT EXISTS razao_social TEXT;
-ALTER TABLE IF EXISTS public.site_settings
-  ADD COLUMN IF NOT EXISTS exibir_cnpj_pdf BOOLEAN DEFAULT true;
-ALTER TABLE IF EXISTS public.site_settings
-  ADD COLUMN IF NOT EXISTS endereco TEXT;
+
+-- Remove colunas duplicadas de site_settings (os dados de razao social, endereco e toggle de CNPJ pertencem a orcamento_configuracoes)
+ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS razao_social;
+ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS endereco;
+ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS exibir_cnpj_pdf;
+
+-- Garante que orcamento_configuracoes possua todas as colunas necessárias para orçamento e PDF
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS razao_social TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS nome_fantasia TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS cnpj TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS exibir_cnpj_padrao BOOLEAN DEFAULT true;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS endereco TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS telefone TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS cidade TEXT;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS nosso_compromisso JSONB DEFAULT '[]'::jsonb;
 
 -- 18.5 Limpeza total dos dados iniciais de vendas e produtos (idempotente)
 -- Desvincula produto_principal de orçamentos para evitar violações de chave estrangeira

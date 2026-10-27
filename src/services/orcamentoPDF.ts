@@ -1,7 +1,6 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { parseItens, parseItensPorLocal } from '@/services/orcamentos'
-import { parseCompromisso } from '@/services/orcamentoModulo'
-import { obterConfiguracoes as obterConfiguracoesSite } from '@/services/site'
+import { parseCompromisso, obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import logoSvgDefault from '@/assets/logo-6927a.svg'
 import logoPngFallback from '@/assets/logo-gesso-bettone-eb5aa.png'
@@ -130,47 +129,44 @@ export async function imprimirOrcamentoPDF(
     })
   }
 
-  // Se não foi passado config ou se faltam dados, tenta carregar as configurações do site
-  let siteConfig: any = null
-  try {
-    siteConfig = await obterConfiguracoesSite()
-  } catch {
-    /* fallback local */
+  // Se não foi passado config direto na chamada, tenta obter das configurações de orçamento
+  let configOrcamento = config
+  if (!configOrcamento) {
+    try {
+      configOrcamento = await obterConfiguracoesOrcamento()
+    } catch {
+      /* fallback */
+    }
   }
 
-  // Resolução dos dados da empresa
-  const nomeFantasiaBase = siteConfig?.nome_site || config?.nome_fantasia || 'Gesso Bettone'
-  const razaoSocialCadastrada =
-    siteConfig?.razao_social ||
-    config?.razao_social ||
-    'Gesso Bettone Comércio e Instalações Eireli'
-  const cnpjCadastrado = siteConfig?.cnpj || config?.cnpj || '53.242.055/0001-74'
-  const emailEmpresa = siteConfig?.email_contato || config?.email || 'contato@gessobettone.com.br'
-  const telefoneEmpresa = siteConfig?.whatsapp_principal || config?.telefone || '(19) 99767-1189'
-  // Endereço configurado no site_settings (ou em orcamento_configuracoes); se vazio, omite no PDF
-  const enderecoConfigurado = (siteConfig?.endereco || config?.endereco || '').trim()
-  const cidadeEmpresa = config?.cidade ? config.cidade.trim() : ''
+  // Resolução dos dados da empresa a partir de orcamento_configuracoes com fallback seguro
+  const nomeFantasiaBase = configOrcamento?.nome_fantasia?.trim() || 'Gesso Bettone'
+  const razaoSocialCadastrada = configOrcamento?.razao_social?.trim() || 'GB Soluções Ltda'
+  const cnpjCadastrado = configOrcamento?.cnpj?.trim() || '53.242.055/0001-74'
+  const emailEmpresa = configOrcamento?.email?.trim() || 'contato@gessobettone.com.br'
+  const telefoneEmpresa = configOrcamento?.telefone?.trim() || '(19) 9.8109-3379'
+  const enderecoConfigurado = (configOrcamento?.endereco || '').trim()
+  const cidadeEmpresa = configOrcamento?.cidade ? configOrcamento.cidade.trim() : 'São Pedro/SP'
   const enderecoLinha = enderecoConfigurado
     ? cidadeEmpresa && !enderecoConfigurado.toLowerCase().includes(cidadeEmpresa.toLowerCase())
       ? `${enderecoConfigurado} — ${cidadeEmpresa}`
       : enderecoConfigurado
-    : ''
+    : cidadeEmpresa
 
   // Regra de Exibir CNPJ:
   // Se orcamento.exibir_cnpj estiver explicitamente definido (true/false), tem prioridade.
-  // Caso contrário, usa config.exibir_cnpj_padrao ou siteConfig.exibir_cnpj_pdf (default true).
+  // Caso contrário, usa configOrcamento.exibir_cnpj_padrao (default true).
   const exibirCnpj =
     orcamento.exibir_cnpj !== undefined && orcamento.exibir_cnpj !== null
       ? Boolean(orcamento.exibir_cnpj)
-      : config?.exibir_cnpj_padrao !== undefined
-        ? Boolean(config.exibir_cnpj_padrao)
-        : siteConfig?.exibir_cnpj_pdf !== undefined
-          ? Boolean(siteConfig.exibir_cnpj_pdf)
-          : true
+      : configOrcamento?.exibir_cnpj_padrao !== undefined
+        ? Boolean(configOrcamento.exibir_cnpj_padrao)
+        : true
 
-  // Regra verbatim do usuário:
-  // "Se exibir cnpj estiver ativo, puxa razão social em todo lugar que esteja Gesso Bettone + numero cnpj + email + whatsapp"
-  // "Se estiver inativo, exibe como Gesso Bettone + email + whatsapp" (sem cnpj em lugar nenhum)
+  // Regra do usuário:
+  // Quando "Exibir CNPJ" estiver ATIVO:
+  // exibir em todo lugar onde aparece "Gesso Bettone" a RAZÃO SOCIAL de orcamento_configuracoes + número do CNPJ + e-mail + WhatsApp + endereço;
+  // quando INATIVO: exibir "Gesso Bettone" (nome fantasia) + e-mail + WhatsApp, sem CNPJ.
   const nomeExibicao = exibirCnpj ? razaoSocialCadastrada || nomeFantasiaBase : nomeFantasiaBase
 
   const valorTotal = orcamento.valor_total || 0
@@ -528,7 +524,7 @@ export async function imprimirOrcamentoPDF(
         ${exibirCnpj && cnpjCadastrado ? `<div class="card-item"><strong>CNPJ:</strong> ${cnpjCadastrado}</div>` : ''}
         <div class="card-item"><strong>Telefone / WhatsApp:</strong> ${telefoneEmpresa}</div>
         <div class="card-item"><strong>E-mail:</strong> ${emailEmpresa}</div>
-        ${enderecoLinha ? `<div class="card-item"><strong>Endereço:</strong> ${enderecoLinha}</div>` : ''}
+        ${exibirCnpj && enderecoLinha ? `<div class="card-item"><strong>Endereço:</strong> ${enderecoLinha}</div>` : !exibirCnpj && enderecoLinha ? `<div class="card-item"><strong>Cidade:</strong> ${cidadeEmpresa}</div>` : ''}
       </div>
 
       <div class="card-info">

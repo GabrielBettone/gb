@@ -224,6 +224,7 @@ export async function obterConfiguracoesOrcamento(): Promise<OrcamentoConfigurac
 export async function salvarConfiguracoesOrcamento(
   dados: Partial<OrcamentoConfiguracao>,
 ): Promise<OrcamentoConfiguracao> {
+  // Procura sempre se já existe um registro (por id fornecido ou pela chave 'padrao' ou primeiro registro)
   let existingId = dados.id
   if (!existingId) {
     try {
@@ -233,28 +234,79 @@ export async function salvarConfiguracoesOrcamento(
       )
       existingId = rec.id
     } catch {
-      /* intentionally ignored */
+      try {
+        const anyRec = await dataAdapter.getList<OrcamentoConfiguracao>('orcamento_configuracoes', {
+          page: 1,
+          perPage: 1,
+        })
+        if (anyRec.items && anyRec.items.length > 0) {
+          existingId = anyRec.items[0].id
+        }
+      } catch {
+        /* intentionally ignored */
+      }
     }
   }
 
+  const payload: any = {
+    ...dados,
+    chave: dados.chave || 'padrao',
+  }
+  // Remove id vazio para evitar tentar inserir string vazia ou chave inválida
+  if (!existingId) {
+    delete payload.id
+  }
+
   if (existingId) {
-    const updated = await dataAdapter.update<OrcamentoConfiguracao>(
-      'orcamento_configuracoes',
-      existingId,
-      dados,
-    )
-    return {
-      ...updated,
-      nosso_compromisso: parseCompromisso(updated.nosso_compromisso),
+    try {
+      const updated = await dataAdapter.update<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        existingId,
+        payload,
+      )
+      return {
+        ...updated,
+        nosso_compromisso: parseCompromisso(updated.nosso_compromisso),
+      }
+    } catch (updateErr: any) {
+      console.warn('Falha no update direto de orcamento_configuracoes, tentando upsert:', updateErr)
+      const upserted = await dataAdapter.upsert<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        { ...payload, id: existingId },
+        { onConflict: 'id' },
+      )
+      return {
+        ...upserted,
+        nosso_compromisso: parseCompromisso(upserted.nosso_compromisso),
+      }
     }
   } else {
-    const created = await dataAdapter.create<OrcamentoConfiguracao>('orcamento_configuracoes', {
-      ...dados,
-      chave: 'padrao',
-    })
-    return {
-      ...created,
-      nosso_compromisso: parseCompromisso(created.nosso_compromisso),
+    // Se não encontrou ID prévio, utiliza upsert por id/chave para evitar duplicate key
+    try {
+      const created = await dataAdapter.upsert<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        payload,
+        { onConflict: 'id' },
+      )
+      return {
+        ...created,
+        nosso_compromisso: parseCompromisso(created.nosso_compromisso),
+      }
+    } catch {
+      // Fallback final: se falhou por duplicate key, busca novamente e atualiza
+      const existing = await dataAdapter.getFirstListItem<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        "chave = 'padrao'",
+      )
+      const updated = await dataAdapter.update<OrcamentoConfiguracao>(
+        'orcamento_configuracoes',
+        existing.id,
+        payload,
+      )
+      return {
+        ...updated,
+        nosso_compromisso: parseCompromisso(updated.nosso_compromisso),
+      }
     }
   }
 }
