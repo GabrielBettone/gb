@@ -534,7 +534,6 @@ export async function imprimirOrcamentoPDF(
         <div class="card-item"><strong>Contato:</strong> ${orcamento.contato || orcamento.expand?.cliente_cadastrado?.whatsapp || 'Não informado'}</div>
         <div class="card-item"><strong>Cidade / Local:</strong> ${orcamento.cidade || orcamento.expand?.cliente_cadastrado?.cidade || 'São Pedro'}</div>
         ${orcamento.expand?.cliente_cadastrado?.endereco ? `<div class="card-item"><strong>Endereço Obra:</strong> ${orcamento.expand.cliente_cadastrado.endereco}</div>` : ''}
-        ${orcamento.expand?.grupo?.nome ? `<div class="card-item"><strong>Tabela Aplicada:</strong> ${orcamento.expand.grupo.nome}</div>` : ''}
       </div>
     </div>
 

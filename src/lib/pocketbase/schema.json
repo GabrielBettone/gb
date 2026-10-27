@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-27T09:53:39.695Z",
+  "generatedAt": "2026-10-27T10:40:52.715Z",
   "collections": [
     {
       "name": "users",
@@ -1757,7 +1757,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["a_pagar", "paga", "cancelada"]
+          "selectValues": ["a_pagar", "parcial", "paga", "cancelada"]
         },
         {
           "name": "data_pagamento",
@@ -1988,6 +1988,76 @@
       "indexes": [
         "CREATE INDEX idx_sim_hist_telefone ON simulador_historico (telefone)",
         "CREATE INDEX idx_sim_hist_created ON simulador_historico (created)"
+      ]
+    },
+    {
+      "name": "parcela_recebimentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "parcela",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "pagamentos_parcelas"
+        },
+        {
+          "name": "orcamento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "orcamentos"
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_pagamento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "forma_pagamento",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_rec_parcela ON parcela_recebimentos (parcela)",
+        "CREATE INDEX idx_rec_orcamento ON parcela_recebimentos (orcamento)",
+        "CREATE INDEX idx_rec_data ON parcela_recebimentos (data_pagamento)"
       ]
     }
   ]

@@ -537,14 +537,15 @@ export async function gerarAgendaPagamentoSeNaoExistir(
     )
 
     const parcelasPagas = existentes.filter((p) => p.status === 'paga')
+    const parcelasParciais = existentes.filter((p) => p.status === 'parcial')
     const parcelasAbertas = existentes.filter((p) => p.status === 'a_pagar')
     const parcelasCanceladas = existentes.filter((p) => p.status === 'cancelada')
 
     // Se já existem parcelas e NÃO foi forçado recálculo:
     // Regra rígida: NUNCA crie linhas novas se o orçamento já tem histórico de parcelas!
     if (existentes.length > 0 && !forcarRecalculo) {
-      // Se há parcelas abertas ou pagas, nada a fazer — a agenda já está ativa.
-      if (parcelasAbertas.length > 0 || parcelasPagas.length > 0) {
+      // Se há parcelas abertas, parciais ou pagas, nada a fazer — a agenda já está ativa.
+      if (parcelasAbertas.length > 0 || parcelasPagas.length > 0 || parcelasParciais.length > 0) {
         return
       }
 
@@ -566,10 +567,14 @@ export async function gerarAgendaPagamentoSeNaoExistir(
 
     // Se é para recalcular e já temos parcelas
     if (existentes.length > 0 && forcarRecalculo) {
-      const totalJaPago = parcelasPagas.reduce(
+      const totalJaPago = [...parcelasPagas, ...parcelasParciais].reduce(
         (acc, p) =>
           acc +
-          (p.valor_pago !== undefined && p.valor_pago !== null ? p.valor_pago : p.valor_previsto),
+          (p.valor_pago !== undefined && p.valor_pago !== null
+            ? p.valor_pago
+            : p.status === 'paga'
+              ? p.valor_previsto
+              : 0),
         0,
       )
       const novoTotal = orcamento.valor_total || 0

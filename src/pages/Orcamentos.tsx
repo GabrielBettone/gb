@@ -21,6 +21,7 @@ import { GanttView } from '@/components/orcamentos/GanttView'
 import { TabelaView } from '@/components/orcamentos/TabelaView'
 import { OrcamentoModal } from '@/components/orcamentos/OrcamentoModal'
 import { OrcamentoDetalhesModal } from '@/components/orcamentos/OrcamentoDetalhesModal'
+import { ModalReajusteParcelas } from '@/components/orcamentos/ModalReajusteParcelas'
 import { AbaServicosPrecos } from '@/components/orcamentos/AbaServicosPrecos'
 import { AbaClientes } from '@/components/orcamentos/AbaClientes'
 import { AbaGrupos } from '@/components/orcamentos/AbaGrupos'
@@ -113,6 +114,10 @@ export const Orcamentos: React.FC = () => {
   const [orcamentoParaEditar, setOrcamentoParaEditar] = useState<Orcamento | null>(null)
   const [orcamentoDetalhes, setOrcamentoDetalhes] = useState<Orcamento | null>(null)
   const [orcamentoParaExcluir, setOrcamentoParaExcluir] = useState<Orcamento | null>(null)
+  const [modalReajusteGeralOpen, setModalReajusteGeralOpen] = useState(false)
+  const [orcamentoParaReajusteGeral, setOrcamentoParaReajusteGeral] = useState<Orcamento | null>(
+    null,
+  )
 
   // Carrega dados de forma resiliente tanto em Supabase quanto em PocketBase
   const carregarDados = useCallback(async (exibirFeedback = false) => {
@@ -890,12 +895,30 @@ export const Orcamentos: React.FC = () => {
           setOrcamentoParaEditar(orc)
           setModalNovoOpen(true)
         }}
+        onReajustarParcelas={(orc) => {
+          setOrcamentoParaReajusteGeral(orc)
+          setModalReajusteGeralOpen(true)
+        }}
         onConcluir={(orc) => {
           handleMudarStatus(orc.id, 'Concluídos')
           setOrcamentoDetalhes(null)
+          setOrcamentoParaReajusteGeral(orc)
+          setModalReajusteGeralOpen(true)
         }}
         onExcluir={(orc) => {
           setOrcamentoParaExcluir(orc)
+        }}
+      />
+
+      {/* MODAL DE REAJUSTE DE PARCELAS ACIONADO NO FUNIL OU APÓS CONCLUIR */}
+      <ModalReajusteParcelas
+        orcamento={orcamentoParaReajusteGeral}
+        open={modalReajusteGeralOpen}
+        onOpenChange={setModalReajusteGeralOpen}
+        titulo="Parcelamento & Vencimentos da Obra"
+        subtitulo="Confirme ou reajuste o número de parcelas, valores e datas de vencimento para o Contas a Receber."
+        onSucesso={() => {
+          carregarDados()
         }}
       />
 

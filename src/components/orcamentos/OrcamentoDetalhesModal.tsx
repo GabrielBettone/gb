@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Printer,
   CreditCard,
+  CalendarCheck,
 } from 'lucide-react'
 import {
   ETAPAS_CONFIG,
@@ -36,6 +37,7 @@ interface OrcamentoDetalhesModalProps {
   onEditar: (orcamento: Orcamento) => void
   onConcluir?: (orcamento: Orcamento) => void
   onExcluir: (orcamento: Orcamento) => void
+  onReajustarParcelas?: (orcamento: Orcamento) => void
 }
 
 export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
@@ -45,6 +47,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
   onEditar,
   onConcluir,
   onExcluir,
+  onReajustarParcelas,
 }) => {
   const [configGeral, setConfigGeral] = useState<OrcamentoConfiguracao | null>(null)
 
@@ -344,6 +347,20 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               <Printer className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
               Imprimir / PDF
             </Button>
+
+            {onReajustarParcelas && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onReajustarParcelas(orcamento)}
+                className="text-xs h-9 border-[#DEE4EA] text-[#2C3E50] hover:bg-[#E8EDF2]"
+                title="Ajustar número de parcelas, valores e datas de vencimento"
+              >
+                <CalendarCheck className="w-3.5 h-3.5 mr-1.5 text-[#2C3E50]" />
+                Parcelamento & Vencimentos
+              </Button>
+            )}
 
             {orcamento.status !== 'Concluídos' && onConcluir && (
               <Button

@@ -286,6 +286,29 @@ async function enrichSupabaseExpands(
           console.warn('Erro ao expandir cliente_cadastrado via Supabase:', err)
         }
       }
+    } else if (expandKey === 'recebimentos') {
+      const parcelaIds = Array.from(new Set(records.map((r) => r.id).filter(Boolean))) as string[]
+      if (parcelaIds.length > 0) {
+        try {
+          const recs = await supabaseSelect<any>('parcela_recebimentos', {
+            filters: [{ column: 'parcela', operator: 'in', value: parcelaIds }],
+            order: [{ column: 'data_pagamento', ascending: true }],
+            accessToken: token || undefined,
+          })
+          records.forEach((r) => {
+            const list = recs.filter(
+              (item: any) => item.parcela === r.id || item.parcela_id === r.id,
+            )
+            r.recebimentos = list
+            r.expand = {
+              ...(r.expand || {}),
+              recebimentos: list,
+            }
+          })
+        } catch (err) {
+          console.warn('Erro ao expandir recebimentos via Supabase:', err)
+        }
+      }
     }
   }
 }

@@ -259,6 +259,40 @@ CREATE TABLE IF NOT EXISTS public.pagamentos_parcelas (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- 9.1 RECEBIMENTOS PARCIAIS POR PARCELA (Histórico e Baixa Parcial)
+CREATE TABLE IF NOT EXISTS public.parcela_recebimentos (
+  id TEXT PRIMARY KEY DEFAULT ('prec_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
+  parcela TEXT NOT NULL REFERENCES public.pagamentos_parcelas(id) ON DELETE CASCADE,
+  parcela_id TEXT,
+  orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE CASCADE,
+  orcamento_id TEXT,
+  valor NUMERIC NOT NULL,
+  data_pagamento DATE NOT NULL,
+  forma_pagamento TEXT NOT NULL DEFAULT 'PIX',
+  observacao TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE IF EXISTS public.parcela_recebimentos ADD COLUMN IF NOT EXISTS parcela TEXT REFERENCES public.pagamentos_parcelas(id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS public.parcela_recebimentos ADD COLUMN IF NOT EXISTS parcela_id TEXT;
+ALTER TABLE IF EXISTS public.parcela_recebimentos ADD COLUMN IF NOT EXISTS orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE CASCADE;
+ALTER TABLE IF EXISTS public.parcela_recebimentos ADD COLUMN IF NOT EXISTS orcamento_id TEXT;
+
+UPDATE public.parcela_recebimentos SET parcela = parcela_id WHERE parcela IS NULL AND parcela_id IS NOT NULL;
+UPDATE public.parcela_recebimentos SET parcela_id = parcela WHERE parcela_id IS NULL AND parcela IS NOT NULL;
+UPDATE public.parcela_recebimentos SET orcamento = orcamento_id WHERE orcamento IS NULL AND orcamento_id IS NOT NULL;
+UPDATE public.parcela_recebimentos SET orcamento_id = orcamento WHERE orcamento_id IS NULL AND orcamento IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_rec_parcela ON public.parcela_recebimentos(parcela);
+CREATE INDEX IF NOT EXISTS idx_rec_orcamento ON public.parcela_recebimentos(orcamento);
+CREATE INDEX IF NOT EXISTS idx_rec_data ON public.parcela_recebimentos(data_pagamento);
+
+DROP TRIGGER IF EXISTS trigger_parcela_recebimentos_updated_at ON public.parcela_recebimentos;
+CREATE TRIGGER trigger_parcela_recebimentos_updated_at
+  BEFORE UPDATE ON public.parcela_recebimentos
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
 -- Compatibilidade e colunas orcamento / orcamento_id com backfill mútuo
 ALTER TABLE IF EXISTS public.pagamentos_parcelas ADD COLUMN IF NOT EXISTS orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE CASCADE;
 ALTER TABLE IF EXISTS public.pagamentos_parcelas ADD COLUMN IF NOT EXISTS orcamento_id TEXT;
@@ -711,6 +745,7 @@ ALTER TABLE public.metodos_pagamento ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orcamento_configuracoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orcamentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pagamentos_parcelas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.parcela_recebimentos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.regras_alerta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.alertas ENABLE ROW LEVEL SECURITY;
@@ -748,7 +783,7 @@ DECLARE
   t TEXT;
   admin_tables TEXT[] := ARRAY[
     'produtos', 'clientes_grupos', 'clientes', 'metodos_pagamento',
-    'orcamento_configuracoes', 'orcamentos', 'pagamentos_parcelas',
+    'orcamento_configuracoes', 'orcamentos', 'pagamentos_parcelas', 'parcela_recebimentos',
     'vendas', 'regras_alerta', 'alertas', 'importacoes', 'orcamento_servicos'
   ];
 BEGIN

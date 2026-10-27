@@ -124,7 +124,18 @@ export interface OrcamentoConfiguracao extends RecordModel {
   cidade?: string
 }
 
-export type StatusParcela = 'a_pagar' | 'paga' | 'cancelada'
+export type StatusParcela = 'a_pagar' | 'parcial' | 'paga' | 'cancelada'
+
+export interface ParcelaRecebimento extends RecordModel {
+  parcela: string
+  parcela_id?: string
+  orcamento?: string
+  orcamento_id?: string
+  valor: number
+  data_pagamento: string
+  forma_pagamento: string
+  observacao?: string
+}
 
 export interface PagamentoParcela extends RecordModel {
   orcamento: string
@@ -140,8 +151,10 @@ export interface PagamentoParcela extends RecordModel {
   ajuste?: number
   forma_pagamento?: string
   observacoes_baixa?: string
+  recebimentos?: ParcelaRecebimento[]
   expand?: {
     orcamento?: Orcamento
+    recebimentos?: ParcelaRecebimento[]
   }
 }
 
