@@ -3,7 +3,12 @@ import { GlobalFilters } from '@/components/GlobalFilters'
 import { useFilters } from '@/contexts/FilterContext'
 import { dataAdapter } from '@/lib/dataAdapter'
 import { useRealtime } from '@/hooks/use-realtime'
-import type { Venda, Produto, CanalVenda, ItemVenda } from '@/types'
+import type { Venda, Produto, CanalVenda, ItemVenda, UnidadeMedida } from '@/types'
+import {
+  listarUnidadesMedida,
+  calcularQuantidadePorDimensoes,
+  identificarTipoFormula,
+} from '@/services/unidadesMedida'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -68,6 +73,7 @@ export const Vendas: React.FC = () => {
   const { filtros } = useFilters()
   const [vendas, setVendas] = useState<Venda[]>([])
   const [produtos, setProdutos] = useState<Produto[]>([])
+  const [unidadesList, setUnidadesList] = useState<UnidadeMedida[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [pagina, setPagina] = useState(1)
@@ -101,7 +107,7 @@ export const Vendas: React.FC = () => {
 
   const carregarDados = useCallback(async () => {
     try {
-      const [vendasRes, produtosRes] = await Promise.all([
+      const [vendasRes, produtosRes, unidadesRes] = await Promise.all([
         dataAdapter.getFullList<Venda>('vendas', {
           sort: '-data',
           expand: 'produto',
@@ -109,9 +115,11 @@ export const Vendas: React.FC = () => {
         dataAdapter.getFullList<Produto>('produtos', {
           sort: 'nome',
         }),
+        listarUnidadesMedida(false),
       ])
       setVendas(vendasRes)
       setProdutos(produtosRes)
+      setUnidadesList(unidadesRes)
     } catch (e) {
       console.error('Erro ao carregar vendas:', e)
     } finally {
@@ -331,11 +339,17 @@ export const Vendas: React.FC = () => {
   // Adiciona linha de item na venda
   const adicionarLinhaItem = () => {
     const prodPadrao = produtos[0]
+    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
     setItensLinhas((prev) => [
       ...prev,
       {
         produto_id: prodPadrao?.id || '',
         nome: prodPadrao?.nome || 'Serviço de Gesso',
+        unidade_id: unidPadrao?.id,
+        unidade: unidPadrao?.sigla || 'm²',
+        metodo_calculo: unidPadrao?.metodo_calculo || 'AxB',
+        dimensao_a: undefined,
+        dimensao_b: undefined,
         quantidade: 1,
         valor_unitario: prodPadrao?.preco_base || 0,
         total: prodPadrao?.preco_base || 0,
@@ -360,6 +374,32 @@ export const Vendas: React.FC = () => {
         }
       } else if (campo === 'nome') {
         linha.nome = valor
+      } else if (campo === 'unidade_id') {
+        const u = unidadesList.find((x) => x.id === valor)
+        linha.unidade_id = valor || undefined
+        linha.unidade = u?.sigla || linha.unidade || 'm²'
+        linha.metodo_calculo = u?.metodo_calculo || ''
+        if (identificarTipoFormula(linha.metodo_calculo) === 'livre') {
+          linha.dimensao_a = undefined
+          linha.dimensao_b = undefined
+        }
+        const calc = calcularQuantidadePorDimensoes(
+          linha.dimensao_a,
+          linha.dimensao_b,
+          linha.metodo_calculo,
+        )
+        if (calc !== null) {
+          linha.quantidade = calc
+        }
+      } else if (campo === 'dimensao_a' || campo === 'dimensao_b') {
+        const a = campo === 'dimensao_a' ? parseFloat(valor) || 0 : linha.dimensao_a || 0
+        const b = campo === 'dimensao_b' ? parseFloat(valor) || 0 : linha.dimensao_b || 0
+        linha.dimensao_a = a
+        linha.dimensao_b = b
+        const calc = calcularQuantidadePorDimensoes(a, b, linha.metodo_calculo)
+        if (calc !== null) {
+          linha.quantidade = calc
+        }
       } else if (campo === 'quantidade') {
         const q = Math.max(0.01, parseFloat(valor) || 0)
         linha.quantidade = q
@@ -368,7 +408,7 @@ export const Vendas: React.FC = () => {
         linha.valor_unitario = vu
       }
 
-      linha.total = Number((linha.quantidade * linha.valor_unitario).toFixed(2))
+      linha.total = Number(((linha.quantidade || 0) * (linha.valor_unitario || 0)).toFixed(2))
       copy[index] = linha
       return copy
     })
@@ -387,10 +427,14 @@ export const Vendas: React.FC = () => {
   const abrirNovaVenda = () => {
     setEditandoVenda(null)
     const prodPadrao = produtos[0]
+    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
     setItensLinhas([
       {
         produto_id: prodPadrao?.id || '',
         nome: prodPadrao?.nome || 'Serviço de Gesso',
+        unidade_id: unidPadrao?.id,
+        unidade: unidPadrao?.sigla || 'm²',
+        metodo_calculo: unidPadrao?.metodo_calculo || 'AxB',
         quantidade: 1,
         valor_unitario: prodPadrao?.preco_base || 0,
         total: prodPadrao?.preco_base || 0,
@@ -410,7 +454,21 @@ export const Vendas: React.FC = () => {
   const abrirEdicaoVenda = (venda: Venda) => {
     setEditandoVenda(venda)
     const itensExistentes = extrairItensVenda(venda)
-    setItensLinhas(itensExistentes)
+    // Complementa unidade_id se faltar mas existir sigla compatível
+    const itensNormalizados = itensExistentes.map((it) => {
+      if (!it.unidade_id && it.unidade) {
+        const match = unidadesList.find((u) => u.sigla === it.unidade)
+        if (match) {
+          return {
+            ...it,
+            unidade_id: match.id,
+            metodo_calculo: it.metodo_calculo || match.metodo_calculo,
+          }
+        }
+      }
+      return it
+    })
+    setItensLinhas(itensNormalizados)
     const dataIso = venda.data
       ? venda.data.substring(0, 10)
       : new Date().toISOString().substring(0, 10)
@@ -994,96 +1052,179 @@ export const Vendas: React.FC = () => {
               )}
 
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                {itensLinhas.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 bg-[#f8fafc] border border-[#DEE4EA] rounded-xl grid grid-cols-12 gap-2 items-center"
-                  >
-                    {/* Seletor de Produto */}
-                    <div className="col-span-12 sm:col-span-5 space-y-1">
-                      <Label className="text-[11px] text-[#616F7D]">Produto / Serviço *</Label>
-                      <Select
-                        value={item.produto_id || 'manual'}
-                        onValueChange={(val) => {
-                          if (val === 'manual') {
-                            atualizarLinhaItem(idx, 'produto_id', '')
-                          } else {
-                            atualizarLinhaItem(idx, 'produto_id', val)
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="h-8 text-xs bg-white">
-                          <SelectValue placeholder="Selecione o produto" />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[220px]">
-                          {produtos.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="text-xs">
-                              {p.nome} {p.preco_base ? `(R$ ${p.preco_base.toFixed(2)})` : ''}
+                {itensLinhas.map((item, idx) => {
+                  const unidAtual = item.unidade_id
+                    ? unidadesList.find((u) => u.id === item.unidade_id)
+                    : unidadesList.find((u) => u.sigla === item.unidade)
+                  const metodoCalculo = unidAtual?.metodo_calculo ?? item.metodo_calculo ?? ''
+                  const tipoFormula = identificarTipoFormula(metodoCalculo)
+
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 bg-[#f8fafc] border border-[#DEE4EA] rounded-xl grid grid-cols-12 gap-2 items-end"
+                    >
+                      {/* Seletor de Produto */}
+                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Produto / Serviço *</Label>
+                        <Select
+                          value={item.produto_id || 'manual'}
+                          onValueChange={(val) => {
+                            if (val === 'manual') {
+                              atualizarLinhaItem(idx, 'produto_id', '')
+                            } else {
+                              atualizarLinhaItem(idx, 'produto_id', val)
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-white">
+                            <SelectValue placeholder="Selecione o produto" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[220px]">
+                            {produtos.map((p) => (
+                              <SelectItem key={p.id} value={p.id} className="text-xs">
+                                {p.nome} {p.preco_base ? `(R$ ${p.preco_base.toFixed(2)})` : ''}
+                              </SelectItem>
+                            ))}
+                            <SelectItem
+                              value="manual"
+                              className="text-xs font-medium text-[#2C3E50]"
+                            >
+                              Outro item / Descrição livre
                             </SelectItem>
-                          ))}
-                          <SelectItem value="manual" className="text-xs font-medium text-[#2C3E50]">
-                            Outro item / Descrição livre
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {!item.produto_id && (
+                          </SelectContent>
+                        </Select>
+                        {!item.produto_id && (
+                          <Input
+                            placeholder="Nome do produto ou serviço..."
+                            value={item.nome}
+                            onChange={(e) => atualizarLinhaItem(idx, 'nome', e.target.value)}
+                            className="h-7 text-xs bg-white mt-1"
+                          />
+                        )}
+                      </div>
+
+                      {/* Unidade de Medida */}
+                      <div className="col-span-6 sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Unidade</Label>
+                        <Select
+                          value={
+                            item.unidade_id ||
+                            unidadesList.find((u) => u.sigla === item.unidade)?.id ||
+                            (unidadesList.find((u) => u.padrao) || unidadesList[0])?.id ||
+                            ''
+                          }
+                          onValueChange={(val) => atualizarLinhaItem(idx, 'unidade_id', val)}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-white">
+                            <SelectValue placeholder="Unid." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidadesList.map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.sigla} {u.metodo_calculo ? `(${u.metodo_calculo})` : ''} -{' '}
+                                {u.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Dimensões A e B quando método não for livre */}
+                      {tipoFormula !== 'livre' ? (
+                        <>
+                          <div className="col-span-3 sm:col-span-1 space-y-1">
+                            <Label className="text-[10px] text-[#616F7D]" title="Largura / Lado A">
+                              A (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="A"
+                              value={item.dimensao_a ?? ''}
+                              onChange={(e) =>
+                                atualizarLinhaItem(idx, 'dimensao_a', e.target.value)
+                              }
+                              className="h-8 text-xs bg-white text-center px-1"
+                            />
+                          </div>
+                          <div className="col-span-3 sm:col-span-1 space-y-1">
+                            <Label className="text-[10px] text-[#616F7D]" title="Altura / Lado B">
+                              B (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="B"
+                              value={item.dimensao_b ?? ''}
+                              onChange={(e) =>
+                                atualizarLinhaItem(idx, 'dimensao_b', e.target.value)
+                              }
+                              className="h-8 text-xs bg-white text-center px-1"
+                            />
+                          </div>
+                        </>
+                      ) : null}
+
+                      {/* Quantidade */}
+                      <div
+                        className={
+                          tipoFormula !== 'livre'
+                            ? 'col-span-4 sm:col-span-1 space-y-1'
+                            : 'col-span-6 sm:col-span-2 space-y-1'
+                        }
+                      >
+                        <Label className="text-[11px] text-[#616F7D]">
+                          Qtd ({item.unidade || 'm²'})
+                        </Label>
                         <Input
-                          placeholder="Nome do produto ou serviço..."
-                          value={item.nome}
-                          onChange={(e) => atualizarLinhaItem(idx, 'nome', e.target.value)}
-                          className="h-7 text-xs bg-white mt-1"
+                          type="number"
+                          min="0.01"
+                          step="any"
+                          value={item.quantidade}
+                          onChange={(e) => atualizarLinhaItem(idx, 'quantidade', e.target.value)}
+                          className="h-8 text-xs bg-white text-center font-mono font-semibold"
                         />
-                      )}
-                    </div>
+                      </div>
 
-                    {/* Quantidade */}
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-[11px] text-[#616F7D]">Qtd *</Label>
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="any"
-                        value={item.quantidade}
-                        onChange={(e) => atualizarLinhaItem(idx, 'quantidade', e.target.value)}
-                        className="h-8 text-xs bg-white text-right font-mono"
-                      />
-                    </div>
+                      {/* Valor Unitário */}
+                      <div className="col-span-4 sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Unitário (R$)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.valor_unitario}
+                          onChange={(e) =>
+                            atualizarLinhaItem(idx, 'valor_unitario', e.target.value)
+                          }
+                          className="h-8 text-xs bg-white text-right font-mono"
+                        />
+                      </div>
 
-                    {/* Valor Unitário */}
-                    <div className="col-span-4 sm:col-span-2 space-y-1">
-                      <Label className="text-[11px] text-[#616F7D]">Unitário (R$)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.valor_unitario}
-                        onChange={(e) => atualizarLinhaItem(idx, 'valor_unitario', e.target.value)}
-                        className="h-8 text-xs bg-white text-right font-mono"
-                      />
-                    </div>
+                      {/* Total da Linha */}
+                      <div className="col-span-3 sm:col-span-1 space-y-1 text-right">
+                        <Label className="text-[11px] text-[#616F7D]">Total</Label>
+                        <div className="h-8 flex items-center justify-end font-bold text-xs font-mono text-[#2C3E50]">
+                          {formatMoeda(item.total)}
+                        </div>
+                      </div>
 
-                    {/* Total da Linha */}
-                    <div className="col-span-3 sm:col-span-2 space-y-1 text-right">
-                      <Label className="text-[11px] text-[#616F7D]">Total Linha</Label>
-                      <div className="h-8 flex items-center justify-end font-bold text-xs font-mono text-[#2C3E50]">
-                        {formatMoeda(item.total)}
+                      {/* Remover */}
+                      <div className="col-span-1 sm:col-span-1 flex items-end justify-center pb-0.5">
+                        <button
+                          type="button"
+                          onClick={() => removerLinhaItem(idx)}
+                          disabled={itensLinhas.length <= 1}
+                          className="p-1.5 text-[#8A94A0] hover:text-[#C4453C] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                          title="Remover linha"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-
-                    {/* Remover */}
-                    <div className="col-span-1 sm:col-span-1 flex items-end justify-center pb-0.5">
-                      <button
-                        type="button"
-                        onClick={() => removerLinhaItem(idx)}
-                        disabled={itensLinhas.length <= 1}
-                        className="p-1.5 text-[#8A94A0] hover:text-[#C4453C] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                        title="Remover linha"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Totalizador da Venda */}

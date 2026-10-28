@@ -105,14 +105,21 @@ export async function listarUnidadesMedida(apenasAtivas = false): Promise<Unidad
   }
 
   // Fallback seguro caso a collection ainda não esteja populada no ambiente
-  return UNIDADES_MEDIDA_PADRAO.map((u, index) => ({
-    id: `unid_local_${index + 1}`,
-    collectionId: 'unidades_medida',
-    collectionName: 'unidades_medida',
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-    ...u,
-  }))
+  return UNIDADES_MEDIDA_PADRAO.map(
+    (u, index): UnidadeMedida => ({
+      id: `unid_local_${index + 1}`,
+      collectionId: 'unidades_medida',
+      collectionName: 'unidades_medida',
+      created: new Date().toISOString(),
+      updated: new Date().toISOString(),
+      nome: u.nome,
+      sigla: u.sigla,
+      metodo_calculo: u.metodo_calculo,
+      ordem: u.ordem,
+      ativo: u.ativo,
+      padrao: u.padrao,
+    }),
+  )
 }
 
 export async function obterUnidadePorId(id: string): Promise<UnidadeMedida | null> {

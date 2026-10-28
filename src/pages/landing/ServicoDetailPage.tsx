@@ -1,6 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { SERVICOS, getWhatsAppUrlForService, CIDADES_ATENDIDAS } from '@/data/landingData'
+import {
+  SERVICOS,
+  getWhatsAppUrlForService,
+  CIDADES_ATENDIDAS,
+  WHATSAPP_LINK,
+} from '@/data/landingData'
 import { resolverUrlMidia } from '@/lib/watermark'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
@@ -19,6 +24,82 @@ import {
   Maximize2,
   ShieldCheck,
 } from 'lucide-react'
+
+// Error Boundary LOCAL exclusivo para a página de detalhes de serviço
+interface ServicoBoundaryProps {
+  children: ReactNode
+  slug?: string
+}
+
+interface ServicoBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class ServicoLocalErrorBoundary extends Component<ServicoBoundaryProps, ServicoBoundaryState> {
+  public state: ServicoBoundaryState = {
+    hasError: false,
+    error: null,
+  }
+
+  public static getDerivedStateFromError(error: Error): ServicoBoundaryState {
+    return { hasError: true, error }
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ServicoDetailPage local error boundary caught:', error, errorInfo)
+  }
+
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+          <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-[#DEE4EA] text-center shadow-xs">
+            <div className="w-14 h-14 bg-[#2C3E50]/10 rounded-full flex items-center justify-center mx-auto mb-4 text-[#2C3E50]">
+              <ShieldCheck className="w-7 h-7 text-[#D4AF37]" />
+            </div>
+            <h1 className="font-heading text-2xl font-bold text-[#2C3E50] mb-2">
+              Detalhes do Serviço
+            </h1>
+            <p className="text-sm text-[#616F7D] mb-6 leading-relaxed">
+              Ocorreu uma instabilidade pontual ao carregar as informações deste serviço. Nossos
+              especialistas estão à disposição pelo WhatsApp com fotos, orientações e orçamentos
+              rápidos.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                asChild
+                className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+              >
+                <Link to="/servicos">Ver todos os serviços</Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="border-[#DEE4EA] text-[#2C3E50] font-bold text-xs uppercase tracking-wider"
+              >
+                <a
+                  href={getWhatsAppUrlForService(this.props.slug || 'Serviço Gesso Bettone')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 mr-1 text-[#2C3E50]" />
+                  WhatsApp Bettone
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
 
 // Helper seguro para converter qualquer valor de campo de lista (array, string JSON, string avulsa) em array de strings
 function normalizarListaStrings(valor: any): string[] {
@@ -46,7 +127,7 @@ function normalizarListaStrings(valor: any): string[] {
   return []
 }
 
-export const ServicoDetailPage: React.FC = () => {
+const ServicoDetailPageInner: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const [servicoDb, setServicoDb] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -270,72 +351,75 @@ export const ServicoDetailPage: React.FC = () => {
   const precoMinimo = servicoDb?.preco_minimo || undefined
 
   // JSON-LD Service + Breadcrumbs protegido contra undefined/null (chamado incondicionalmente no topo)
-  const serviceJsonLd = useMemo(() => {
+  const serviceJsonLd = useMemo((): any => {
     if (!servico) return undefined
     try {
-      return [
-        {
-          '@context': 'https://schema.org',
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            {
-              '@type': 'ListItem',
-              position: 1,
-              name: 'Início',
-              item: 'https://gessobettone.com.br/',
-            },
-            {
-              '@type': 'ListItem',
-              position: 2,
-              name: 'Serviços',
-              item: 'https://gessobettone.com.br/servicos',
-            },
-            {
-              '@type': 'ListItem',
-              position: 3,
-              name: tituloSeguro,
-              item: `https://gessobettone.com.br/servicos/${servico.slug || ''}`,
-            },
-          ],
-        },
-        {
-          '@context': 'https://schema.org',
-          '@type': 'Service',
-          name: tituloSeguro,
-          serviceType: tituloSeguro,
-          category: servico.categoria || 'Serviços',
-          description:
-            servico.descricaoCompleta || servico.descricaoCurta || 'Serviço Gesso Bettone',
-          provider: {
-            '@type': 'LocalBusiness',
-            name: 'Gesso Bettone',
-            telephone: '+55-19-98109-3379',
-            address: {
-              '@type': 'PostalAddress',
-              addressLocality: 'São Pedro',
-              addressRegion: 'SP',
-              addressCountry: 'BR',
-            },
+      const breadcrumb = {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Início',
+            item: 'https://gessobettone.com.br/',
           },
-          areaServed: Array.isArray(CIDADES_ATENDIDAS)
-            ? CIDADES_ATENDIDAS.map((c) => ({
-                '@type': 'AdministrativeArea',
-                name: String(c),
-              }))
-            : [],
-          ...(precoMinimo
-            ? {
-                offers: {
-                  '@type': 'Offer',
-                  priceCurrency: 'BRL',
-                  price: String(precoMinimo),
-                  availability: 'https://schema.org/InStock',
-                },
-              }
-            : {}),
-          ...(fotoAtualUrl ? { image: fotoAtualUrl } : {}),
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Serviços',
+            item: 'https://gessobettone.com.br/servicos',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: tituloSeguro,
+            item: `https://gessobettone.com.br/servicos/${servico?.slug || ''}`,
+          },
+        ],
+      }
+
+      const serviceObj: any = {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: tituloSeguro,
+        serviceType: tituloSeguro,
+        category: servico?.categoria || 'Serviços',
+        description:
+          servico?.descricaoCompleta || servico?.descricaoCurta || 'Serviço Gesso Bettone',
+        provider: {
+          '@type': 'LocalBusiness',
+          name: 'Gesso Bettone',
+          telephone: '+55-19-98109-3379',
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: 'São Pedro',
+            addressRegion: 'SP',
+            addressCountry: 'BR',
+          },
         },
-      ]
+        areaServed: Array.isArray(CIDADES_ATENDIDAS)
+          ? CIDADES_ATENDIDAS.map((c) => ({
+              '@type': 'AdministrativeArea',
+              name: String(c || ''),
+            }))
+          : [],
+      }
+
+      if (precoMinimo) {
+        serviceObj.offers = {
+          '@type': 'Offer',
+          priceCurrency: 'BRL',
+          price: String(precoMinimo),
+          availability: 'https://schema.org/InStock',
+        }
+      }
+
+      if (fotoAtualUrl) {
+        serviceObj.image = fotoAtualUrl
+      }
+
+      return [breadcrumb, serviceObj]
     } catch {
       return undefined
     }
@@ -410,11 +494,11 @@ export const ServicoDetailPage: React.FC = () => {
   return (
     <>
       <SEO
-        title={servico.metaTitle}
-        description={servico.metaDescription}
-        canonical={`/servicos/${servico.slug}`}
+        title={servico?.metaTitle || 'Serviço | Gesso Bettone'}
+        description={servico?.metaDescription || 'Serviço de Gesso e Drywall em São Pedro e região'}
+        canonical={`/servicos/${servico?.slug || slug || ''}`}
         ogImage={fotoAtualUrl || undefined}
-        keywords={servico.keywords}
+        keywords={servico?.keywords || []}
         jsonLd={serviceJsonLd}
       />
 
@@ -436,7 +520,7 @@ export const ServicoDetailPage: React.FC = () => {
               </li>
               <li>/</li>
               <li className="text-[#D4AF37] font-semibold truncate max-w-[200px]">
-                {servico.titulo}
+                {tituloSeguro}
               </li>
             </ol>
           </nav>
@@ -445,16 +529,16 @@ export const ServicoDetailPage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Badge className="bg-[#D4AF37] text-[#2C3E50] font-bold text-xs border-none">
-                  {servico.categoria}
+                  {servico?.categoria || 'Serviços'}
                 </Badge>
-                {servico.destaque && (
+                {servico?.destaque && (
                   <Badge variant="outline" className="border-white/30 text-white text-xs">
                     ★ Destaque
                   </Badge>
                 )}
               </div>
               <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">
-                {servico.titulo}
+                {tituloSeguro}
               </h1>
             </div>
 
@@ -490,7 +574,7 @@ export const ServicoDetailPage: React.FC = () => {
 
                   <WatermarkedImage
                     src={fotoAtualUrl}
-                    alt={`${servico.titulo} — foto ${activePhotoIndex + 1}`}
+                    alt={`${tituloSeguro} — foto ${activePhotoIndex + 1}`}
                     className="relative z-10 w-full h-full object-contain object-center transition-all duration-300 cursor-pointer"
                     onClick={() => setLightboxOpen(true)}
                   />
@@ -534,9 +618,7 @@ export const ServicoDetailPage: React.FC = () => {
                   <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center mb-3 shadow-md">
                     <Images className="w-8 h-8 text-[#D4AF37]" />
                   </div>
-                  <h4 className="font-heading text-lg font-bold text-[#2C3E50]">
-                    {servico.titulo}
-                  </h4>
+                  <h4 className="font-heading text-lg font-bold text-[#2C3E50]">{tituloSeguro}</h4>
                   <p className="text-xs text-[#616F7D] mt-1 max-w-sm">
                     Gesso &amp; Drywall com padrão superior. Solicite fotos e registros desta
                     solução pelo WhatsApp.
@@ -594,7 +676,7 @@ export const ServicoDetailPage: React.FC = () => {
                 Por que escolher a Gesso Bettone para este serviço:
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {servico.beneficios && servico.beneficios.length > 0 ? (
+                {servico?.beneficios && servico.beneficios.length > 0 ? (
                   servico.beneficios.map((ben, i) => (
                     <div key={i} className="flex items-start gap-2.5">
                       <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
@@ -637,7 +719,11 @@ export const ServicoDetailPage: React.FC = () => {
           <div className="lg:col-span-5 space-y-6">
             <div className="p-6 rounded-2xl bg-white border border-[#DEE4EA] shadow-xs space-y-4">
               <h2 className="font-heading text-xl font-bold text-[#2C3E50]">Sobre o Serviço</h2>
-              <p className="text-sm text-[#616F7D] leading-relaxed">{servico.descricaoCompleta}</p>
+              <p className="text-sm text-[#616F7D] leading-relaxed">
+                {servico?.descricaoCompleta ||
+                  servico?.descricaoCurta ||
+                  'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.'}
+              </p>
 
               <div className="pt-4 border-t border-[#DEE4EA] space-y-3">
                 <div className="flex items-center gap-2 text-xs font-semibold text-[#2C3E50]">
@@ -710,7 +796,7 @@ export const ServicoDetailPage: React.FC = () => {
             )}
             <WatermarkedImage
               src={fotoAtualUrl}
-              alt={`${servico.titulo} em tela cheia`}
+              alt={`${tituloSeguro} em tela cheia`}
               className="relative z-10 max-w-full max-h-[75vh] w-auto h-auto object-contain object-center mx-auto"
             />
             {listaFotos.length > 1 && (
@@ -736,7 +822,7 @@ export const ServicoDetailPage: React.FC = () => {
           </div>
           {listaFotos.length > 0 && (
             <div className="py-2 text-center text-xs text-white/70">
-              Foto {activePhotoIndex + 1} de {listaFotos.length} — {servico.titulo}
+              Foto {activePhotoIndex + 1} de {listaFotos.length} — {tituloSeguro}
             </div>
           )}
         </DialogContent>
@@ -750,6 +836,15 @@ export const ServicoDetailPage: React.FC = () => {
         botaoTexto="Falar com especialista agora"
       />
     </>
+  )
+}
+
+export const ServicoDetailPage: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>()
+  return (
+    <ServicoLocalErrorBoundary slug={slug}>
+      <ServicoDetailPageInner />
+    </ServicoLocalErrorBoundary>
   )
 }
 

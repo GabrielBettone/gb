@@ -1230,40 +1230,80 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         />
                       </div>
 
-                      {/* Largura × Comprimento opcionais */}
-                      <div className="sm:col-span-1 space-y-1">
-                        <Label className="text-[10px] text-[#616F7D]">Larg. (m)</Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder="Ex: 4"
-                          value={item.largura || ''}
-                          onChange={(e) => handleItemChange(idx, 'largura', e.target.value)}
-                          className="h-8 text-xs bg-white px-1.5 text-center"
-                        />
+                      {/* Seletor de Unidade de Medida */}
+                      <div className="sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Unidade</Label>
+                        <Select
+                          value={
+                            item.unidade_id ||
+                            unidadesList.find((u) => u.sigla === item.unidade)?.id ||
+                            (unidadesList.find((u) => u.padrao) || unidadesList[0])?.id ||
+                            ''
+                          }
+                          onValueChange={(val) => handleItemChange(idx, 'unidade_id', val)}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-white">
+                            <SelectValue placeholder="Unid." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidadesList.map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.sigla} {u.metodo_calculo ? `(${u.metodo_calculo})` : ''} -{' '}
+                                {u.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      <div className="sm:col-span-1 space-y-1">
-                        <Label className="text-[10px] text-[#616F7D]">Compr. (m)</Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          placeholder="Ex: 5"
-                          value={item.comprimento || ''}
-                          onChange={(e) => handleItemChange(idx, 'comprimento', e.target.value)}
-                          className="h-8 text-xs bg-white px-1.5 text-center"
-                        />
-                      </div>
+                      {/* Dimensões A e B se a unidade tiver cálculo dimensional */}
+                      {identificarTipoFormula(metodoCalculoDe(item)) !== 'livre' ? (
+                        <>
+                          <div className="sm:col-span-1 space-y-1">
+                            <Label className="text-[10px] text-[#616F7D]" title="Largura / Lado A">
+                              A (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="A"
+                              value={item.dimensao_a ?? item.largura ?? ''}
+                              onChange={(e) => handleItemChange(idx, 'dimensao_a', e.target.value)}
+                              className="h-8 text-xs bg-white px-1 text-center"
+                            />
+                          </div>
 
-                      {/* Quantidade (Área Total) */}
-                      <div className="sm:col-span-1 space-y-1">
+                          <div className="sm:col-span-1 space-y-1">
+                            <Label className="text-[10px] text-[#616F7D]" title="Altura / Lado B">
+                              B (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="B"
+                              value={item.dimensao_b ?? item.comprimento ?? ''}
+                              onChange={(e) => handleItemChange(idx, 'dimensao_b', e.target.value)}
+                              className="h-8 text-xs bg-white px-1 text-center"
+                            />
+                          </div>
+                        </>
+                      ) : null}
+
+                      {/* Quantidade (Área / Perímetro / Livre) */}
+                      <div
+                        className={
+                          identificarTipoFormula(metodoCalculoDe(item)) !== 'livre'
+                            ? 'sm:col-span-1 space-y-1'
+                            : 'sm:col-span-2 space-y-1'
+                        }
+                      >
                         <Label className="text-[10px] text-[#616F7D]">
                           Qtd ({item.unidade || 'm²'})
                         </Label>
                         <Input
                           type="number"
                           step="any"
-                          min="0.1"
+                          min="0.01"
                           value={item.quantidade}
                           onChange={(e) => handleItemChange(idx, 'quantidade', e.target.value)}
                           className="h-8 text-xs bg-white px-1 text-center font-semibold"
