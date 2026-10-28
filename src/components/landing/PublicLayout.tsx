@@ -15,11 +15,15 @@ export const PublicLayout: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    // Registrar pageview real
-    registrarEventoAnalytics({
-      tipo: 'pageview',
-      pagina: location.pathname,
-    })
+    // Registrar pageview real com proteção de try/catch
+    try {
+      registrarEventoAnalytics({
+        tipo: 'pageview',
+        pagina: location.pathname,
+      })
+    } catch (e) {
+      console.debug('Analytics pageview não registrado:', e)
+    }
   }, [location.pathname])
 
   // Injetar JSON-LD LocalBusiness fixo no layout público para presença local forte
@@ -84,7 +88,11 @@ export const PublicLayout: React.FC = () => {
       sameAs: [settings?.instagram || 'https://www.instagram.com/gessobettone_saopedro'],
     }
 
-    script.textContent = JSON.stringify(localBusinessLd)
+    try {
+      script.textContent = JSON.stringify(localBusinessLd)
+    } catch (e) {
+      console.debug('Erro ao serializar localBusinessLd:', e)
+    }
   }, [settings])
 
   return (

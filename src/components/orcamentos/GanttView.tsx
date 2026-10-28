@@ -101,7 +101,18 @@ export const GanttView: React.FC<GanttViewProps> = ({
   }, [])
 
   const diasDesdeInicio = (data: Date) => {
-    return (data.getTime() - dataInicioTimeline.getTime()) / DIA_MS
+    // Normaliza para início do dia (00:00:00) para índice exato de colunas
+    const dNormalizada = new Date(data.getFullYear(), data.getMonth(), data.getDate(), 0, 0, 0, 0)
+    const inicioNormalizado = new Date(
+      dataInicioTimeline.getFullYear(),
+      dataInicioTimeline.getMonth(),
+      dataInicioTimeline.getDate(),
+      0,
+      0,
+      0,
+      0,
+    )
+    return Math.round((dNormalizada.getTime() - inicioNormalizado.getTime()) / DIA_MS)
   }
 
   // Prepara orçamentos com datas válidas para o Gantt
@@ -153,7 +164,15 @@ export const GanttView: React.FC<GanttViewProps> = ({
         dFim = new Date(dragState.currentFimMs)
       }
 
-      const duracaoDias = Math.max(1, Math.round((dFim.getTime() - dInicio.getTime()) / DIA_MS))
+      // Duração em dias corridos inclusivos (ex: 01/11 a 01/11 = 1 dia; 01/11 a 06/11 = 6 dias)
+      const duracaoDias = Math.max(
+        1,
+        Math.round(
+          (new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate()).getTime() -
+            new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate()).getTime()) /
+            DIA_MS,
+        ) + 1,
+      )
       const prodNome =
         orc.expand?.produto_principal?.nome ||
         parseItens(orc.itens)[0]?.descricao ||
@@ -226,9 +245,9 @@ export const GanttView: React.FC<GanttViewProps> = ({
       } else if (dragState.mode === 'resize-left') {
         // Estica ou encolhe a borda esquerda (início)
         let novoInicio = dragState.origInicioMs + deltaMs
-        // Não permite passar do fim
-        if (novoInicio > dragState.origFimMs - DIA_MS) {
-          novoInicio = dragState.origFimMs - DIA_MS
+        // Não permite passar do fim (início <= fim)
+        if (novoInicio > dragState.origFimMs) {
+          novoInicio = dragState.origFimMs
         }
         setDragState((prev) =>
           prev
@@ -243,9 +262,9 @@ export const GanttView: React.FC<GanttViewProps> = ({
       } else if (dragState.mode === 'resize-right') {
         // Estica ou encolhe a borda direita (fim)
         let novoFim = dragState.origFimMs + deltaMs
-        // Não permite ser anterior ao início
-        if (novoFim < dragState.origInicioMs + DIA_MS) {
-          novoFim = dragState.origInicioMs + DIA_MS
+        // Não permite ser anterior ao início (fim >= início)
+        if (novoFim < dragState.origInicioMs) {
+          novoFim = dragState.origInicioMs
         }
         setDragState((prev) =>
           prev
@@ -493,9 +512,12 @@ export const GanttView: React.FC<GanttViewProps> = ({
                 const config = getEtapaConfig(orc.status)
 
                 // Cálculo da posição no eixo X
+                // A barra deve ir do início do dia de início ao fim do dia de término
+                // (largura = (dias + 1) * larguraDoDia, offset = índiceDoDia(data_inicio) * larguraDoDia)
                 const diasInicio = diasDesdeInicio(item.dInicio)
                 const diasFim = diasDesdeInicio(item.dFim)
-                const duracaoDias = Math.max(1, diasFim - diasInicio)
+                const diasIntervalo = Math.max(0, diasFim - diasInicio)
+                const duracaoDias = diasIntervalo + 1
 
                 const barLeft = COL_INFO_WIDTH + diasInicio * pixelsPorDia
                 const barWidth = Math.max(pixelsPorDia, duracaoDias * pixelsPorDia)

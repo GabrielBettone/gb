@@ -714,7 +714,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <DialogContent className="max-w-6xl w-full max-h-[92vh] overflow-y-auto p-0 gap-0">
           <DialogHeader className="p-5 bg-white border-b border-[#DEE4EA] sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -962,21 +962,21 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="p-3 bg-[#f8fafc] rounded-xl border border-[#DEE4EA] grid grid-cols-12 gap-2 items-end"
+                      className="p-3.5 bg-[#f8fafc] rounded-xl border border-[#DEE4EA] flex flex-col md:flex-row md:items-end gap-3"
                     >
                       {/* Local / Ambiente */}
-                      <div className="col-span-12 sm:col-span-3 space-y-1">
+                      <div className="w-full md:w-44 shrink-0 space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">Local / Ambiente *</Label>
                         <Input
-                          placeholder="Ex: Sala, Banheiro, Quarto..."
+                          placeholder="Ex: Sala, Banheiro..."
                           value={linha.local}
                           onChange={(e) => handleLinhaLocalChange(idx, 'local', e.target.value)}
-                          className="h-8 text-xs bg-white font-medium text-[#2C3E50]"
+                          className="h-9 text-xs bg-white font-medium text-[#2C3E50]"
                         />
                       </div>
 
                       {/* Serviço / Descrição */}
-                      <div className="col-span-12 sm:col-span-4 space-y-1">
+                      <div className="w-full md:flex-1 md:min-w-[200px] space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">Serviço / Descrição *</Label>
                         <div className="space-y-1">
                           {servicosDoGrupo.length > 0 ? (
@@ -990,7 +990,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 }
                               }}
                             >
-                              <SelectTrigger className="h-8 text-xs bg-white">
+                              <SelectTrigger className="h-9 text-xs bg-white">
                                 <SelectValue placeholder="Selecione o serviço" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1015,14 +1015,14 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                               onChange={(e) =>
                                 handleLinhaLocalChange(idx, 'servico', e.target.value)
                               }
-                              className="h-8 text-xs bg-white"
+                              className="h-9 text-xs bg-white"
                             />
                           )}
                         </div>
                       </div>
 
                       {/* Unidade de Medida */}
-                      <div className="col-span-6 sm:col-span-2 space-y-1">
+                      <div className="w-full md:w-32 shrink-0 space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">Unidade</Label>
                         <Select
                           value={
@@ -1033,7 +1033,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                           }
                           onValueChange={(val) => handleLinhaLocalChange(idx, 'unidade_id', val)}
                         >
-                          <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectTrigger className="h-9 text-xs bg-white">
                             <SelectValue placeholder="Unid." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1047,99 +1047,103 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         </Select>
                       </div>
 
-                      {/* Dimensões A e B se o método não for livre */}
-                      {identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre' ? (
-                        <>
-                          <div className="col-span-3 sm:col-span-1 space-y-1">
-                            <Label className="text-[10px] text-[#616F7D]" title="Largura / Lado A">
-                              A (m)
-                            </Label>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="A"
-                              value={linha.dimensao_a ?? ''}
-                              onChange={(e) =>
-                                handleLinhaLocalChange(idx, 'dimensao_a', e.target.value)
-                              }
-                              className="h-8 text-xs bg-white text-center px-1"
-                            />
-                          </div>
-                          <div className="col-span-3 sm:col-span-1 space-y-1">
-                            <Label
-                              className="text-[10px] text-[#616F7D]"
-                              title="Comprimento / Lado B"
-                            >
-                              B (m)
-                            </Label>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="B"
-                              value={linha.dimensao_b ?? ''}
-                              onChange={(e) =>
-                                handleLinhaLocalChange(idx, 'dimensao_b', e.target.value)
-                              }
-                              className="h-8 text-xs bg-white text-center px-1"
-                            />
-                          </div>
-                        </>
-                      ) : null}
+                      {/* Bloco de Medidas e Valores: no mobile fica em grid responsivo, no desktop alinhado com espaço generoso */}
+                      <div className="w-full md:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2.5 shrink-0">
+                        {/* Dimensões A e B se o método não for livre */}
+                        {identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre' ? (
+                          <>
+                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                              <Label
+                                className="text-[10px] text-[#616F7D]"
+                                title="Largura / Lado A"
+                              >
+                                A (m)
+                              </Label>
+                              <Input
+                                type="number"
+                                step="any"
+                                placeholder="0,00"
+                                value={linha.dimensao_a ?? ''}
+                                onChange={(e) =>
+                                  handleLinhaLocalChange(idx, 'dimensao_a', e.target.value)
+                                }
+                                className="h-9 text-xs bg-white text-center px-2 min-w-[70px] font-mono"
+                              />
+                            </div>
+                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                              <Label
+                                className="text-[10px] text-[#616F7D]"
+                                title="Comprimento / Lado B"
+                              >
+                                B (m)
+                              </Label>
+                              <Input
+                                type="number"
+                                step="any"
+                                placeholder="0,00"
+                                value={linha.dimensao_b ?? ''}
+                                onChange={(e) =>
+                                  handleLinhaLocalChange(idx, 'dimensao_b', e.target.value)
+                                }
+                                className="h-9 text-xs bg-white text-center px-2 min-w-[70px] font-mono"
+                              />
+                            </div>
+                          </>
+                        ) : null}
 
-                      {/* Metragem / Quantidade */}
-                      <div
-                        className={
-                          identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre'
-                            ? 'col-span-6 sm:col-span-1 space-y-1'
-                            : 'col-span-6 sm:col-span-2 space-y-1'
-                        }
-                      >
-                        <Label className="text-[11px] text-[#616F7D]">
-                          Qtd ({linha.unidade || 'm²'})
-                        </Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0.01"
-                          placeholder="Qtd"
-                          value={linha.metragem}
-                          onChange={(e) => handleLinhaLocalChange(idx, 'metragem', e.target.value)}
-                          className="h-8 text-xs bg-white text-center font-mono font-semibold"
-                        />
-                      </div>
-
-                      {/* Valor Unitário */}
-                      <div className="col-span-4 sm:col-span-2 space-y-1">
-                        <Label className="text-[11px] text-[#616F7D]">Valor Unit. (R$)</Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          placeholder="0,00"
-                          value={linha.valor}
-                          onChange={(e) => handleLinhaLocalChange(idx, 'valor', e.target.value)}
-                          className="h-8 text-xs bg-white text-right font-mono"
-                        />
-                      </div>
-
-                      {/* Total da Linha & Ação Excluir */}
-                      <div className="col-span-4 sm:col-span-1 flex items-center justify-end gap-1">
-                        <div className="text-right">
-                          <span className="text-[10px] text-[#8A94A0] block">Total</span>
-                          <span className="font-bold text-xs font-mono text-[#2C3E50] block">
-                            {formatMoeda(linha.total)}
-                          </span>
+                        {/* Metragem / Quantidade */}
+                        <div className="flex-1 sm:flex-none sm:w-24 space-y-1">
+                          <Label className="text-[11px] text-[#616F7D]">
+                            Qtd ({linha.unidade || 'm²'})
+                          </Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            placeholder="Qtd"
+                            value={linha.metragem}
+                            onChange={(e) =>
+                              handleLinhaLocalChange(idx, 'metragem', e.target.value)
+                            }
+                            className="h-9 text-xs bg-white text-center font-mono font-semibold px-2 min-w-[80px]"
+                          />
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveLinhaLocal(idx)}
-                          className="h-8 w-6 p-0 text-[#C4453C] hover:bg-[#FBEFEE]"
-                          title="Remover linha"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+
+                        {/* Valor Unitário */}
+                        <div className="flex-1 sm:flex-none sm:w-28 space-y-1">
+                          <Label className="text-[11px] text-[#616F7D]">Valor Unit. (R$)</Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="0,00"
+                            value={linha.valor}
+                            onChange={(e) => handleLinhaLocalChange(idx, 'valor', e.target.value)}
+                            className="h-9 text-xs bg-white text-right font-mono px-2 min-w-[95px]"
+                          />
+                        </div>
+
+                        {/* Total da Linha & Ação Excluir */}
+                        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
+                          <div className="text-left sm:text-right px-2 py-1 bg-[#E8EDF2] rounded-lg border border-[#2C3E50]/15 min-w-[100px]">
+                            <span className="text-[9px] text-[#616F7D] block leading-tight">
+                              Total
+                            </span>
+                            <span className="font-bold text-xs font-mono text-[#2C3E50] block leading-tight">
+                              {formatMoeda(linha.total)}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveLinhaLocal(idx)}
+                            className="h-9 w-8 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
+                            title="Remover linha"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -1182,10 +1186,10 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="p-3 bg-[#f8fafc] rounded-lg border border-[#DEE4EA] grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end"
+                      className="p-3.5 bg-[#f8fafc] rounded-lg border border-[#DEE4EA] flex flex-col md:flex-row md:items-end gap-3"
                     >
                       {/* Seleção do Serviço na tabela */}
-                      <div className="sm:col-span-4 space-y-1">
+                      <div className="w-full md:w-56 shrink-0 space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">
                           Serviço da Tabela (
                           {gruposList.find((g) => g.id === grupoId)?.nome || 'Geral'})
@@ -1200,7 +1204,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             }
                           }}
                         >
-                          <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectTrigger className="h-9 text-xs bg-white">
                             <SelectValue placeholder="Escolha o serviço..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1220,18 +1224,18 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                       </div>
 
                       {/* Descrição que aparece no PDF */}
-                      <div className="sm:col-span-3 space-y-1">
+                      <div className="w-full md:flex-1 md:min-w-[180px] space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">Descrição no PDF</Label>
                         <Input
                           value={item.descricao}
                           onChange={(e) => handleItemChange(idx, 'descricao', e.target.value)}
                           placeholder="Ex: Forros de gesso drywall"
-                          className="h-8 text-xs bg-white"
+                          className="h-9 text-xs bg-white font-medium text-[#2C3E50]"
                         />
                       </div>
 
                       {/* Seletor de Unidade de Medida */}
-                      <div className="sm:col-span-2 space-y-1">
+                      <div className="w-full md:w-32 shrink-0 space-y-1">
                         <Label className="text-[11px] text-[#616F7D]">Unidade</Label>
                         <Select
                           value={
@@ -1242,7 +1246,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                           }
                           onValueChange={(val) => handleItemChange(idx, 'unidade_id', val)}
                         >
-                          <SelectTrigger className="h-8 text-xs bg-white">
+                          <SelectTrigger className="h-9 text-xs bg-white">
                             <SelectValue placeholder="Unid." />
                           </SelectTrigger>
                           <SelectContent>
@@ -1256,87 +1260,100 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         </Select>
                       </div>
 
-                      {/* Dimensões A e B se a unidade tiver cálculo dimensional */}
-                      {identificarTipoFormula(metodoCalculoDe(item)) !== 'livre' ? (
-                        <>
-                          <div className="sm:col-span-1 space-y-1">
-                            <Label className="text-[10px] text-[#616F7D]" title="Largura / Lado A">
-                              A (m)
-                            </Label>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="A"
-                              value={item.dimensao_a ?? item.largura ?? ''}
-                              onChange={(e) => handleItemChange(idx, 'dimensao_a', e.target.value)}
-                              className="h-8 text-xs bg-white px-1 text-center"
-                            />
-                          </div>
+                      {/* Bloco de Medidas e Valores: no mobile flexível, no desktop espaçado e sem cortes */}
+                      <div className="w-full md:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2.5 shrink-0">
+                        {/* Dimensões A e B se a unidade tiver cálculo dimensional */}
+                        {identificarTipoFormula(metodoCalculoDe(item)) !== 'livre' ? (
+                          <>
+                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                              <Label
+                                className="text-[10px] text-[#616F7D]"
+                                title="Largura / Lado A"
+                              >
+                                A (m)
+                              </Label>
+                              <Input
+                                type="number"
+                                step="any"
+                                placeholder="0,00"
+                                value={item.dimensao_a ?? item.largura ?? ''}
+                                onChange={(e) =>
+                                  handleItemChange(idx, 'dimensao_a', e.target.value)
+                                }
+                                className="h-9 text-xs bg-white px-2 text-center min-w-[70px] font-mono"
+                              />
+                            </div>
 
-                          <div className="sm:col-span-1 space-y-1">
-                            <Label className="text-[10px] text-[#616F7D]" title="Altura / Lado B">
-                              B (m)
-                            </Label>
-                            <Input
-                              type="number"
-                              step="any"
-                              placeholder="B"
-                              value={item.dimensao_b ?? item.comprimento ?? ''}
-                              onChange={(e) => handleItemChange(idx, 'dimensao_b', e.target.value)}
-                              className="h-8 text-xs bg-white px-1 text-center"
-                            />
-                          </div>
-                        </>
-                      ) : null}
+                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                              <Label className="text-[10px] text-[#616F7D]" title="Altura / Lado B">
+                                B (m)
+                              </Label>
+                              <Input
+                                type="number"
+                                step="any"
+                                placeholder="0,00"
+                                value={item.dimensao_b ?? item.comprimento ?? ''}
+                                onChange={(e) =>
+                                  handleItemChange(idx, 'dimensao_b', e.target.value)
+                                }
+                                className="h-9 text-xs bg-white px-2 text-center min-w-[70px] font-mono"
+                              />
+                            </div>
+                          </>
+                        ) : null}
 
-                      {/* Quantidade (Área / Perímetro / Livre) */}
-                      <div
-                        className={
-                          identificarTipoFormula(metodoCalculoDe(item)) !== 'livre'
-                            ? 'sm:col-span-1 space-y-1'
-                            : 'sm:col-span-2 space-y-1'
-                        }
-                      >
-                        <Label className="text-[10px] text-[#616F7D]">
-                          Qtd ({item.unidade || 'm²'})
-                        </Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0.01"
-                          value={item.quantidade}
-                          onChange={(e) => handleItemChange(idx, 'quantidade', e.target.value)}
-                          className="h-8 text-xs bg-white px-1 text-center font-semibold"
-                        />
-                      </div>
-
-                      {/* Valor Unitário */}
-                      <div className="sm:col-span-1 space-y-1">
-                        <Label className="text-[10px] text-[#616F7D]">Unit. (R$)</Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={item.valor_unitario}
-                          onChange={(e) => handleItemChange(idx, 'valor_unitario', e.target.value)}
-                          className="h-8 text-xs bg-white px-1 text-right"
-                        />
-                      </div>
-
-                      {/* Total & Excluir */}
-                      <div className="sm:col-span-1 flex items-center justify-between gap-1">
-                        <div className="h-8 px-1 flex-1 flex items-center justify-center bg-[#E8EDF2] text-[#2C3E50] font-bold text-[11px] rounded border border-[#2C3E50]/20">
-                          {formatMoeda(item.valor_total || 0).replace('R$', '')}
+                        {/* Quantidade (Área / Perímetro / Livre) */}
+                        <div className="flex-1 sm:flex-none sm:w-24 space-y-1">
+                          <Label className="text-[10px] text-[#616F7D]">
+                            Qtd ({item.unidade || 'm²'})
+                          </Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            value={item.quantidade}
+                            onChange={(e) => handleItemChange(idx, 'quantidade', e.target.value)}
+                            className="h-9 text-xs bg-white px-2 text-center font-mono font-semibold min-w-[80px]"
+                          />
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveItem(idx)}
-                          className="h-8 w-6 p-0 text-[#C4453C] hover:bg-[#FBEFEE]"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+
+                        {/* Valor Unitário */}
+                        <div className="flex-1 sm:flex-none sm:w-28 space-y-1">
+                          <Label className="text-[10px] text-[#616F7D]">Unit. (R$)</Label>
+                          <Input
+                            type="number"
+                            step="any"
+                            min="0"
+                            placeholder="0,00"
+                            value={item.valor_unitario}
+                            onChange={(e) =>
+                              handleItemChange(idx, 'valor_unitario', e.target.value)
+                            }
+                            className="h-9 text-xs bg-white px-2 text-right font-mono min-w-[95px]"
+                          />
+                        </div>
+
+                        {/* Total & Excluir */}
+                        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
+                          <div className="text-left sm:text-right px-2.5 py-1.5 bg-[#E8EDF2] text-[#2C3E50] font-bold text-xs rounded-lg border border-[#2C3E50]/20 min-w-[100px]">
+                            <span className="text-[9px] text-[#616F7D] block leading-tight font-normal">
+                              Total
+                            </span>
+                            <span className="font-mono block leading-tight">
+                              {formatMoeda(item.valor_total || 0)}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="h-9 w-8 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
+                            title="Remover serviço"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )

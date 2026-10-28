@@ -163,43 +163,58 @@ const ServicoDetailPageInner: React.FC = () => {
       setLoading(true)
       setErroCarregamento(null)
 
-      import('@/services/site')
-        .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
-          return obterServicoPorSlug(slug)
-            .then((s) => {
+      try {
+        import('@/services/site')
+          .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
+            if (!ativo) return
+            try {
+              obterServicoPorSlug(slug)
+                .then((s) => {
+                  if (!ativo) return
+                  if (s) {
+                    setServicoDb(s)
+                    try {
+                      registrarEventoAnalytics({
+                        tipo: 'click_servico',
+                        servico_slug: s.slug || slug,
+                        servico_nome: s.nome || '',
+                        categoria_nome: s.categoria || '',
+                      })
+                    } catch (analyticsErr) {
+                      console.debug('Analytics não registrado:', analyticsErr)
+                    }
+                  }
+                  setCarregamentoConcluido(true)
+                  setLoading(false)
+                })
+                .catch((innerErr) => {
+                  if (!ativo) return
+                  console.warn(
+                    'Falha na busca remota do serviço, degradando para fallback local:',
+                    innerErr,
+                  )
+                  setCarregamentoConcluido(true)
+                  setLoading(false)
+                })
+            } catch (callErr) {
               if (!ativo) return
-              if (s) {
-                setServicoDb(s)
-                try {
-                  registrarEventoAnalytics({
-                    tipo: 'click_servico',
-                    servico_slug: s.slug || slug,
-                    servico_nome: s.nome || '',
-                    categoria_nome: s.categoria || '',
-                  })
-                } catch (analyticsErr) {
-                  console.debug('Analytics não registrado:', analyticsErr)
-                }
-              }
+              console.warn('Exceção síncrona ao chamar obterServicoPorSlug:', callErr)
               setCarregamentoConcluido(true)
               setLoading(false)
-            })
-            .catch((innerErr) => {
-              if (!ativo) return
-              console.warn(
-                'Falha na busca remota do serviço, degradando para fallback local:',
-                innerErr,
-              )
-              setCarregamentoConcluido(true)
-              setLoading(false)
-            })
-        })
-        .catch((err) => {
-          if (!ativo) return
-          console.error('Erro ao carregar módulo de serviços:', err)
-          setCarregamentoConcluido(true)
-          setLoading(false)
-        })
+            }
+          })
+          .catch((err) => {
+            if (!ativo) return
+            console.error('Erro ao carregar módulo de serviços:', err)
+            setCarregamentoConcluido(true)
+            setLoading(false)
+          })
+      } catch (importErr) {
+        if (!ativo) return
+        console.error('Exceção síncrona ao importar services/site:', importErr)
+        setCarregamentoConcluido(true)
+        setLoading(false)
+      }
     } else {
       setLoading(false)
       setCarregamentoConcluido(true)
@@ -843,7 +858,18 @@ export const ServicoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   return (
     <ServicoLocalErrorBoundary slug={slug}>
-      <ServicoDetailPageInner />
+      <React.Suspense
+        fallback={
+          <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
+            <div className="w-12 h-12 border-4 border-[#2C3E50]/20 border-t-[#D4AF37] rounded-full animate-spin mb-4" />
+            <p className="text-sm font-semibold text-[#2C3E50]">
+              Carregando detalhes do serviço...
+            </p>
+          </div>
+        }
+      >
+        <ServicoDetailPageInner />
+      </React.Suspense>
     </ServicoLocalErrorBoundary>
   )
 }
