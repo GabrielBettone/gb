@@ -232,6 +232,16 @@ async function request<T>(path: string, init: RequestInit = {}, accessToken?: st
       }
     }
 
+    // Se a requisição for um GET (leitura pública, ex: site_services, site_portfolio, parceiros),
+    // tenta um fallback sem Authorization caso a policy seja liberada para role anon/apikey.
+    if ((!init.method || init.method.toUpperCase() === 'GET') && effectiveToken) {
+      try {
+        return await executeFetch<T>(path, init, undefined)
+      } catch {
+        // Se ainda falhar, prossegue lançando o erro original
+      }
+    }
+
     throw err
   }
 }

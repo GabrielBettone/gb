@@ -358,10 +358,14 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       const linha = { ...novos[index], [campo]: valor }
 
       if (campo === 'servico_id') {
-        const serv = servicosPrecoList.find((s) => s.id === valor)
-        if (serv) {
-          linha.servico = serv.nome
-          linha.valor = serv.preco_unitario
+        if (!valor || valor === 'manual') {
+          linha.servico_id = undefined
+        } else {
+          const serv = servicosPrecoList.find((s) => s.id === valor)
+          if (serv) {
+            linha.servico = serv.nome
+            linha.valor = serv.preco_unitario
+          }
         }
       }
 
@@ -396,13 +400,6 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   }
 
   const handleRemoveItem = (index: number) => {
-    if (itens.length <= 1) {
-      toast({
-        title: 'Mínimo de 1 item',
-        description: 'O orçamento precisa conter pelo menos um item de serviço.',
-      })
-      return
-    }
     setItens(itens.filter((_, i) => i !== index))
   }
 
@@ -412,12 +409,17 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       const itemAtual = { ...novos[index], [campo]: valor }
 
       if (campo === 'servico_id') {
-        const serv = servicosPrecoList.find((s) => s.id === valor)
-        if (serv) {
-          itemAtual.descricao = serv.nome
-          itemAtual.unidade = serv.unidade
-          itemAtual.valor_unitario = serv.preco_unitario
-          itemAtual.valor_total = Math.round(itemAtual.quantidade * serv.preco_unitario * 100) / 100
+        if (!valor || valor === 'manual') {
+          itemAtual.servico_id = undefined
+        } else {
+          const serv = servicosPrecoList.find((s) => s.id === valor)
+          if (serv) {
+            itemAtual.descricao = serv.nome
+            itemAtual.unidade = serv.unidade
+            itemAtual.valor_unitario = serv.preco_unitario
+            itemAtual.valor_total =
+              Math.round(itemAtual.quantidade * serv.preco_unitario * 100) / 100
+          }
         }
       }
 
@@ -891,17 +893,17 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 <SelectValue placeholder="Selecione o serviço" />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem
+                                  value="manual"
+                                  className="text-xs font-semibold text-[#2C3E50]"
+                                >
+                                  Texto livre / personalizado
+                                </SelectItem>
                                 {servicosDoGrupo.map((s) => (
                                   <SelectItem key={s.id} value={s.id} className="text-xs">
                                     {s.nome} ({formatMoeda(s.preco_unitario)}/{s.unidade})
                                   </SelectItem>
                                 ))}
-                                <SelectItem
-                                  value="manual"
-                                  className="text-xs font-medium text-[#2C3E50]"
-                                >
-                                  Outro / Descrição livre
-                                </SelectItem>
                               </SelectContent>
                             </Select>
                           ) : null}
@@ -1015,13 +1017,25 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                           {gruposList.find((g) => g.id === grupoId)?.nome || 'Geral'})
                         </Label>
                         <Select
-                          value={item.servico_id || ''}
-                          onValueChange={(val) => handleItemChange(idx, 'servico_id', val)}
+                          value={item.servico_id || 'manual'}
+                          onValueChange={(val) => {
+                            if (val === 'manual') {
+                              handleItemChange(idx, 'servico_id', '')
+                            } else {
+                              handleItemChange(idx, 'servico_id', val)
+                            }
+                          }}
                         >
                           <SelectTrigger className="h-8 text-xs bg-white">
                             <SelectValue placeholder="Escolha o serviço..." />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem
+                              value="manual"
+                              className="text-xs font-semibold text-[#2C3E50]"
+                            >
+                              Texto livre / personalizado
+                            </SelectItem>
                             {servicosDoGrupo.map((s) => (
                               <SelectItem key={s.id} value={s.id} className="text-xs">
                                 {s.nome} ({formatMoeda(s.preco_unitario)}/{s.unidade})

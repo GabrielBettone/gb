@@ -459,11 +459,21 @@ export const dataAdapter = {
     if (isSelfHostedSupabase()) {
       const filters = parsePbFilterToSupabase(filterStr)
       const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
-      const results = await supabaseSelect<T>(collection, {
-        filters,
-        limit: 1,
-        accessToken: token || undefined,
-      })
+      let results: T[] = []
+      try {
+        results = await supabaseSelect<T>(collection, {
+          filters,
+          limit: 1,
+          accessToken: token || undefined,
+        })
+      } catch (err: any) {
+        // Se a query falhar por erro de permissão ou filtro na API Supabase,
+        // lança com status para permitir tratamento gracioso de 404 pelo chamador
+        const notFoundErr: any = new Error(`Nenhum registro encontrado para o filtro: ${filterStr}`)
+        notFoundErr.status = 404
+        notFoundErr.cause = err
+        throw notFoundErr
+      }
       if (!results || results.length === 0) {
         const err: any = new Error(`Nenhum registro encontrado para o filtro: ${filterStr}`)
         err.status = 404
@@ -472,7 +482,14 @@ export const dataAdapter = {
       return results[0]
     }
 
-    return pb.collection(collection).getFirstListItem<T>(filterStr)
+    try {
+      return await pb.collection(collection).getFirstListItem<T>(filterStr)
+    } catch (err: any) {
+      if (!err?.status) {
+        err.status = 404
+      }
+      throw err
+    }
   },
 
   /**

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useParams, Link, Navigate } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { SERVICOS, getWhatsAppUrlForService, CIDADES_ATENDIDAS } from '@/data/landingData'
 import { resolverUrlMidia } from '@/lib/watermark'
 import SEO from '@/components/landing/SEO'
@@ -7,11 +7,10 @@ import LandingCTA from '@/components/landing/LandingCTA'
 import LandingParceiros from '@/components/landing/LandingParceiros'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import {
   MessageCircle,
-  ArrowLeft,
   CheckCircle2,
   Images,
   MapPin,
@@ -19,28 +18,65 @@ import {
   ChevronRight,
   Maximize2,
   ShieldCheck,
-  Star,
 } from 'lucide-react'
+
+// Helper seguro para converter qualquer valor de campo de lista (array, string JSON, string avulsa) em array de strings
+function normalizarListaStrings(valor: any): string[] {
+  if (!valor) return []
+  if (Array.isArray(valor)) {
+    return valor
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+      .filter(Boolean)
+  }
+  if (typeof valor === 'string') {
+    const trimmed = valor.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+          .filter(Boolean)
+      }
+    } catch {
+      // Se não for JSON, trata como string simples se não começar com colchetes
+    }
+    return [trimmed]
+  }
+  return []
+}
 
 export const ServicoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
-  const [servicoDb, setServicoDb] = React.useState<any>(null)
+  const [servicoDb, setServicoDb] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [carregamentoConcluido, setCarregamentoConcluido] = useState(false)
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+
   const servicoLocal = useMemo(() => {
-    if (!slug) return null
-    const clean = slug.toLowerCase().trim()
-    return (
-      SERVICOS.find((s) => s.slug?.toLowerCase() === clean) ||
-      SERVICOS.find((s) => s.slug?.toLowerCase().replace(/-/g, '') === clean.replace(/-/g, '')) ||
-      null
-    )
+    try {
+      if (!slug || typeof slug !== 'string') return null
+      const clean = slug.toLowerCase().trim()
+      if (!clean) return null
+      const lista = Array.isArray(SERVICOS) ? SERVICOS : []
+      return (
+        lista.find((s) => s && typeof s.slug === 'string' && s.slug.toLowerCase() === clean) ||
+        lista.find(
+          (s) =>
+            s &&
+            typeof s.slug === 'string' &&
+            s.slug.toLowerCase().replace(/-/g, '') === clean.replace(/-/g, ''),
+        ) ||
+        null
+      )
+    } catch {
+      return null
+    }
   }, [slug])
 
-  React.useEffect(() => {
+  useEffect(() => {
     let ativo = true
     if (slug) {
       setLoading(true)
@@ -70,7 +106,7 @@ export const ServicoDetailPage: React.FC = () => {
             .catch((innerErr) => {
               if (!ativo) return
               console.warn(
-                'Falha na busca remota do serviço, usando fallback local se disponível:',
+                'Falha na busca remota do serviço, degradando para fallback local:',
                 innerErr,
               )
               setCarregamentoConcluido(true)
@@ -80,7 +116,6 @@ export const ServicoDetailPage: React.FC = () => {
         .catch((err) => {
           if (!ativo) return
           console.error('Erro ao carregar módulo de serviços:', err)
-          // Se tiver fallback local (SERVICOS), não trava a tela
           setCarregamentoConcluido(true)
           setLoading(false)
         })
@@ -94,111 +129,82 @@ export const ServicoDetailPage: React.FC = () => {
     }
   }, [slug])
 
-  const servico = React.useMemo(() => {
-    if (servicoDb) {
-      const nomeLimpo =
-        typeof servicoDb.nome === 'string' && servicoDb.nome.trim().length > 0
-          ? servicoDb.nome.trim()
-          : slug
-            ? slug.replace(/-/g, ' ')
-            : 'Serviço'
+  const servico = useMemo(() => {
+    try {
+      if (servicoDb) {
+        const nomeLimpo =
+          typeof servicoDb.nome === 'string' && servicoDb.nome.trim().length > 0
+            ? servicoDb.nome.trim()
+            : slug
+              ? slug.replace(/-/g, ' ')
+              : 'Serviço'
 
-      const beneficiosNormalizados: string[] = []
-      if (Array.isArray(servicoDb.beneficios)) {
-        servicoDb.beneficios.forEach((b: any) => {
-          if (typeof b === 'string' && b.trim()) beneficiosNormalizados.push(b.trim())
-        })
-      } else if (typeof servicoDb.beneficios === 'string') {
-        try {
-          const parsed = JSON.parse(servicoDb.beneficios)
-          if (Array.isArray(parsed)) {
-            parsed.forEach((b: any) => {
-              if (typeof b === 'string' && b.trim()) beneficiosNormalizados.push(b.trim())
-            })
-          }
-        } catch {
-          if (servicoDb.beneficios.trim()) beneficiosNormalizados.push(servicoDb.beneficios.trim())
-        }
-      }
+        const beneficiosNormalizados = normalizarListaStrings(servicoDb.beneficios)
+        const keywordsNormalizadas = normalizarListaStrings(servicoDb.keywords)
 
-      const keywordsNormalizadas: string[] = []
-      if (Array.isArray(servicoDb.keywords)) {
-        servicoDb.keywords.forEach((k: any) => {
-          if (typeof k === 'string' && k.trim()) keywordsNormalizadas.push(k.trim())
-        })
-      } else if (typeof servicoDb.keywords === 'string') {
-        try {
-          const parsed = JSON.parse(servicoDb.keywords)
-          if (Array.isArray(parsed)) {
-            parsed.forEach((k: any) => {
-              if (typeof k === 'string' && k.trim()) keywordsNormalizadas.push(k.trim())
-            })
-          }
-        } catch {
-          if (servicoDb.keywords.trim()) keywordsNormalizadas.push(servicoDb.keywords.trim())
-        }
-      }
-
-      return {
-        slug: String(servicoDb.slug || slug || ''),
-        titulo: nomeLimpo,
-        categoria: String(servicoDb.categoria || 'Serviços'),
-        destaque: Boolean(servicoDb.destaque),
-        descricaoCurta: String(servicoDb.descricao_curta || ''),
-        descricaoCompleta: String(
-          servicoDb.descricao_longa ||
-            servicoDb.descricao_curta ||
-            'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
-        ),
-        beneficios: beneficiosNormalizados,
-        metaTitle: String(servicoDb.meta_title || nomeLimpo || 'Serviço | Gesso Bettone'),
-        metaDescription: String(
-          servicoDb.meta_description ||
-            servicoDb.descricao_curta ||
+        return {
+          slug: String(servicoDb.slug || slug || ''),
+          titulo: nomeLimpo,
+          categoria: String(servicoDb.categoria || 'Serviços'),
+          destaque: Boolean(servicoDb.destaque),
+          descricaoCurta: String(servicoDb.descricao_curta || ''),
+          descricaoCompleta: String(
             servicoDb.descricao_longa ||
-            'Serviços em gesso e drywall da Gesso Bettone.',
-        ),
-        keywords: keywordsNormalizadas,
+              servicoDb.descricao_curta ||
+              'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
+          ),
+          beneficios: beneficiosNormalizados,
+          metaTitle: String(servicoDb.meta_title || nomeLimpo || 'Serviço | Gesso Bettone'),
+          metaDescription: String(
+            servicoDb.meta_description ||
+              servicoDb.descricao_curta ||
+              servicoDb.descricao_longa ||
+              'Serviços em gesso e drywall da Gesso Bettone.',
+          ),
+          keywords: keywordsNormalizadas,
+        }
       }
-    }
-    if (servicoLocal) {
-      return {
-        slug: String(servicoLocal.slug || slug || ''),
-        titulo: String(servicoLocal.titulo || 'Serviço'),
-        categoria: String(servicoLocal.categoria || 'Serviços'),
-        destaque: Boolean(servicoLocal.destaque),
-        descricaoCurta: String(servicoLocal.descricaoCurta || ''),
-        descricaoCompleta: String(
-          servicoLocal.descricaoCompleta ||
-            servicoLocal.descricaoCurta ||
-            'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
-        ),
-        beneficios: Array.isArray(servicoLocal.beneficios) ? servicoLocal.beneficios : [],
-        galeria: Array.isArray(servicoLocal.galeria) ? servicoLocal.galeria : [],
-        keywords: Array.isArray(servicoLocal.keywords) ? servicoLocal.keywords : [],
-        metaTitle: String(
-          servicoLocal.metaTitle || servicoLocal.titulo || 'Serviço | Gesso Bettone',
-        ),
-        metaDescription: String(
-          servicoLocal.metaDescription ||
-            servicoLocal.descricaoCurta ||
-            'Serviços em gesso e drywall da Gesso Bettone.',
-        ),
+
+      if (servicoLocal) {
+        return {
+          slug: String(servicoLocal.slug || slug || ''),
+          titulo: String(servicoLocal.titulo || 'Serviço'),
+          categoria: String(servicoLocal.categoria || 'Serviços'),
+          destaque: Boolean(servicoLocal.destaque),
+          descricaoCurta: String(servicoLocal.descricaoCurta || ''),
+          descricaoCompleta: String(
+            servicoLocal.descricaoCompleta ||
+              servicoLocal.descricaoCurta ||
+              'Atendimento especializado em gesso, drywall e acabamentos de alto padrão.',
+          ),
+          beneficios: normalizarListaStrings(servicoLocal.beneficios),
+          galeria: normalizarListaStrings(servicoLocal.galeria),
+          keywords: normalizarListaStrings(servicoLocal.keywords),
+          metaTitle: String(
+            servicoLocal.metaTitle || servicoLocal.titulo || 'Serviço | Gesso Bettone',
+          ),
+          metaDescription: String(
+            servicoLocal.metaDescription ||
+              servicoLocal.descricaoCurta ||
+              'Serviços em gesso e drywall da Gesso Bettone.',
+          ),
+        }
       }
+    } catch (calcErr) {
+      console.warn('Erro ao normalizar dados do serviço:', calcErr)
     }
+
     return null
   }, [servicoDb, servicoLocal, slug])
 
   // Montagem robusta da lista de fotos unificada:
-  // Lê arquivo_principal + arquivos_galeria + imagem_principal + galeria legada sem duplicar,
-  // priorizando foto de destaque na frente e preservando ordem.
-  const listaFotos: string[] = React.useMemo(() => {
+  // Lê arquivo_principal + arquivos_galeria + imagem_principal + galeria legada sem duplicar
+  const listaFotos: string[] = useMemo(() => {
     const list: string[] = []
     const rawKeysSet = new Set<string>()
 
     const addPhoto = (val: any) => {
       if (!val) return
-      // Se for array aninhado de strings/arquivos
       if (Array.isArray(val)) {
         val.forEach((item) => addPhoto(item))
         return
@@ -216,7 +222,6 @@ export const ServicoDetailPage: React.FC = () => {
         console.warn('Erro ao resolver URL de mídia:', resErr)
       }
 
-      // Evita duplicar tanto pela chave bruta quanto pela URL resolvida
       const key = trimmed.toLowerCase()
       const resolvedKey = (resolved || '').toLowerCase()
       if (
@@ -231,59 +236,19 @@ export const ServicoDetailPage: React.FC = () => {
       }
     }
 
-    if (servicoDb) {
-      try {
-        // 1. Foto de destaque/principal primeiro
-        if (servicoDb.arquivo_principal) {
-          addPhoto(servicoDb.arquivo_principal)
-        }
-        if (servicoDb.imagem_principal) {
-          addPhoto(servicoDb.imagem_principal)
-        }
+    try {
+      if (servicoDb) {
+        if (servicoDb.arquivo_principal) addPhoto(servicoDb.arquivo_principal)
+        if (servicoDb.imagem_principal) addPhoto(servicoDb.imagem_principal)
 
-        // 2. Arquivos nativos de galeria (armazenados em arquivos_galeria)
-        if (Array.isArray(servicoDb.arquivos_galeria)) {
-          servicoDb.arquivos_galeria.forEach((arq: any) => {
-            if (arq) addPhoto(arq)
-          })
-        } else if (typeof servicoDb.arquivos_galeria === 'string') {
-          try {
-            const parsed = JSON.parse(servicoDb.arquivos_galeria)
-            if (Array.isArray(parsed)) {
-              parsed.forEach((arq: any) => addPhoto(arq))
-            } else {
-              addPhoto(servicoDb.arquivos_galeria)
-            }
-          } catch {
-            addPhoto(servicoDb.arquivos_galeria)
-          }
-        }
-
-        // 3. URLs externas / legadas do campo galeria
-        if (Array.isArray(servicoDb.galeria)) {
-          servicoDb.galeria.forEach((g: any) => {
-            if (g) addPhoto(g)
-          })
-        } else if (typeof servicoDb.galeria === 'string') {
-          try {
-            const parsed = JSON.parse(servicoDb.galeria)
-            if (Array.isArray(parsed)) {
-              parsed.forEach((g: any) => addPhoto(g))
-            } else {
-              addPhoto(servicoDb.galeria)
-            }
-          } catch {
-            addPhoto(servicoDb.galeria)
-          }
-        }
-      } catch (err) {
-        console.warn('Erro ao montar lista de fotos do serviço:', err)
+        normalizarListaStrings(servicoDb.arquivos_galeria).forEach(addPhoto)
+        normalizarListaStrings(servicoDb.galeria).forEach(addPhoto)
+      } else if (servicoLocal) {
+        if (servicoLocal.imagemPrincipal) addPhoto(servicoLocal.imagemPrincipal)
+        normalizarListaStrings(servicoLocal.galeria).forEach(addPhoto)
       }
-    } else if (servicoLocal) {
-      if (servicoLocal.imagemPrincipal) addPhoto(servicoLocal.imagemPrincipal)
-      if (Array.isArray(servicoLocal.galeria)) {
-        servicoLocal.galeria.forEach((g) => addPhoto(g))
-      }
+    } catch (fotoErr) {
+      console.warn('Erro ao montar lista de fotos do serviço:', fotoErr)
     }
 
     return list.filter((f) => typeof f === 'string' && f.trim().length > 0)
@@ -733,6 +698,7 @@ export const ServicoDetailPage: React.FC = () => {
       {/* Lightbox em Tela Cheia (Dialog) para Serviço */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-5xl p-2 bg-black/95 border-none text-white flex flex-col items-center">
+          <DialogTitle className="sr-only">Visualização ampliada: {tituloSeguro}</DialogTitle>
           <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden bg-black/70 rounded-xl">
             {fotoAtualUrl && (
               <img

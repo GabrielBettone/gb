@@ -21,7 +21,7 @@ import {
   VolumeX,
   Layers,
 } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 
 export const ProjetoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
@@ -70,49 +70,76 @@ export const ProjetoDetailPage: React.FC = () => {
     }
   }, [slug])
 
-  // Processamento e normalização das listas de fotos e vídeos com guardas totais
-  const projeto = projetoDb
-    ? {
-        slug: projetoDb.slug || slug || '',
-        titulo: projetoDb.titulo || (slug ? slug.replace(/-/g, ' ') : 'Projeto'),
-        categoria: projetoDb.categoria || 'Portfólio',
-        subtitulo: projetoDb.subtitulo || '',
-        cidade: projetoDb.cidade || '',
-        descricao:
-          projetoDb.descricao ||
-          'Projeto e execução sob medida em gesso e drywall pela Gesso Bettone.',
-        detalhesTecnicos: Array.isArray(projetoDb.detalhes_tecnicos)
-          ? projetoDb.detalhes_tecnicos
-          : [],
-        fotosCount:
-          projetoDb.fotos_count ||
-          (Array.isArray(projetoDb.galeria) ? projetoDb.galeria.length : 0),
-        imagemCapa: projetoDb.imagem_capa || '',
-        arquivoCapa: projetoDb.arquivo_capa || '',
-        galeria: Array.isArray(projetoDb.galeria) ? projetoDb.galeria : [],
-        arquivosGaleria: Array.isArray(projetoDb.arquivos_galeria)
-          ? projetoDb.arquivos_galeria
-          : [],
-        videos: Array.isArray(projetoDb.videos) ? projetoDb.videos : [],
-        arquivosVideos: Array.isArray(projetoDb.arquivos_videos) ? projetoDb.arquivos_videos : [],
-        videosCount:
-          projetoDb.videos_count || (Array.isArray(projetoDb.videos) ? projetoDb.videos.length : 0),
-        metaTitle: projetoDb.meta_title || projetoDb.titulo || 'Projeto | Gesso Bettone',
-        metaDescription:
-          projetoDb.meta_description ||
-          projetoDb.descricao ||
-          'Projetos e acabamentos de alto padrão da Gesso Bettone.',
-      }
-    : projetoLocal
-      ? {
-          ...projetoLocal,
-          detalhesTecnicos: Array.isArray(projetoLocal.detalhesTecnicos)
-            ? projetoLocal.detalhesTecnicos
-            : [],
-          galeria: Array.isArray(projetoLocal.galeria) ? projetoLocal.galeria : [],
-          videos: Array.isArray(projetoLocal.videos) ? projetoLocal.videos : [],
+  // Helper seguro para converter qualquer valor de lista (array, string JSON, string avulsa) em array de strings
+  function normalizarListaStrings(valor: any): string[] {
+    if (!valor) return []
+    if (Array.isArray(valor)) {
+      return valor
+        .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+        .filter(Boolean)
+    }
+    if (typeof valor === 'string') {
+      const trimmed = valor.trim()
+      if (!trimmed) return []
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+            .filter(Boolean)
         }
-      : null
+      } catch {
+        // Ignora erro de JSON
+      }
+      return [trimmed]
+    }
+    return []
+  }
+
+  // Processamento e normalização das listas de fotos e vídeos com guardas totais
+  const projeto = React.useMemo(() => {
+    try {
+      if (projetoDb) {
+        const galeriaNorm = normalizarListaStrings(projetoDb.galeria)
+        const videosNorm = normalizarListaStrings(projetoDb.videos)
+        return {
+          slug: projetoDb.slug || slug || '',
+          titulo: projetoDb.titulo || (slug ? slug.replace(/-/g, ' ') : 'Projeto'),
+          categoria: projetoDb.categoria || 'Portfólio',
+          subtitulo: projetoDb.subtitulo || '',
+          cidade: projetoDb.cidade || '',
+          descricao:
+            projetoDb.descricao ||
+            'Projeto e execução sob medida em gesso e drywall pela Gesso Bettone.',
+          detalhesTecnicos: normalizarListaStrings(projetoDb.detalhes_tecnicos),
+          fotosCount: projetoDb.fotos_count || galeriaNorm.length,
+          imagemCapa: projetoDb.imagem_capa || '',
+          arquivoCapa: projetoDb.arquivo_capa || '',
+          galeria: galeriaNorm,
+          arquivosGaleria: normalizarListaStrings(projetoDb.arquivos_galeria),
+          videos: videosNorm,
+          arquivosVideos: normalizarListaStrings(projetoDb.arquivos_videos),
+          videosCount: projetoDb.videos_count || videosNorm.length,
+          metaTitle: projetoDb.meta_title || projetoDb.titulo || 'Projeto | Gesso Bettone',
+          metaDescription:
+            projetoDb.meta_description ||
+            projetoDb.descricao ||
+            'Projetos e acabamentos de alto padrão da Gesso Bettone.',
+        }
+      }
+      if (projetoLocal) {
+        return {
+          ...projetoLocal,
+          detalhesTecnicos: normalizarListaStrings(projetoLocal.detalhesTecnicos),
+          galeria: normalizarListaStrings(projetoLocal.galeria),
+          videos: normalizarListaStrings(projetoLocal.videos),
+        }
+      }
+    } catch (err) {
+      console.warn('Erro ao normalizar dados do projeto:', err)
+    }
+    return null
+  }, [projetoDb, projetoLocal, slug])
 
   // Compilar lista unificada de fotos para o visualizador e miniaturas
   // Lê arquivo_capa + arquivos_galeria + imagem_capa + galeria legada sem duplicar,
@@ -695,6 +722,7 @@ export const ProjetoDetailPage: React.FC = () => {
       {/* Modal de Foto em Tela Cheia */}
       <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
         <DialogContent className="max-w-5xl p-2 bg-black/95 border-none text-white flex flex-col items-center">
+          <DialogTitle className="sr-only">Visualização de foto: {projeto.titulo}</DialogTitle>
           <div className="relative w-full aspect-[16/10] max-h-[80vh] flex items-center justify-center overflow-hidden bg-black/60 rounded-xl">
             {/* Fundo sutil desfocado no lightbox */}
             {fotos[activePhotoIndex] && (
