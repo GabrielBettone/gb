@@ -1021,3 +1021,43 @@ VALUES
   ('pred_trabalhos', 'Trabalhos', '["Aprovados aguardando início", "Trabalhos iniciados"]'::jsonb),
   ('pred_obras_andamento', 'Obras em Andamento', '["Trabalhos iniciados"]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================================
+-- 20. UNIDADES DE MEDIDA (Idempotente DDL)
+-- Tabela para configuração de unidades e fórmulas de cálculo (ex: m² com AxB, m com (A+B)x2, svç sem fórmula)
+-- Aplicável aos itens de orçamento e itens de vendas.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.unidades_medida (
+  id TEXT PRIMARY KEY DEFAULT ('unid_' || substr(md5(random()::text), 1, 12)),
+  nome TEXT NOT NULL,
+  sigla TEXT NOT NULL,
+  metodo_calculo TEXT DEFAULT '',
+  ordem INTEGER DEFAULT 0,
+  ativo BOOLEAN DEFAULT true,
+  padrao BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_unidades_sigla ON public.unidades_medida (sigla);
+CREATE INDEX IF NOT EXISTS idx_unidades_ordem ON public.unidades_medida (ordem);
+
+ALTER TABLE public.unidades_medida ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "unidades_medida_anon_select" ON public.unidades_medida;
+CREATE POLICY "unidades_medida_anon_select" ON public.unidades_medida
+  FOR SELECT TO anon USING (ativo = true);
+
+DROP POLICY IF EXISTS "unidades_medida_auth_all" ON public.unidades_medida;
+CREATE POLICY "unidades_medida_auth_all" ON public.unidades_medida
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+GRANT ALL ON TABLE public.unidades_medida TO anon, authenticated, service_role;
+
+-- Exemplos iniciais pré-cadastrados (idempotente)
+INSERT INTO public.unidades_medida (id, nome, sigla, metodo_calculo, ordem, ativo, padrao)
+VALUES
+  ('unid_m2_metro_quadrado', 'Metros quadrados', 'm²', 'AxB', 1, true, true),
+  ('unid_m_metro_linear', 'Metros lineares', 'm', '(A+B)x2', 2, true, false),
+  ('unid_svc_servico', 'Serviço', 'svç', '', 3, true, false)
+ON CONFLICT (id) DO NOTHING;

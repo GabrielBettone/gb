@@ -20,6 +20,11 @@ export interface ItemVenda {
   quantidade: number
   valor_unitario: number
   total: number
+  unidade_id?: string
+  unidade?: string
+  metodo_calculo?: string
+  dimensao_a?: number
+  dimensao_b?: number
 }
 
 export interface Venda extends RecordModel {
@@ -51,11 +56,15 @@ export interface ItemOrcamento {
   descricao: string
   quantidade: number
   unidade?: string
+  unidade_id?: string
+  metodo_calculo?: string
   valor_unitario: number
   valor_total: number
-  // Para cálculo por largura × comprimento
+  // Para cálculo por largura × comprimento ou dimensões A e B
   largura?: number
   comprimento?: number
+  dimensao_a?: number
+  dimensao_b?: number
 }
 
 export interface ItemPorLocalOrcamento {
@@ -63,8 +72,22 @@ export interface ItemPorLocalOrcamento {
   servico: string
   servico_id?: string
   metragem: number
+  unidade?: string
+  unidade_id?: string
+  metodo_calculo?: string
+  dimensao_a?: number
+  dimensao_b?: number
   valor: number
   total: number
+}
+
+export interface UnidadeMedida extends RecordModel {
+  nome: string
+  sigla: string
+  metodo_calculo?: string // ex: "AxB", "(A+B)x2", ou em branco
+  ordem?: number
+  ativo: boolean
+  padrao?: boolean
 }
 
 export interface ClienteGrupo extends RecordModel {

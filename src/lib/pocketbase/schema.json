@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T10:59:41.391Z",
+  "generatedAt": "2026-10-28T21:21:11.630Z",
   "collections": [
     {
       "name": "users",
@@ -2099,6 +2099,73 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_pred_nome ON orcamento_filtros_predefinidos (nome)"]
+    },
+    {
+      "name": "unidades_medida",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "sigla",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "metodo_calculo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "padrao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_unidades_sigla ON unidades_medida (sigla)",
+        "CREATE INDEX idx_unidades_ordem ON unidades_medida (ordem)"
+      ]
     }
   ]
 }

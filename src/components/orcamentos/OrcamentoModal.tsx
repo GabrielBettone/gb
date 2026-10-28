@@ -11,6 +11,7 @@ import type {
   MetodoPagamento,
   OrcamentoServicoItem,
   OrcamentoConfiguracao,
+  UnidadeMedida,
 } from '@/types'
 import {
   Dialog,
@@ -58,6 +59,11 @@ import {
 } from '@/services/orcamentoModulo'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
+import {
+  listarUnidadesMedida,
+  calcularQuantidadePorDimensoes,
+  identificarTipoFormula,
+} from '@/services/unidadesMedida'
 import { useToast } from '@/hooks/use-toast'
 
 import type { OrcamentoEtapa } from '@/services/orcamentoEtapas'
@@ -97,6 +103,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   const [gruposList, setGruposList] = useState<ClienteGrupo[]>([])
   const [metodosList, setMetodosList] = useState<MetodoPagamento[]>([])
   const [servicosPrecoList, setServicosPrecoList] = useState<OrcamentoServicoItem[]>([])
+  const [unidadesList, setUnidadesList] = useState<UnidadeMedida[]>([])
   const [configGeral, setConfigGeral] = useState<OrcamentoConfiguracao | null>(null)
 
   // Campos do formulário
@@ -133,17 +140,19 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
     async function carregarAuxiliares() {
       try {
-        const [c, g, m, s, cfg] = await Promise.all([
+        const [c, g, m, s, u, cfg] = await Promise.all([
           listarClientes(),
           listarGrupos(),
           listarMetodosPagamento(),
           listarOrcamentoServicos(),
+          listarUnidadesMedida(),
           obterConfiguracoesOrcamento(),
         ])
         setClientesList(c)
         setGruposList(g)
         setMetodosList(m)
         setServicosPrecoList(s)
+        setUnidadesList(u)
         setConfigGeral(cfg)
       } catch (err) {
         console.error('Erro ao carregar dados auxiliares do orçamento:', err)
@@ -327,10 +336,29 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
   const condicoesPrazo = formatarCondicoesPrazo(metodoAtual, valorAPrazo)
 
+  // Resolve a unidade efetiva do item (por unidade_id ou pela sigla legada)
+  const unidadeEfetiva = (
+    item: Pick<ItemOrcamento, 'unidade_id' | 'unidade' | 'metodo_calculo'>,
+  ): UnidadeMedida | undefined => {
+    if (item.unidade_id) return unidadesList.find((u) => u.id === item.unidade_id)
+    if (item.unidade) return unidadesList.find((u) => u.sigla === item.unidade)
+    return undefined
+  }
+
+  const metodoCalculoDe = (
+    item: Pick<ItemOrcamento, 'unidade_id' | 'unidade' | 'metodo_calculo'>,
+  ) => {
+    const u = unidadeEfetiva(item)
+    return u?.metodo_calculo ?? item.metodo_calculo ?? ''
+  }
+
   // Gerenciamento dos itens por local
   const handleAddLinhaLocal = () => {
     const servicosDoGrupo = servicosPrecoList.filter((s) => !grupoId || s.grupo === grupoId)
     const primeiro = servicosDoGrupo[0]
+    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
+    const servUnid = primeiro ? unidadesList.find((u) => u.sigla === primeiro.unidade) : undefined
+    const unidEscolhida = servUnid || unidPadrao
     setItensPorLocal((prev) => [
       ...prev,
       {
@@ -338,6 +366,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         servico: primeiro?.nome || 'Forro de gesso',
         servico_id: primeiro?.id,
         metragem: 10,
+        unidade_id: unidEscolhida?.id,
+        unidade: unidEscolhida?.sigla || 'm²',
+        metodo_calculo: unidEscolhida?.metodo_calculo || '',
         valor: primeiro?.preco_unitario || 120,
         total: (primeiro?.preco_unitario || 120) * 10,
       },
@@ -369,6 +400,32 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         }
       }
 
+      if (campo === 'unidade_id') {
+        const u = unidadesList.find((x) => x.id === valor)
+        linha.unidade_id = valor || undefined
+        linha.unidade = u?.sigla || ''
+        linha.metodo_calculo = u?.metodo_calculo || ''
+        if (identificarTipoFormula(linha.metodo_calculo) === 'livre') {
+          linha.dimensao_a = undefined
+          linha.dimensao_b = undefined
+        }
+        const calc = calcularQuantidadePorDimensoes(
+          linha.dimensao_a,
+          linha.dimensao_b,
+          linha.metodo_calculo,
+        )
+        if (calc !== null) linha.metragem = calc
+      }
+
+      if (campo === 'dimensao_a' || campo === 'dimensao_b') {
+        const a = campo === 'dimensao_a' ? parseFloat(valor) || 0 : linha.dimensao_a || 0
+        const b = campo === 'dimensao_b' ? parseFloat(valor) || 0 : linha.dimensao_b || 0
+        linha.dimensao_a = a
+        linha.dimensao_b = b
+        const calc = calcularQuantidadePorDimensoes(a, b, linha.metodo_calculo)
+        if (calc !== null) linha.metragem = calc
+      }
+
       if (campo === 'metragem' || campo === 'valor' || campo === 'servico_id') {
         const m = Math.max(0, parseFloat(String(linha.metragem)) || 0)
         const v = Math.max(0, parseFloat(String(linha.valor)) || 0)
@@ -385,6 +442,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     // Busca serviços do grupo selecionado
     const servicosDoGrupo = servicosPrecoList.filter((s) => !grupoId || s.grupo === grupoId)
     const primeiro = servicosDoGrupo[0]
+    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
+    const servUnid = primeiro ? unidadesList.find((u) => u.sigla === primeiro.unidade) : undefined
+    const unidEscolhida = servUnid || unidPadrao
 
     setItens([
       ...itens,
@@ -392,7 +452,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         servico_id: primeiro?.id,
         descricao: primeiro?.nome || 'Forros de gesso',
         quantidade: 1,
-        unidade: primeiro?.unidade || 'm²',
+        unidade: primeiro?.unidade || unidEscolhida?.sigla || 'm²',
+        unidade_id: unidEscolhida?.id,
+        metodo_calculo: unidEscolhida?.metodo_calculo || '',
         valor_unitario: primeiro?.preco_unitario || 120,
         valor_total: primeiro?.preco_unitario || 120,
       },
@@ -423,10 +485,49 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         }
       }
 
-      // Se alterou largura ou comprimento (cálculo dimensional)
+      // Se alterou a unidade de medida
+      if (campo === 'unidade_id') {
+        const u = unidadesList.find((x) => x.id === valor)
+        itemAtual.unidade_id = valor || undefined
+        itemAtual.unidade = u?.sigla || itemAtual.unidade
+        itemAtual.metodo_calculo = u?.metodo_calculo || ''
+        if (identificarTipoFormula(itemAtual.metodo_calculo) === 'livre') {
+          itemAtual.dimensao_a = undefined
+          itemAtual.dimensao_b = undefined
+        }
+        const calc = calcularQuantidadePorDimensoes(
+          itemAtual.dimensao_a,
+          itemAtual.dimensao_b,
+          itemAtual.metodo_calculo,
+        )
+        if (calc !== null) {
+          itemAtual.quantidade = calc
+          itemAtual.valor_total = Math.round(calc * (itemAtual.valor_unitario || 0) * 100) / 100
+        }
+      }
+
+      // Se alterou as dimensões A/B (cálculo pela unidade: AxB ou (A+B)x2)
+      if (campo === 'dimensao_a' || campo === 'dimensao_b') {
+        const a = campo === 'dimensao_a' ? parseFloat(valor) || 0 : itemAtual.dimensao_a || 0
+        const b = campo === 'dimensao_b' ? parseFloat(valor) || 0 : itemAtual.dimensao_b || 0
+        itemAtual.dimensao_a = a
+        itemAtual.dimensao_b = b
+        // Mantém largura/comprimento em sinc para compatibilidade do PDF
+        itemAtual.largura = a
+        itemAtual.comprimento = b
+        const calc = calcularQuantidadePorDimensoes(a, b, itemAtual.metodo_calculo)
+        if (calc !== null) {
+          itemAtual.quantidade = calc
+          itemAtual.valor_total = Math.round(calc * (itemAtual.valor_unitario || 0) * 100) / 100
+        }
+      }
+
+      // Se alterou largura ou comprimento (cálculo dimensional legado)
       if (campo === 'largura' || campo === 'comprimento') {
         const l = campo === 'largura' ? parseFloat(valor) || 0 : itemAtual.largura || 0
         const c = campo === 'comprimento' ? parseFloat(valor) || 0 : itemAtual.comprimento || 0
+        itemAtual.largura = l
+        itemAtual.comprimento = c
         if (l > 0 && c > 0) {
           const areaCalculada = Math.round(l * c * 100) / 100
           itemAtual.quantidade = areaCalculada
@@ -920,14 +1021,87 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Metragem */}
-                      <div className="col-span-4 sm:col-span-2 space-y-1">
-                        <Label className="text-[11px] text-[#616F7D]">Metragem (m²)</Label>
+                      {/* Unidade de Medida */}
+                      <div className="col-span-6 sm:col-span-2 space-y-1">
+                        <Label className="text-[11px] text-[#616F7D]">Unidade</Label>
+                        <Select
+                          value={
+                            linha.unidade_id ||
+                            unidadesList.find((u) => u.sigla === linha.unidade)?.id ||
+                            (unidadesList.find((u) => u.padrao) || unidadesList[0])?.id ||
+                            ''
+                          }
+                          onValueChange={(val) => handleLinhaLocalChange(idx, 'unidade_id', val)}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-white">
+                            <SelectValue placeholder="Unid." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidadesList.map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.sigla} {u.metodo_calculo ? `(${u.metodo_calculo})` : ''} -{' '}
+                                {u.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Dimensões A e B se o método não for livre */}
+                      {identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre' ? (
+                        <>
+                          <div className="col-span-3 sm:col-span-1 space-y-1">
+                            <Label className="text-[10px] text-[#616F7D]" title="Largura / Lado A">
+                              A (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="A"
+                              value={linha.dimensao_a ?? ''}
+                              onChange={(e) =>
+                                handleLinhaLocalChange(idx, 'dimensao_a', e.target.value)
+                              }
+                              className="h-8 text-xs bg-white text-center px-1"
+                            />
+                          </div>
+                          <div className="col-span-3 sm:col-span-1 space-y-1">
+                            <Label
+                              className="text-[10px] text-[#616F7D]"
+                              title="Comprimento / Lado B"
+                            >
+                              B (m)
+                            </Label>
+                            <Input
+                              type="number"
+                              step="any"
+                              placeholder="B"
+                              value={linha.dimensao_b ?? ''}
+                              onChange={(e) =>
+                                handleLinhaLocalChange(idx, 'dimensao_b', e.target.value)
+                              }
+                              className="h-8 text-xs bg-white text-center px-1"
+                            />
+                          </div>
+                        </>
+                      ) : null}
+
+                      {/* Metragem / Quantidade */}
+                      <div
+                        className={
+                          identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre'
+                            ? 'col-span-6 sm:col-span-1 space-y-1'
+                            : 'col-span-6 sm:col-span-2 space-y-1'
+                        }
+                      >
+                        <Label className="text-[11px] text-[#616F7D]">
+                          Qtd ({linha.unidade || 'm²'})
+                        </Label>
                         <Input
                           type="number"
                           step="any"
                           min="0.01"
-                          placeholder="Ex: 25.5"
+                          placeholder="Qtd"
                           value={linha.metragem}
                           onChange={(e) => handleLinhaLocalChange(idx, 'metragem', e.target.value)}
                           className="h-8 text-xs bg-white text-center font-mono font-semibold"
