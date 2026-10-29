@@ -71,7 +71,7 @@ export async function excluirCliente(id: string): Promise<void> {
 export async function listarOrcamentoServicos(grupoId?: string): Promise<OrcamentoServicoItem[]> {
   const options: Record<string, any> = {
     sort: 'nome',
-    expand: 'grupo',
+    expand: 'grupo,unidade_padrao',
   }
   if (grupoId && grupoId !== 'todos') {
     options.filter = `grupo = '${grupoId}'`
@@ -84,6 +84,7 @@ export async function criarOrcamentoServico(dados: {
   grupo: string
   modo_calculo: 'area' | 'dimensoes'
   unidade: string
+  unidade_padrao_id?: string
   preco_unitario: number
   descricao_pdf?: string
   ativo: boolean
@@ -112,6 +113,7 @@ export async function duplicarOrcamentoServico(
     grupo: novoGrupoId || servico.grupo,
     modo_calculo: servico.modo_calculo,
     unidade: servico.unidade,
+    unidade_padrao_id: servico.unidade_padrao_id,
     preco_unitario: servico.preco_unitario,
     descricao_pdf: servico.descricao_pdf,
     ativo: servico.ativo,

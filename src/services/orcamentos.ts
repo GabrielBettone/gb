@@ -167,6 +167,7 @@ export interface CriarOrcamentoDTO {
   valor_a_vista?: number
   valor_a_prazo?: number
   exibir_cnpj?: boolean
+  identificacao?: string
   itens: ItemOrcamento[]
   itens_por_local?: ItemPorLocalOrcamento[]
   subtotal: number
@@ -196,6 +197,7 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     valor_a_vista: dados.valor_a_vista ?? null,
     valor_a_prazo: dados.valor_a_prazo ?? null,
     exibir_cnpj: dados.exibir_cnpj ?? true,
+    identificacao: dados.identificacao?.trim() || '',
     itens: dados.itens,
     itens_por_local: dados.itens_por_local || [],
     subtotal: dados.subtotal,
@@ -250,6 +252,7 @@ export async function atualizarOrcamento(
   if (dados.valor_a_vista !== undefined) payload.valor_a_vista = dados.valor_a_vista
   if (dados.valor_a_prazo !== undefined) payload.valor_a_prazo = dados.valor_a_prazo
   if (dados.exibir_cnpj !== undefined) payload.exibir_cnpj = dados.exibir_cnpj
+  if (dados.identificacao !== undefined) payload.identificacao = dados.identificacao.trim()
   if (dados.itens !== undefined) payload.itens = dados.itens
   if (dados.itens_por_local !== undefined) payload.itens_por_local = dados.itens_por_local
   if (dados.subtotal !== undefined) payload.subtotal = dados.subtotal

@@ -163,58 +163,43 @@ const ServicoDetailPageInner: React.FC = () => {
       setLoading(true)
       setErroCarregamento(null)
 
-      try {
-        import('@/services/site')
-          .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
-            if (!ativo) return
-            try {
-              obterServicoPorSlug(slug)
-                .then((s) => {
-                  if (!ativo) return
-                  if (s) {
-                    setServicoDb(s)
-                    try {
-                      registrarEventoAnalytics({
-                        tipo: 'click_servico',
-                        servico_slug: s.slug || slug,
-                        servico_nome: s.nome || '',
-                        categoria_nome: s.categoria || '',
-                      })
-                    } catch (analyticsErr) {
-                      console.debug('Analytics não registrado:', analyticsErr)
-                    }
-                  }
-                  setCarregamentoConcluido(true)
-                  setLoading(false)
-                })
-                .catch((innerErr) => {
-                  if (!ativo) return
-                  console.warn(
-                    'Falha na busca remota do serviço, degradando para fallback local:',
-                    innerErr,
-                  )
-                  setCarregamentoConcluido(true)
-                  setLoading(false)
-                })
-            } catch (callErr) {
+      import('@/services/site')
+        .then(({ obterServicoPorSlug, registrarEventoAnalytics }) => {
+          return obterServicoPorSlug(slug)
+            .then((s) => {
               if (!ativo) return
-              console.warn('Exceção síncrona ao chamar obterServicoPorSlug:', callErr)
+              if (s) {
+                setServicoDb(s)
+                try {
+                  registrarEventoAnalytics({
+                    tipo: 'click_servico',
+                    servico_slug: s.slug || slug,
+                    servico_nome: s.nome || '',
+                    categoria_nome: s.categoria || '',
+                  })
+                } catch (analyticsErr) {
+                  console.debug('Analytics não registrado:', analyticsErr)
+                }
+              }
               setCarregamentoConcluido(true)
               setLoading(false)
-            }
-          })
-          .catch((err) => {
-            if (!ativo) return
-            console.error('Erro ao carregar módulo de serviços:', err)
-            setCarregamentoConcluido(true)
-            setLoading(false)
-          })
-      } catch (importErr) {
-        if (!ativo) return
-        console.error('Exceção síncrona ao importar services/site:', importErr)
-        setCarregamentoConcluido(true)
-        setLoading(false)
-      }
+            })
+            .catch((innerErr) => {
+              if (!ativo) return
+              console.warn(
+                'Falha na busca remota do serviço, degradando para fallback local:',
+                innerErr,
+              )
+              setCarregamentoConcluido(true)
+              setLoading(false)
+            })
+        })
+        .catch((err) => {
+          if (!ativo) return
+          console.error('Erro ao carregar módulo de serviços:', err)
+          setCarregamentoConcluido(true)
+          setLoading(false)
+        })
     } else {
       setLoading(false)
       setCarregamentoConcluido(true)
@@ -440,6 +425,8 @@ const ServicoDetailPageInner: React.FC = () => {
     }
   }, [servico, tituloSeguro, precoMinimo, fotoAtualUrl])
 
+  const whatsappUrl = getWhatsAppUrlForService(tituloSeguro)
+
   // Enquanto carrega e não temos nem local nem DB, exibe skeleton/loading elegante
   if (loading && !servico) {
     return (
@@ -451,7 +438,7 @@ const ServicoDetailPageInner: React.FC = () => {
   }
 
   // Se houve erro ou não foi encontrado, exibe tela explicativa com botão de retorno (nunca redirect silencioso)
-  if (carregamentoConcluido && !servico) {
+  if (!servico) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl border border-[#DEE4EA] text-center shadow-xs">
@@ -484,12 +471,6 @@ const ServicoDetailPageInner: React.FC = () => {
       </div>
     )
   }
-
-  if (!servico) {
-    return null
-  }
-
-  const whatsappUrl = getWhatsAppUrlForService(tituloSeguro)
 
   // Outros serviços para recomendação
   const outrosServicos = (SERVICOS || [])
@@ -857,19 +838,8 @@ const ServicoDetailPageInner: React.FC = () => {
 export const ServicoDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   return (
-    <ServicoLocalErrorBoundary slug={slug}>
-      <React.Suspense
-        fallback={
-          <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 bg-[#f4f4f4]">
-            <div className="w-12 h-12 border-4 border-[#2C3E50]/20 border-t-[#D4AF37] rounded-full animate-spin mb-4" />
-            <p className="text-sm font-semibold text-[#2C3E50]">
-              Carregando detalhes do serviço...
-            </p>
-          </div>
-        }
-      >
-        <ServicoDetailPageInner />
-      </React.Suspense>
+    <ServicoLocalErrorBoundary slug={slug} key={slug || 'servico-detail'}>
+      <ServicoDetailPageInner />
     </ServicoLocalErrorBoundary>
   )
 }

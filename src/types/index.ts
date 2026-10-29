@@ -116,12 +116,14 @@ export interface OrcamentoServicoItem extends RecordModel {
   grupo: string
   modo_calculo: 'area' | 'dimensoes'
   unidade: string
+  unidade_padrao_id?: string
   preco_unitario: number
   descricao_pdf?: string
   ativo: boolean
   site_service?: string
   expand?: {
     grupo?: ClienteGrupo
+    unidade_padrao?: UnidadeMedida
   }
 }
 
@@ -195,6 +197,7 @@ export interface Orcamento extends RecordModel {
   valor_a_vista?: number
   valor_a_prazo?: number
   exibir_cnpj?: boolean
+  identificacao?: string
   expand?: {
     produto_principal?: Produto
     cliente_cadastrado?: Cliente

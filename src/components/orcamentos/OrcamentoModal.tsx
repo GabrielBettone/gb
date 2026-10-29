@@ -43,6 +43,7 @@ import {
   Building2,
   CreditCard,
   Layers,
+  Tag,
 } from 'lucide-react'
 import {
   gerarProximoNumeroOrcamento,
@@ -120,6 +121,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   const [validade, setValidade] = useState('')
   const [dataInicioPrevista, setDataInicioPrevista] = useState('')
   const [dataFimPrevista, setDataFimPrevista] = useState('')
+  const [identificacao, setIdentificacao] = useState('')
   const [observacoes, setObservacoes] = useState('')
   const [desconto, setDesconto] = useState<string>('0')
 
@@ -194,6 +196,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           ? orcamentoParaEditar.data_fim_prevista.substring(0, 10)
           : '',
       )
+      setIdentificacao(orcamentoParaEditar.identificacao || '')
       setObservacoes(orcamentoParaEditar.observacoes || '')
       setDesconto((orcamentoParaEditar.desconto || 0).toString())
 
@@ -232,9 +235,10 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       setCanalOrigem('WhatsApp')
       setStatus('Orçamentos a realizar')
       setProdutoPrincipal(produtos[0]?.id || '')
-      setValidade(em30Dias.toISOString().substring(0, 10))
-      setDataInicioPrevista(em7Dias.toISOString().substring(0, 10))
-      setDataFimPrevista(em14Dias.toISOString().substring(0, 10))
+      setValidade('')
+      setDataInicioPrevista('')
+      setDataFimPrevista('')
+      setIdentificacao('')
       setObservacoes('')
       setDesconto('0')
       setExibirCnpj(true)
@@ -352,13 +356,28 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     return u?.metodo_calculo ?? item.metodo_calculo ?? ''
   }
 
+  // Resolve unidade padrão a partir de um serviço cadastrado
+  const obterUnidadeDoServico = (
+    serv: OrcamentoServicoItem | undefined,
+  ): UnidadeMedida | undefined => {
+    if (!serv) return undefined
+    if (serv.unidade_padrao_id) {
+      const u = unidadesList.find((x) => x.id === serv.unidade_padrao_id)
+      if (u) return u
+    }
+    if (serv.unidade) {
+      const u = unidadesList.find((x) => x.sigla === serv.unidade)
+      if (u) return u
+    }
+    return undefined
+  }
+
   // Gerenciamento dos itens por local
   const handleAddLinhaLocal = () => {
     const servicosDoGrupo = servicosPrecoList.filter((s) => !grupoId || s.grupo === grupoId)
     const primeiro = servicosDoGrupo[0]
-    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
-    const servUnid = primeiro ? unidadesList.find((u) => u.sigla === primeiro.unidade) : undefined
-    const unidEscolhida = servUnid || unidPadrao
+    const unidPadraoGeral = unidadesList.find((u) => u.padrao) || unidadesList[0]
+    const unidEscolhida = obterUnidadeDoServico(primeiro) || unidPadraoGeral
     setItensPorLocal((prev) => [
       ...prev,
       {
@@ -396,6 +415,23 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           if (serv) {
             linha.servico = serv.nome
             linha.valor = serv.preco_unitario
+            // Auto-preenchimento da unidade padrão ao (re)selecionar o serviço
+            const unidServ = obterUnidadeDoServico(serv)
+            if (unidServ) {
+              linha.unidade_id = unidServ.id
+              linha.unidade = unidServ.sigla
+              linha.metodo_calculo = unidServ.metodo_calculo || ''
+              if (identificarTipoFormula(linha.metodo_calculo) === 'livre') {
+                linha.dimensao_a = undefined
+                linha.dimensao_b = undefined
+              }
+              const calc = calcularQuantidadePorDimensoes(
+                linha.dimensao_a,
+                linha.dimensao_b,
+                linha.metodo_calculo,
+              )
+              if (calc !== null) linha.metragem = calc
+            }
           }
         }
       }
@@ -442,9 +478,8 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     // Busca serviços do grupo selecionado
     const servicosDoGrupo = servicosPrecoList.filter((s) => !grupoId || s.grupo === grupoId)
     const primeiro = servicosDoGrupo[0]
-    const unidPadrao = unidadesList.find((u) => u.padrao) || unidadesList[0]
-    const servUnid = primeiro ? unidadesList.find((u) => u.sigla === primeiro.unidade) : undefined
-    const unidEscolhida = servUnid || unidPadrao
+    const unidPadraoGeral = unidadesList.find((u) => u.padrao) || unidadesList[0]
+    const unidEscolhida = obterUnidadeDoServico(primeiro) || unidPadraoGeral
 
     setItens([
       ...itens,
@@ -452,7 +487,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         servico_id: primeiro?.id,
         descricao: primeiro?.nome || 'Forros de gesso',
         quantidade: 1,
-        unidade: primeiro?.unidade || unidEscolhida?.sigla || 'm²',
+        unidade: unidEscolhida?.sigla || primeiro?.unidade || 'm²',
         unidade_id: unidEscolhida?.id,
         metodo_calculo: unidEscolhida?.metodo_calculo || '',
         valor_unitario: primeiro?.preco_unitario || 120,
@@ -477,8 +512,28 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           const serv = servicosPrecoList.find((s) => s.id === valor)
           if (serv) {
             itemAtual.descricao = serv.nome
-            itemAtual.unidade = serv.unidade
             itemAtual.valor_unitario = serv.preco_unitario
+            // Auto-preenchimento da unidade padrão ao (re)selecionar o serviço
+            const unidServ = obterUnidadeDoServico(serv)
+            if (unidServ) {
+              itemAtual.unidade_id = unidServ.id
+              itemAtual.unidade = unidServ.sigla
+              itemAtual.metodo_calculo = unidServ.metodo_calculo || ''
+              if (identificarTipoFormula(itemAtual.metodo_calculo) === 'livre') {
+                itemAtual.dimensao_a = undefined
+                itemAtual.dimensao_b = undefined
+              }
+              const calc = calcularQuantidadePorDimensoes(
+                itemAtual.dimensao_a,
+                itemAtual.dimensao_b,
+                itemAtual.metodo_calculo,
+              )
+              if (calc !== null) {
+                itemAtual.quantidade = calc
+              }
+            } else {
+              itemAtual.unidade = serv.unidade
+            }
             itemAtual.valor_total =
               Math.round(itemAtual.quantidade * serv.preco_unitario * 100) / 100
           }
@@ -636,6 +691,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         subtotal,
         desconto: descontoNum,
         valor_total: valorAPrazo,
+        identificacao: identificacao?.trim() || undefined,
         data_inicio_prevista: dataInicioPrevista || undefined,
         data_fim_prevista: dataFimPrevista || undefined,
         validade: validade || undefined,
@@ -698,6 +754,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       valor_a_vista: valorAVista,
       valor_a_prazo: valorAPrazo,
       exibir_cnpj: exibirCnpj,
+      // NUNCA incluir identificação interna no objeto enviado ao PDF do cliente
       data_inicio_prevista: dataInicioPrevista,
       data_fim_prevista: dataFimPrevista,
       validade,
@@ -714,7 +771,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl w-full max-h-[92vh] overflow-y-auto p-0 gap-0">
+        <DialogContent className="max-w-6xl w-[95vw] lg:w-full max-h-[92vh] overflow-y-auto p-0 gap-0">
           <DialogHeader className="p-5 bg-white border-b border-[#DEE4EA] sticky top-0 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -805,6 +862,26 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                     onChange={(e) => setClienteNome(e.target.value)}
                     className="h-9 text-xs bg-white"
                     required
+                  />
+                </div>
+
+                {/* Identificação Interna (exibida no Kanban/Gantt/Tabela, NUNCA no PDF do cliente) */}
+                <div className="sm:col-span-4 space-y-1.5 bg-[#f8fafc] p-2.5 rounded-lg border border-[#DEE4EA]">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      Identificação Interna (Uso da Empresa)
+                    </Label>
+                    <span className="text-[10px] text-[#8A94A0]">
+                      Visível no Kanban, Gantt e Tabela —{' '}
+                      <strong>nunca sai no PDF do cliente</strong>
+                    </span>
+                  </div>
+                  <Input
+                    placeholder="Identificação interna — ex.: Senac ASP parede sala 8"
+                    value={identificacao}
+                    onChange={(e) => setIdentificacao(e.target.value)}
+                    className="h-9 text-xs bg-white"
                   />
                 </div>
 
@@ -1047,14 +1124,14 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         </Select>
                       </div>
 
-                      {/* Bloco de Medidas e Valores: no mobile fica em grid responsivo, no desktop alinhado com espaço generoso */}
-                      <div className="w-full md:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2.5 shrink-0">
+                      {/* Bloco de Medidas e Valores: no mobile vira coluna única/grid legível, no desktop alinhado com espaço generoso sem truncar */}
+                      <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 shrink-0">
                         {/* Dimensões A e B se o método não for livre */}
                         {identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre' ? (
-                          <>
-                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                          <div className="grid grid-cols-2 gap-2 sm:contents">
+                            <div className="w-full md:w-24 space-y-1">
                               <Label
-                                className="text-[10px] text-[#616F7D]"
+                                className="text-[10px] text-[#616F7D] font-semibold"
                                 title="Largura / Lado A"
                               >
                                 A (m)
@@ -1067,12 +1144,12 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 onChange={(e) =>
                                   handleLinhaLocalChange(idx, 'dimensao_a', e.target.value)
                                 }
-                                className="h-9 text-xs bg-white text-center px-2 min-w-[70px] font-mono"
+                                className="h-9 text-xs bg-white text-center px-2 min-w-[85px] font-mono font-medium"
                               />
                             </div>
-                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                            <div className="w-full md:w-24 space-y-1">
                               <Label
-                                className="text-[10px] text-[#616F7D]"
+                                className="text-[10px] text-[#616F7D] font-semibold"
                                 title="Comprimento / Lado B"
                               >
                                 B (m)
@@ -1085,33 +1162,35 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 onChange={(e) =>
                                   handleLinhaLocalChange(idx, 'dimensao_b', e.target.value)
                                 }
-                                className="h-9 text-xs bg-white text-center px-2 min-w-[70px] font-mono"
+                                className="h-9 text-xs bg-white text-center px-2 min-w-[85px] font-mono font-medium"
                               />
                             </div>
-                          </>
+                          </div>
                         ) : null}
 
                         {/* Metragem / Quantidade */}
-                        <div className="flex-1 sm:flex-none sm:w-24 space-y-1">
-                          <Label className="text-[11px] text-[#616F7D]">
+                        <div className="w-full md:w-28 space-y-1">
+                          <Label className="text-[11px] text-[#616F7D] font-semibold">
                             Qtd ({linha.unidade || 'm²'})
                           </Label>
                           <Input
                             type="number"
                             step="any"
                             min="0.01"
-                            placeholder="Qtd"
+                            placeholder="0,00"
                             value={linha.metragem}
                             onChange={(e) =>
                               handleLinhaLocalChange(idx, 'metragem', e.target.value)
                             }
-                            className="h-9 text-xs bg-white text-center font-mono font-semibold px-2 min-w-[80px]"
+                            className="h-9 text-xs bg-white text-center font-mono font-semibold px-2 min-w-[95px]"
                           />
                         </div>
 
                         {/* Valor Unitário */}
-                        <div className="flex-1 sm:flex-none sm:w-28 space-y-1">
-                          <Label className="text-[11px] text-[#616F7D]">Valor Unit. (R$)</Label>
+                        <div className="w-full md:w-32 space-y-1">
+                          <Label className="text-[11px] text-[#616F7D] font-semibold">
+                            Valor Unit. (R$)
+                          </Label>
                           <Input
                             type="number"
                             step="any"
@@ -1119,15 +1198,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             placeholder="0,00"
                             value={linha.valor}
                             onChange={(e) => handleLinhaLocalChange(idx, 'valor', e.target.value)}
-                            className="h-9 text-xs bg-white text-right font-mono px-2 min-w-[95px]"
+                            className="h-9 text-xs bg-white text-right font-mono px-2.5 min-w-[110px]"
                           />
                         </div>
 
                         {/* Total da Linha & Ação Excluir */}
-                        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
-                          <div className="text-left sm:text-right px-2 py-1 bg-[#E8EDF2] rounded-lg border border-[#2C3E50]/15 min-w-[100px]">
+                        <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-2 pt-1 md:pt-0 sm:col-span-2">
+                          <div className="flex-1 md:flex-none text-left md:text-right px-3 py-1.5 bg-[#E8EDF2] rounded-lg border border-[#2C3E50]/15 min-w-[110px]">
                             <span className="text-[9px] text-[#616F7D] block leading-tight">
-                              Total
+                              Total da linha
                             </span>
                             <span className="font-bold text-xs font-mono text-[#2C3E50] block leading-tight">
                               {formatMoeda(linha.total)}
@@ -1138,7 +1217,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveLinhaLocal(idx)}
-                            className="h-9 w-8 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
+                            className="h-9 w-9 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
                             title="Remover linha"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1260,14 +1339,14 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                         </Select>
                       </div>
 
-                      {/* Bloco de Medidas e Valores: no mobile flexível, no desktop espaçado e sem cortes */}
-                      <div className="w-full md:w-auto flex flex-wrap sm:flex-nowrap items-end gap-2.5 shrink-0">
+                      {/* Bloco de Medidas e Valores: no mobile coluna única/grid legível, no desktop espaçado e sem cortes */}
+                      <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 shrink-0">
                         {/* Dimensões A e B se a unidade tiver cálculo dimensional */}
                         {identificarTipoFormula(metodoCalculoDe(item)) !== 'livre' ? (
-                          <>
-                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
+                          <div className="grid grid-cols-2 gap-2 sm:contents">
+                            <div className="w-full md:w-24 space-y-1">
                               <Label
-                                className="text-[10px] text-[#616F7D]"
+                                className="text-[10px] text-[#616F7D] font-semibold"
                                 title="Largura / Lado A"
                               >
                                 A (m)
@@ -1280,12 +1359,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 onChange={(e) =>
                                   handleItemChange(idx, 'dimensao_a', e.target.value)
                                 }
-                                className="h-9 text-xs bg-white px-2 text-center min-w-[70px] font-mono"
+                                className="h-9 text-xs bg-white px-2 text-center min-w-[85px] font-mono font-medium"
                               />
                             </div>
 
-                            <div className="flex-1 sm:flex-none sm:w-20 space-y-1">
-                              <Label className="text-[10px] text-[#616F7D]" title="Altura / Lado B">
+                            <div className="w-full md:w-24 space-y-1">
+                              <Label
+                                className="text-[10px] text-[#616F7D] font-semibold"
+                                title="Altura / Lado B"
+                              >
                                 B (m)
                               </Label>
                               <Input
@@ -1296,15 +1378,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 onChange={(e) =>
                                   handleItemChange(idx, 'dimensao_b', e.target.value)
                                 }
-                                className="h-9 text-xs bg-white px-2 text-center min-w-[70px] font-mono"
+                                className="h-9 text-xs bg-white px-2 text-center min-w-[85px] font-mono font-medium"
                               />
                             </div>
-                          </>
+                          </div>
                         ) : null}
 
                         {/* Quantidade (Área / Perímetro / Livre) */}
-                        <div className="flex-1 sm:flex-none sm:w-24 space-y-1">
-                          <Label className="text-[10px] text-[#616F7D]">
+                        <div className="w-full md:w-28 space-y-1">
+                          <Label className="text-[10px] text-[#616F7D] font-semibold">
                             Qtd ({item.unidade || 'm²'})
                           </Label>
                           <Input
@@ -1313,13 +1395,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             min="0.01"
                             value={item.quantidade}
                             onChange={(e) => handleItemChange(idx, 'quantidade', e.target.value)}
-                            className="h-9 text-xs bg-white px-2 text-center font-mono font-semibold min-w-[80px]"
+                            className="h-9 text-xs bg-white px-2 text-center font-mono font-semibold min-w-[95px]"
                           />
                         </div>
 
                         {/* Valor Unitário */}
-                        <div className="flex-1 sm:flex-none sm:w-28 space-y-1">
-                          <Label className="text-[10px] text-[#616F7D]">Unit. (R$)</Label>
+                        <div className="w-full md:w-32 space-y-1">
+                          <Label className="text-[10px] text-[#616F7D] font-semibold">
+                            Unit. (R$)
+                          </Label>
                           <Input
                             type="number"
                             step="any"
@@ -1329,13 +1413,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             onChange={(e) =>
                               handleItemChange(idx, 'valor_unitario', e.target.value)
                             }
-                            className="h-9 text-xs bg-white px-2 text-right font-mono min-w-[95px]"
+                            className="h-9 text-xs bg-white px-2.5 text-right font-mono min-w-[110px]"
                           />
                         </div>
 
                         {/* Total & Excluir */}
-                        <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
-                          <div className="text-left sm:text-right px-2.5 py-1.5 bg-[#E8EDF2] text-[#2C3E50] font-bold text-xs rounded-lg border border-[#2C3E50]/20 min-w-[100px]">
+                        <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-2 pt-1 md:pt-0 sm:col-span-2">
+                          <div className="flex-1 md:flex-none text-left md:text-right px-3 py-1.5 bg-[#E8EDF2] text-[#2C3E50] font-bold text-xs rounded-lg border border-[#2C3E50]/20 min-w-[110px]">
                             <span className="text-[9px] text-[#616F7D] block leading-tight font-normal">
                               Total
                             </span>
@@ -1348,7 +1432,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveItem(idx)}
-                            className="h-9 w-8 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
+                            className="h-9 w-9 p-0 text-[#C4453C] hover:bg-[#FBEFEE] shrink-0"
                             title="Remover serviço"
                           >
                             <Trash2 className="w-4 h-4" />

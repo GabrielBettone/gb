@@ -228,6 +228,8 @@ CREATE TABLE IF NOT EXISTS public.orcamentos (
 
 -- Garante coluna itens_por_local caso a tabela já exista
 ALTER TABLE IF EXISTS public.orcamentos ADD COLUMN IF NOT EXISTS itens_por_local JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE IF EXISTS public.orcamentos ADD COLUMN IF NOT EXISTS identificacao TEXT DEFAULT '';
+ALTER TABLE IF EXISTS public.orcamento_servicos ADD COLUMN IF NOT EXISTS unidade_padrao_id TEXT DEFAULT '';
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orcamentos_numero ON public.orcamentos(numero);
 CREATE INDEX IF NOT EXISTS idx_orcamentos_status ON public.orcamentos(status);

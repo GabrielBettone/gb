@@ -71,15 +71,16 @@ cronAdd('alertas_check', '*/10 * * * *', (e) => {
           indicador === 'quantidade'
             ? Math.round(valorAtual).toString()
             : 'R$ ' +
-              valorAtual.toLocaleString('pt-BR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })
+              Number(valorAtual || 0)
+                .toFixed(2)
+                .replace('.', ',')
         const limFormatado =
           indicador === 'quantidade'
             ? Math.round(limite).toString()
             : 'R$ ' +
-              limite.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              Number(limite || 0)
+                .toFixed(2)
+                .replace('.', ',')
 
         if (tipo === 'positivo') {
           msg = `${regraNome}: O indicador de ${indicador} atingiu ${valFormatado}, superando a meta de ${limFormatado}.`

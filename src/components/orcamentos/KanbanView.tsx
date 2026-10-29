@@ -240,10 +240,17 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           </span>
                         </div>
 
-                        {/* Linha 2: Cliente */}
-                        <h4 className="font-semibold text-xs text-[#22272A] line-clamp-2 leading-tight mb-2">
-                          {orc.cliente}
-                        </h4>
+                        {/* Linha 2: Cliente + Identificação Interna */}
+                        <div className="mb-2">
+                          <h4 className="font-semibold text-xs text-[#22272A] line-clamp-2 leading-tight">
+                            {orc.cliente}
+                          </h4>
+                          {orc.identificacao && (
+                            <p className="text-[11px] font-medium text-[#D4AF37] line-clamp-1 mt-0.5">
+                              {orc.identificacao}
+                            </p>
+                          )}
+                        </div>
 
                         {/* Linha 3: Serviço Principal */}
                         <div className="flex items-center gap-1.5 text-[11px] text-[#5B6470] mb-2.5 truncate">

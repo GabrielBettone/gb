@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import type { OrcamentoServicoItem, ClienteGrupo } from '@/types'
+import type { OrcamentoServicoItem, ClienteGrupo, UnidadeMedida } from '@/types'
 import {
   listarOrcamentoServicos,
   criarOrcamentoServico,
@@ -7,6 +7,7 @@ import {
   excluirOrcamentoServico,
   duplicarOrcamentoServico,
 } from '@/services/orcamentoModulo'
+import { listarUnidadesMedida } from '@/services/unidadesMedida'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,6 +48,7 @@ interface AbaServicosPrecosProps {
 export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) => {
   const { toast } = useToast()
   const [servicos, setServicos] = useState<OrcamentoServicoItem[]>([])
+  const [unidadesCadastradas, setUnidadesCadastradas] = useState<UnidadeMedida[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [grupoFiltro, setGrupoFiltro] = useState<string>('todos')
@@ -62,6 +64,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
   const [grupoId, setGrupoId] = useState('')
   const [modoCalculo, setModoCalculo] = useState<'area' | 'dimensoes'>('area')
   const [unidade, setUnidade] = useState('m²')
+  const [unidadePadraoId, setUnidadePadraoId] = useState<string>('')
   const [precoUnitario, setPrecoUnitario] = useState<string>('100')
   const [descricaoPdf, setDescricaoPdf] = useState('')
   const [ativo, setAtivo] = useState(true)
@@ -69,8 +72,12 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
   const carregar = async () => {
     setLoading(true)
     try {
-      const data = await listarOrcamentoServicos(grupoFiltro)
+      const [data, unids] = await Promise.all([
+        listarOrcamentoServicos(grupoFiltro),
+        listarUnidadesMedida(true).catch(() => []),
+      ])
       setServicos(data)
+      setUnidadesCadastradas(unids)
     } catch (e: any) {
       toast({
         variant: 'destructive',
@@ -91,7 +98,9 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
     setNome('')
     setGrupoId('todos')
     setModoCalculo('area')
-    setUnidade('m²')
+    const unidPadrao = unidadesCadastradas.find((u) => u.padrao) || unidadesCadastradas[0]
+    setUnidadePadraoId(unidPadrao ? unidPadrao.id : '')
+    setUnidade(unidPadrao ? unidPadrao.sigla : 'm²')
     setPrecoUnitario('120')
     setDescricaoPdf('')
     setAtivo(true)
@@ -104,6 +113,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
     setGrupoId(item.grupo)
     setModoCalculo(item.modo_calculo)
     setUnidade(item.unidade)
+    setUnidadePadraoId(item.unidade_padrao_id || '')
     setPrecoUnitario(item.preco_unitario.toString())
     setDescricaoPdf(item.descricao_pdf || '')
     setAtivo(item.ativo)
@@ -131,6 +141,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
           grupo: grupoId,
           modo_calculo: modoCalculo,
           unidade: unidade.trim(),
+          unidade_padrao_id: unidadePadraoId || undefined,
           preco_unitario: precoNum,
           descricao_pdf: descricaoPdf.trim(),
           ativo,
@@ -154,6 +165,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
             grupo: g.id,
             modo_calculo: modoCalculo,
             unidade: unidade.trim(),
+            unidade_padrao_id: unidadePadraoId || undefined,
             preco_unitario: precoNum,
             descricao_pdf: descricaoPdf.trim(),
             ativo,
@@ -170,6 +182,7 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
           grupo: grupoId,
           modo_calculo: modoCalculo,
           unidade: unidade.trim(),
+          unidade_padrao_id: unidadePadraoId || undefined,
           preco_unitario: precoNum,
           descricao_pdf: descricaoPdf.trim(),
           ativo,
@@ -474,12 +487,46 @@ export const AbaServicosPrecos: React.FC<AbaServicosPrecosProps> = ({ grupos }) 
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#2C3E50]">
-                  Unidade <span className="text-red-500">*</span>
+                  Unidade Padrão do Serviço
+                </Label>
+                <Select
+                  value={unidadePadraoId || 'nenhuma'}
+                  onValueChange={(val) => {
+                    if (val === 'nenhuma') {
+                      setUnidadePadraoId('')
+                    } else {
+                      setUnidadePadraoId(val)
+                      const unidEncontrada = unidadesCadastradas.find((u) => u.id === val)
+                      if (unidEncontrada) {
+                        setUnidade(unidEncontrada.sigla)
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-white">
+                    <SelectValue placeholder="Selecione a unidade cadastrada" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nenhuma" className="text-xs">
+                      (Nenhuma pré-selecionada)
+                    </SelectItem>
+                    {unidadesCadastradas.map((u) => (
+                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                        {u.nome} ({u.sigla}) {u.metodo_calculo ? `— ${u.metodo_calculo}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-[#2C3E50]">
+                  Sigla da Unidade (exibição) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   value={unidade}
                   onChange={(e) => setUnidade(e.target.value)}
-                  placeholder="m², m linear, un"
+                  placeholder="m², m, svç, un"
                   className="h-9 text-xs bg-white"
                   required
                 />
