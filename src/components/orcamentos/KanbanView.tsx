@@ -55,7 +55,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
 
   const formatData = (d?: string) => {
     if (!d) return ''
-    const dt = new Date(d)
+    const str = String(d).trim()
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, , mes, dia] = match
+      return `${dia}/${mes}`
+    }
+    const dt = new Date(str)
     if (isNaN(dt.getTime())) return ''
     return `${dt.getDate().toString().padStart(2, '0')}/${(dt.getMonth() + 1).toString().padStart(2, '0')}`
   }

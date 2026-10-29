@@ -132,30 +132,17 @@ export const GanttView: React.FC<GanttViewProps> = ({
       const parsedFim = parseDataGantt(orc.data_fim_prevista)
       if (parsedFim) {
         dFim = parsedFim
+      } else if (parsedInicio) {
+        // Se tem APENAS data de início (sem data de fim), a barra ocupa APENAS aquele dia (1 dia completo)
+        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
       } else {
-        // Fallback: 5 dias após início
-        dFim = new Date(
-          dInicio.getFullYear(),
-          dInicio.getMonth(),
-          dInicio.getDate() + 5,
-          12,
-          0,
-          0,
-          0,
-        )
+        // Fallback genérico quando não há nem início nem fim: ocupa o dia de início fallback (1 dia)
+        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
       }
 
       // Garante que o fim seja >= início
       if (dFim < dInicio) {
-        dFim = new Date(
-          dInicio.getFullYear(),
-          dInicio.getMonth(),
-          dInicio.getDate() + 1,
-          12,
-          0,
-          0,
-          0,
-        )
+        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
       }
 
       // Se este item estiver em drag ativo, usa as datas atuais do drag
@@ -549,9 +536,16 @@ export const GanttView: React.FC<GanttViewProps> = ({
 
                       <span
                         className="text-xs font-semibold text-[#22272A] truncate"
-                        title={orc.cliente}
+                        title={
+                          orc.identificacao ? `${orc.cliente} — ${orc.identificacao}` : orc.cliente
+                        }
                       >
                         {orc.cliente}
+                        {orc.identificacao && (
+                          <span className="text-[#D4AF37] font-medium ml-1.5 text-[11px]">
+                            ({orc.identificacao})
+                          </span>
+                        )}
                       </span>
 
                       <div className="flex items-center justify-between text-[11px] text-[#5B6470] mt-0.5 truncate">
@@ -609,6 +603,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
                           <GripHorizontal className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
                           <span className="font-semibold text-xs truncate">
                             {orc.numero}: {orc.cliente}
+                            {orc.identificacao && ` — ${orc.identificacao}`}
                           </span>
                         </div>
                         <span className="text-[10px] font-bold bg-black/20 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">

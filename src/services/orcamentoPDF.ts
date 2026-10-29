@@ -116,10 +116,20 @@ export async function imprimirOrcamentoPDF(
 
   const formatData = (d?: string) => {
     if (!d) return 'A definir'
-    const dateObj = new Date(d)
-    return isNaN(dateObj.getTime())
-      ? d
-      : dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    const str = String(d).trim()
+    // Caso 1: string pura no formato YYYY-MM-DD (com ou sem sufixo de hora)
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, ano, mes, dia] = match
+      return `${dia}/${mes}/${ano}`
+    }
+    // Caso 2: fallback para ISO / timestamp com hora, parseando componentes locais
+    const dateObj = new Date(str)
+    if (isNaN(dateObj.getTime())) return str
+    const dia = String(dateObj.getDate()).padStart(2, '0')
+    const mes = String(dateObj.getMonth() + 1).padStart(2, '0')
+    const ano = dateObj.getFullYear()
+    return `${dia}/${mes}/${ano}`
   }
 
   const formatMoeda = (val?: number) => {

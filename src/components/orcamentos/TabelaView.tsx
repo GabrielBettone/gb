@@ -51,8 +51,14 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
 
   const formatData = (d?: string) => {
     if (!d) return '-'
-    const dt = new Date(d)
-    if (isNaN(dt.getTime())) return d
+    const str = String(d).trim()
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, ano, mes, dia] = match
+      return `${dia}/${mes}/${ano}`
+    }
+    const dt = new Date(str)
+    if (isNaN(dt.getTime())) return str
     return dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
@@ -180,7 +186,16 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
 
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-semibold text-xs text-[#22272A]">{orc.cliente}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-xs text-[#22272A]">
+                            {orc.cliente}
+                          </span>
+                          {orc.identificacao && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                              {orc.identificacao}
+                            </span>
+                          )}
+                        </div>
                         {orc.contato && (
                           <span className="text-[11px] text-[#5B6470]">{orc.contato}</span>
                         )}

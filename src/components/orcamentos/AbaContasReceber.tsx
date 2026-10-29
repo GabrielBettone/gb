@@ -118,9 +118,15 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
 
   const formatData = (d?: string) => {
     if (!d) return '-'
-    const dateObj = new Date(d)
+    const str = String(d).trim()
+    const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, ano, mes, dia] = match
+      return `${dia}/${mes}/${ano}`
+    }
+    const dateObj = new Date(str)
     return isNaN(dateObj.getTime())
-      ? d
+      ? str
       : dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   }
 
