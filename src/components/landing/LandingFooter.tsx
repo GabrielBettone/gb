@@ -31,6 +31,16 @@ export const LandingFooter: React.FC = () => {
 
   const cidades = settings?.cidades_atendidas || CIDADES_ATENDIDAS
   const cnpj = settings?.cnpj || '53.242.055/0001-74'
+
+  // WhatsApp do webdesigner (sanitizado apenas com dígitos)
+  const rawWebdesigner = settings?.whatsapp_webdesigner ? settings.whatsapp_webdesigner.trim() : ''
+  const digitsWebdesigner = rawWebdesigner.replace(/\D/g, '')
+  const webdesignerLink = digitsWebdesigner
+    ? `https://wa.me/${digitsWebdesigner}?text=${encodeURIComponent(
+        'Olá! Gostei muito do site da Gesso Bettone e gostaria de saber mais sobre a criação de sites.',
+      )}`
+    : ''
+
   return (
     <footer className="bg-[#1B2631] text-[#f4f4f4] border-t border-[#2C3E50]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 lg:py-16">
@@ -192,8 +202,34 @@ export const LandingFooter: React.FC = () => {
           </div>
         </div>
 
+        {/* Bloco discreto para o Webdesigner (quando configurado) */}
+        {webdesignerLink && (
+          <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-center">
+            <a
+              href={webdesignerLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                registrarEventoAnalytics({
+                  tipo: 'click_whatsapp',
+                  metadata: { contexto: 'footer_webdesigner_invite' },
+                })
+              }}
+              className="group inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-[#D4AF37]/50 text-[11px] text-white/70 hover:text-white transition-all shadow-xs"
+            >
+              <span>Gostou do site? Podemos criar o seu.</span>
+              <span className="text-[#D4AF37] font-semibold group-hover:underline flex items-center gap-0.5">
+                Fale com o webdesigner{' '}
+                <span className="inline-block transition-transform group-hover:translate-x-0.5">
+                  →
+                </span>
+              </span>
+            </a>
+          </div>
+        )}
+
         {/* Linha Inferior com Copyright & Informações legais */}
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-white/60">
+        <div className="mt-6 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-white/60">
           <div>
             © {new Date().getFullYear()} {settings?.nome_site || 'Gesso Bettone'}. CNPJ: {cnpj}.
             Todos os direitos reservados.

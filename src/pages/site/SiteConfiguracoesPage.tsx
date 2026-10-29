@@ -28,6 +28,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
   const [instagram, setInstagram] = useState('https://www.instagram.com/gessobettone_saopedro')
   const [cnpj, setCnpj] = useState('53.242.055/0001-74')
   const [googleSiteVerification, setGoogleSiteVerification] = useState('')
+  const [whatsappWebdesigner, setWhatsappWebdesigner] = useState('')
   const [exibirDepoimentos, setExibirDepoimentos] = useState(true)
 
   // Logo da empresa
@@ -55,6 +56,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
         setInstagram(cfg.instagram || 'https://www.instagram.com/gessobettone_saopedro')
         setCnpj(cfg.cnpj || '53.242.055/0001-74')
         setGoogleSiteVerification(cfg.google_site_verification || '')
+        setWhatsappWebdesigner(cfg.whatsapp_webdesigner || '')
         setExibirDepoimentos(cfg.exibir_depoimentos !== false)
         setCidades(cfg.cidades_atendidas || [])
         if (cfg.logo_url) {
@@ -83,6 +85,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
           instagram,
           cnpj,
           google_site_verification: googleSiteVerification.trim(),
+          whatsapp_webdesigner: whatsappWebdesigner.trim(),
           exibir_depoimentos: exibirDepoimentos,
           cidades_atendidas: cidades,
         },
@@ -302,6 +305,24 @@ export const SiteConfiguracoesPage: React.FC = () => {
                       className="bg-white border-[#DEE4EA]"
                     />
                   </div>
+                </div>
+
+                {/* WhatsApp do Webdesigner */}
+                <div className="space-y-1.5 max-w-xl pt-2">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    WhatsApp do Webdesigner
+                  </Label>
+                  <Input
+                    value={whatsappWebdesigner}
+                    onChange={(e) => setWhatsappWebdesigner(e.target.value)}
+                    placeholder="Ex: 5519999999999 ou (19) 99999-9999"
+                    className="bg-white border-[#DEE4EA]"
+                  />
+                  <p className="text-[11px] text-[#616F7D] leading-relaxed">
+                    Quando preenchido, ativa o convite discreto no rodapé do site público
+                    (&ldquo;Gostou do site? Podemos criar o seu. Fale com o webdesigner →&rdquo;)
+                    direcionando para este WhatsApp. Deixe vazio para não exibir o convite.
+                  </p>
                 </div>
 
                 {/* Google Search Console Verification */}

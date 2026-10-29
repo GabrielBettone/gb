@@ -127,6 +127,7 @@ export interface SiteSettings {
   cidades_atendidas: string[]
   pagina_parceiros_ativa: boolean
   google_site_verification?: string
+  whatsapp_webdesigner?: string
   arquivo_logo?: string
   logo_url?: string
   simulador_ativo?: boolean
@@ -1577,6 +1578,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
         FALLBACK_SETTINGS.cidades_atendidas,
       ),
       google_site_verification: record.google_site_verification || '',
+      whatsapp_webdesigner: record.whatsapp_webdesigner || '',
       arquivo_logo: record.arquivo_logo || '',
       logo_url: logoUrl,
       simulador_ativo: record.simulador_ativo !== false,
@@ -1584,7 +1586,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       simulador_cota_padrao: record.simulador_cota_padrao ?? 5,
     }
   } catch {
-    return { ...FALLBACK_SETTINGS, google_site_verification: '' }
+    return { ...FALLBACK_SETTINGS, google_site_verification: '', whatsapp_webdesigner: '' }
   }
 }
 
@@ -1655,6 +1657,8 @@ export async function salvarConfiguracoes(
       pagina_parceiros_ativa: !!resultRecord?.pagina_parceiros_ativa,
       cidades_atendidas: parseJsonArray<string>(resultRecord?.cidades_atendidas),
       google_site_verification: resultRecord?.google_site_verification || '',
+      whatsapp_webdesigner:
+        resultRecord?.whatsapp_webdesigner ?? settings.whatsapp_webdesigner ?? '',
       arquivo_logo: resultRecord?.arquivo_logo,
       logo_url: logoUrl,
       simulador_ativo: resultRecord?.simulador_ativo !== false,
@@ -1719,6 +1723,7 @@ export async function salvarConfiguracoes(
     pagina_parceiros_ativa: !!resultRecord?.pagina_parceiros_ativa,
     cidades_atendidas: parseJsonArray<string>(resultRecord?.cidades_atendidas),
     google_site_verification: resultRecord?.google_site_verification || '',
+    whatsapp_webdesigner: resultRecord?.whatsapp_webdesigner ?? settings.whatsapp_webdesigner ?? '',
     arquivo_logo: resultRecord?.arquivo_logo,
     logo_url: logoUrl,
     simulador_ativo: resultRecord?.simulador_ativo !== false,

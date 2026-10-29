@@ -624,6 +624,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   arquivo_logo TEXT,
   logo_url TEXT,
   google_site_verification TEXT,
+  whatsapp_webdesigner TEXT,
   simulador_ativo BOOLEAN DEFAULT true,
   simulador_exigir_login BOOLEAN DEFAULT false,
   simulador_cota_padrao INTEGER DEFAULT 5,
@@ -971,11 +972,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authent
 -- utilize o arquivo opcional separado: self-hosted/supabase/schema_cleanup.sql
 -- ============================================================================
 
--- Garante coluna google_site_verification e site_url em site_settings
+-- Garante coluna google_site_verification, site_url e whatsapp_webdesigner em site_settings
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT 'https://gessobettone.com.br';
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS whatsapp_webdesigner TEXT;
 
 -- Remove colunas duplicadas legadas de site_settings (os dados de razao social, endereco e toggle de CNPJ pertencem a orcamento_configuracoes)
 ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS razao_social;

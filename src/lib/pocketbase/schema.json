@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-29T09:58:56.210Z",
+  "generatedAt": "2026-10-29T10:22:11.909Z",
   "collections": [
     {
       "name": "users",
@@ -1234,6 +1234,12 @@
         },
         {
           "name": "logo_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_webdesigner",
           "type": "text",
           "required": false,
           "system": false
