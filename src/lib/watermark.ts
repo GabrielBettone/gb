@@ -233,13 +233,19 @@ export async function aplicarMarcaDagua(
     img.onerror = () => {
       if (objectUrl) URL.revokeObjectURL(objectUrl)
       // Se falhar ao carregar via URL direta por CORS, tentar via fetch blob
+      // NUNCA lança erro não tratado — degrada rejeitando a Promise suavemente
       if (typeof imagemFonte === 'string' && imagemFonte.startsWith('http')) {
         fetch(imagemFonte)
           .then((res) => {
-            if (!res.ok) throw new Error('Falha no fetch HTTP')
+            if (!res.ok) {
+              // Degrada graciosamente sem estourar throw não capturado
+              reject(new Error(`Falha no fetch HTTP (${res.status}): ${imagemFonte.slice(0, 80)}`))
+              return null
+            }
             return res.blob()
           })
           .then((blob) => {
+            if (!blob) return
             const fallbackUrl = URL.createObjectURL(blob)
             const fallbackImg = new Image()
             fallbackImg.onload = () => {
@@ -255,7 +261,9 @@ export async function aplicarMarcaDagua(
             }
             fallbackImg.src = fallbackUrl
           })
-          .catch((err) => reject(err))
+          .catch((err) => {
+            reject(err instanceof Error ? err : new Error(String(err || 'Erro no fetch HTTP')))
+          })
       } else {
         reject(new Error('Erro ao carregar a imagem para aplicar marca d água.'))
       }

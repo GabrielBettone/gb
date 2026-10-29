@@ -13,31 +13,34 @@ interface BoundaryProps {
 interface BoundaryState {
   hasError: boolean
   error: Error | null
+  errorInfo: ErrorInfo | null
 }
 
 class ServicoRouteBoundary extends Component<BoundaryProps, BoundaryState> {
   public state: BoundaryState = {
     hasError: false,
     error: null,
+    errorInfo: null,
   }
 
-  public static getDerivedStateFromError(error: Error): BoundaryState {
+  public static getDerivedStateFromError(error: Error): Partial<BoundaryState> {
     return { hasError: true, error }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ServicoRouteBoundary capturou erro na rota /servicos/:slug:', error, errorInfo)
+    this.setState({ errorInfo })
   }
 
   public componentDidUpdate(prevProps: BoundaryProps) {
     // Reset automático se o slug mudar
     if (prevProps.slug !== this.props.slug && this.state.hasError) {
-      this.setState({ hasError: false, error: null })
+      this.setState({ hasError: false, error: null, errorInfo: null })
     }
   }
 
   private handleRetry = () => {
-    this.setState({ hasError: false, error: null })
+    this.setState({ hasError: false, error: null, errorInfo: null })
   }
 
   public render() {
@@ -70,6 +73,24 @@ class ServicoRouteBoundary extends Component<BoundaryProps, BoundaryState> {
                 ou explorar os outros serviços do nosso catálogo.
               </p>
             </div>
+
+            {/* Mensagem técnica do erro em texto pequeno para diagnóstico visível */}
+            {this.state.error && (
+              <div className="p-3 bg-red-50/90 border border-red-200 rounded-lg text-left max-w-md mx-auto">
+                <p className="text-[11px] font-mono text-red-700 break-words leading-tight">
+                  <span className="font-semibold text-red-800">Diagnóstico técnico:</span>{' '}
+                  {this.state.error.message || String(this.state.error)}
+                </p>
+                {this.state.errorInfo?.componentStack && (
+                  <details className="mt-1 text-[10px] text-red-600 font-mono">
+                    <summary className="cursor-pointer hover:underline">Stack do erro</summary>
+                    <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[9px] bg-white p-1 rounded border border-red-100">
+                      {this.state.errorInfo.componentStack}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
               <Button

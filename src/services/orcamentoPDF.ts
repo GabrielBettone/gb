@@ -647,13 +647,15 @@ export async function imprimirOrcamentoPDF(
 
     <!-- CRONOGRAMA & OBSERVAÇÕES -->
     ${
-      orcamento.data_inicio_prevista || orcamento.data_fim_prevista || orcamento.observacoes
+      (orcamento.data_inicio_prevista && orcamento.data_inicio_prevista.trim()) ||
+      (orcamento.data_fim_prevista && orcamento.data_fim_prevista.trim()) ||
+      (orcamento.observacoes && orcamento.observacoes.trim())
         ? `
       <div class="card-info" style="margin-top: 14px;">
         <div class="card-title">Cronograma & Observações Técnicas</div>
-        ${orcamento.data_inicio_prevista ? `<div class="card-item"><strong>Previsão de Início:</strong> ${formatData(orcamento.data_inicio_prevista)}</div>` : ''}
-        ${orcamento.data_fim_prevista ? `<div class="card-item"><strong>Previsão de Conclusão:</strong> ${formatData(orcamento.data_fim_prevista)}</div>` : ''}
-        ${orcamento.observacoes ? `<div class="card-item" style="margin-top: 6px; white-space: pre-line;"><strong>Observações:</strong> ${orcamento.observacoes}</div>` : ''}
+        ${orcamento.data_inicio_prevista && orcamento.data_inicio_prevista.trim() ? `<div class="card-item"><strong>Previsão de Início:</strong> ${formatData(orcamento.data_inicio_prevista)}</div>` : ''}
+        ${orcamento.data_fim_prevista && orcamento.data_fim_prevista.trim() ? `<div class="card-item"><strong>Previsão de Conclusão:</strong> ${formatData(orcamento.data_fim_prevista)}</div>` : ''}
+        ${orcamento.observacoes && orcamento.observacoes.trim() ? `<div class="card-item" style="margin-top: 6px; white-space: pre-line;"><strong>Observações:</strong> ${orcamento.observacoes}</div>` : ''}
       </div>
     `
         : ''

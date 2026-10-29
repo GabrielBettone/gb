@@ -203,11 +203,24 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     subtotal: dados.subtotal,
     desconto: dados.desconto,
     valor_total: dados.valor_total,
-    data_inicio_prevista: dados.data_inicio_prevista
-      ? `${dados.data_inicio_prevista} 12:00:00.000Z`
-      : null,
-    data_fim_prevista: dados.data_fim_prevista ? `${dados.data_fim_prevista} 12:00:00.000Z` : null,
-    validade: dados.validade ? `${dados.validade} 12:00:00.000Z` : null,
+    data_inicio_prevista:
+      dados.data_inicio_prevista && dados.data_inicio_prevista.trim()
+        ? dados.data_inicio_prevista.includes('T') || dados.data_inicio_prevista.includes('Z')
+          ? dados.data_inicio_prevista
+          : dados.data_inicio_prevista.substring(0, 10)
+        : null,
+    data_fim_prevista:
+      dados.data_fim_prevista && dados.data_fim_prevista.trim()
+        ? dados.data_fim_prevista.includes('T') || dados.data_fim_prevista.includes('Z')
+          ? dados.data_fim_prevista
+          : dados.data_fim_prevista.substring(0, 10)
+        : null,
+    validade:
+      dados.validade && dados.validade.trim()
+        ? dados.validade.includes('T') || dados.validade.includes('Z')
+          ? dados.validade
+          : dados.validade.substring(0, 10)
+        : null,
     observacoes: dados.observacoes?.trim() || '',
   })
 
@@ -259,32 +272,40 @@ export async function atualizarOrcamento(
   if (dados.desconto !== undefined) payload.desconto = dados.desconto
   if (dados.valor_total !== undefined) payload.valor_total = dados.valor_total
   if (dados.data_inicio_prevista !== undefined) {
-    payload.data_inicio_prevista = dados.data_inicio_prevista
-      ? dados.data_inicio_prevista.includes('Z')
-        ? dados.data_inicio_prevista
-        : `${dados.data_inicio_prevista} 12:00:00.000Z`
-      : null
+    const raw = dados.data_inicio_prevista
+    payload.data_inicio_prevista =
+      raw && typeof raw === 'string' && raw.trim()
+        ? raw.includes('T') || raw.includes('Z')
+          ? raw
+          : raw.substring(0, 10)
+        : null
   }
   if (dados.data_fim_prevista !== undefined) {
-    payload.data_fim_prevista = dados.data_fim_prevista
-      ? dados.data_fim_prevista.includes('Z')
-        ? dados.data_fim_prevista
-        : `${dados.data_fim_prevista} 12:00:00.000Z`
-      : null
+    const raw = dados.data_fim_prevista
+    payload.data_fim_prevista =
+      raw && typeof raw === 'string' && raw.trim()
+        ? raw.includes('T') || raw.includes('Z')
+          ? raw
+          : raw.substring(0, 10)
+        : null
   }
   if (dados.data_conclusao !== undefined) {
-    payload.data_conclusao = dados.data_conclusao
-      ? dados.data_conclusao.includes('Z')
-        ? dados.data_conclusao
-        : `${dados.data_conclusao} 12:00:00.000Z`
-      : null
+    const raw = dados.data_conclusao
+    payload.data_conclusao =
+      raw && typeof raw === 'string' && raw.trim()
+        ? raw.includes('T') || raw.includes('Z')
+          ? raw
+          : raw.substring(0, 10)
+        : null
   }
   if (dados.validade !== undefined) {
-    payload.validade = dados.validade
-      ? dados.validade.includes('Z')
-        ? dados.validade
-        : `${dados.validade} 12:00:00.000Z`
-      : null
+    const raw = dados.validade
+    payload.validade =
+      raw && typeof raw === 'string' && raw.trim()
+        ? raw.includes('T') || raw.includes('Z')
+          ? raw
+          : raw.substring(0, 10)
+        : null
   }
   if (dados.observacoes !== undefined) payload.observacoes = dados.observacoes.trim()
 

@@ -47,26 +47,34 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
 
     let isMounted = true
 
-    aplicarMarcaDagua(src, {
-      posicao: 'canto-inferior-direito',
-      opacidade: 0.88,
-    })
-      .then((blob) => {
-        const objectUrl = URL.createObjectURL(blob)
-        watermarkCache.set(src, objectUrl)
-        if (isMounted) {
-          setDisplaySrc(objectUrl)
-          setIsWatermarkedInPixel(true)
-        }
+    try {
+      aplicarMarcaDagua(src, {
+        posicao: 'canto-inferior-direito',
+        opacidade: 0.88,
       })
-      .catch((err) => {
-        // Fallback gracioso: usa a imagem original e o overlay HTML/SVG garante a marca visualmente
-        console.debug('Marca d água aplicada via overlay CSS/SVG:', err)
-        if (isMounted) {
-          setDisplaySrc(src)
-          setIsWatermarkedInPixel(false)
-        }
-      })
+        .then((blob) => {
+          const objectUrl = URL.createObjectURL(blob)
+          watermarkCache.set(src, objectUrl)
+          if (isMounted) {
+            setDisplaySrc(objectUrl)
+            setIsWatermarkedInPixel(true)
+          }
+        })
+        .catch((err) => {
+          // Fallback gracioso: usa a imagem original e o overlay HTML/SVG garante a marca visualmente
+          console.debug('Marca d água aplicada via overlay CSS/SVG (degradação segura):', err)
+          if (isMounted) {
+            setDisplaySrc(src)
+            setIsWatermarkedInPixel(false)
+          }
+        })
+    } catch (errSync) {
+      console.warn('Erro síncrono em aplicarMarcaDagua, degradando para src original:', errSync)
+      if (isMounted) {
+        setDisplaySrc(src)
+        setIsWatermarkedInPixel(false)
+      }
+    }
 
     return () => {
       isMounted = false

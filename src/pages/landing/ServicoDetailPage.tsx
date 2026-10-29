@@ -34,24 +34,27 @@ interface ServicoBoundaryProps {
 interface ServicoBoundaryState {
   hasError: boolean
   error: Error | null
+  errorInfo: ErrorInfo | null
 }
 
 class ServicoLocalErrorBoundary extends Component<ServicoBoundaryProps, ServicoBoundaryState> {
   public state: ServicoBoundaryState = {
     hasError: false,
     error: null,
+    errorInfo: null,
   }
 
-  public static getDerivedStateFromError(error: Error): ServicoBoundaryState {
+  public static getDerivedStateFromError(error: Error): Partial<ServicoBoundaryState> {
     return { hasError: true, error }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ServicoDetailPage local error boundary caught:', error, errorInfo)
+    this.setState({ errorInfo })
   }
 
   private handleRetry = () => {
-    this.setState({ hasError: false, error: null })
+    this.setState({ hasError: false, error: null, errorInfo: null })
   }
 
   public render() {
@@ -65,11 +68,32 @@ class ServicoLocalErrorBoundary extends Component<ServicoBoundaryProps, ServicoB
             <h1 className="font-heading text-2xl font-bold text-[#2C3E50] mb-2">
               Detalhes do Serviço
             </h1>
-            <p className="text-sm text-[#616F7D] mb-6 leading-relaxed">
+            <p className="text-sm text-[#616F7D] mb-4 leading-relaxed">
               Ocorreu uma instabilidade pontual ao carregar as informações deste serviço. Nossos
               especialistas estão à disposição pelo WhatsApp com fotos, orientações e orçamentos
               rápidos.
             </p>
+
+            {/* Mensagem técnica do erro visível em texto pequeno para diagnóstico */}
+            {this.state.error && (
+              <div className="mb-5 p-3 bg-red-50/90 border border-red-200 rounded-lg text-left">
+                <p className="text-[11px] font-mono text-red-700 break-words leading-tight">
+                  <span className="font-semibold text-red-800">Diagnóstico técnico:</span>{' '}
+                  {this.state.error.message || String(this.state.error)}
+                </p>
+                {this.state.errorInfo?.componentStack && (
+                  <details className="mt-1 text-[10px] text-red-600 font-mono">
+                    <summary className="cursor-pointer hover:underline">
+                      Stack do componente
+                    </summary>
+                    <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap text-[9px] bg-white p-1 rounded border border-red-100">
+                      {this.state.errorInfo.componentStack}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 asChild
@@ -97,6 +121,29 @@ class ServicoLocalErrorBoundary extends Component<ServicoBoundaryProps, ServicoB
       )
     }
 
+    return this.props.children
+  }
+}
+
+/** Mini-boundary silencioso/defensivo para seções internas isoladas (Galeria, Parceiros, CTA) */
+class SectionErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode; name?: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode; name?: string }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn(`[SectionErrorBoundary:${this.props.name || 'Secao'}]`, error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? null
+    }
     return this.props.children
   }
 }
@@ -555,115 +602,128 @@ const ServicoDetailPageInner: React.FC = () => {
       {/* Conteúdo Principal com Galeria */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Lado Esquerdo: Galeria de Fotos */}
+          {/* Lado Esquerdo: Galeria de Fotos envolvida em mini-boundary defensivo */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] flex items-center justify-center group">
-              {fotoAtualUrl ? (
-                <>
-                  {/* Fundo desfocado sutil para preencher bordas de fotos verticais e horizontais sem corte brusco */}
-                  <img
-                    src={fotoAtualUrl}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
-                  />
-
-                  <WatermarkedImage
-                    src={fotoAtualUrl}
-                    alt={`${tituloSeguro} — foto ${activePhotoIndex + 1}`}
-                    className="relative z-10 w-full h-full object-contain object-center transition-all duration-300 cursor-pointer"
-                    onClick={() => setLightboxOpen(true)}
-                  />
-
-                  {/* Botão Ampliar discreto no canto */}
-                  <button
-                    type="button"
-                    onClick={() => setLightboxOpen(true)}
-                    className="absolute top-3 right-3 z-20 bg-black/60 hover:bg-black/85 text-white p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                    title="Ampliar foto em tela cheia"
-                  >
-                    <Maximize2 className="w-4 h-4" />
-                  </button>
-
-                  {listaFotos.length > 1 && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={prevPhoto}
-                        aria-label="Foto anterior"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
-                      >
-                        <ChevronLeft className="w-6 h-6" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={nextPhoto}
-                        aria-label="Próxima foto"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
-                      >
-                        <ChevronRight className="w-6 h-6" />
-                      </button>
-                      <div className="absolute bottom-3 right-3 z-20 bg-black/70 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-semibold">
-                        {activePhotoIndex + 1} / {listaFotos.length}
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2C3E50]/15 via-[#2C3E50]/5 to-[#D4AF37]/15 p-6 text-center select-none">
-                  <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center mb-3 shadow-md">
-                    <Images className="w-8 h-8 text-[#D4AF37]" />
-                  </div>
-                  <h4 className="font-heading text-lg font-bold text-[#2C3E50]">{tituloSeguro}</h4>
-                  <p className="text-xs text-[#616F7D] mt-1 max-w-sm">
-                    Gesso &amp; Drywall com padrão superior. Solicite fotos e registros desta
-                    solução pelo WhatsApp.
-                  </p>
+            <SectionErrorBoundary
+              name="GaleriaServico"
+              fallback={
+                <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] p-8 text-center text-white">
+                  <Images className="w-10 h-10 text-[#D4AF37] mx-auto mb-2" />
+                  <p className="text-sm font-semibold">{tituloSeguro}</p>
+                  <p className="text-xs text-white/70 mt-1">Fotos disponíveis via WhatsApp</p>
                 </div>
-              )}
-            </div>
-
-            {/* Miniaturas da galeria (com fundo blur translúcido e object-contain, sem distorcer) */}
-            {listaFotos.length > 1 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
-                {listaFotos.map((img, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setActivePhotoIndex(idx)}
-                    className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all bg-[#1C252B] flex items-center justify-center ${
-                      activePhotoIndex === idx
-                        ? 'border-[#D4AF37] scale-105 shadow-sm'
-                        : 'border-[#DEE4EA] opacity-75 hover:opacity-100'
-                    }`}
-                  >
+              }
+            >
+              <div className="relative rounded-2xl overflow-hidden shadow-md border border-[#E3E6EA] bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] flex items-center justify-center group">
+                {fotoAtualUrl ? (
+                  <>
+                    {/* Fundo desfocado sutil para preencher bordas de fotos verticais e horizontais sem corte brusco */}
                     <img
-                      src={img}
+                      src={fotoAtualUrl}
                       alt=""
                       aria-hidden="true"
-                      className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 pointer-events-none select-none"
+                      className="absolute inset-0 w-full h-full object-cover blur-xl opacity-35 scale-110 pointer-events-none select-none"
                     />
-                    <img
-                      src={img}
-                      alt={`Miniatura ${idx + 1}`}
-                      className="relative z-1 max-w-full max-h-full object-contain"
-                      loading="lazy"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
 
-            {/* Aviso quando sem fotos cadastradas */}
-            {listaFotos.length === 0 && (
-              <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] text-xs text-[#616F7D] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#2C3E50] shrink-0" />
-                <span>
-                  Fotos e registros deste serviço podem ser consultados diretamente com nossos
-                  especialistas via WhatsApp.
-                </span>
+                    <WatermarkedImage
+                      src={fotoAtualUrl}
+                      alt={`${tituloSeguro} — foto ${activePhotoIndex + 1}`}
+                      className="relative z-10 w-full h-full object-contain object-center transition-all duration-300 cursor-pointer"
+                      onClick={() => setLightboxOpen(true)}
+                    />
+
+                    {/* Botão Ampliar discreto no canto */}
+                    <button
+                      type="button"
+                      onClick={() => setLightboxOpen(true)}
+                      className="absolute top-3 right-3 z-20 bg-black/60 hover:bg-black/85 text-white p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      title="Ampliar foto em tela cheia"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+
+                    {listaFotos.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={prevPhoto}
+                          aria-label="Foto anterior"
+                          className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={nextPhoto}
+                          aria-label="Próxima foto"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-12 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                        <div className="absolute bottom-3 right-3 z-20 bg-black/70 text-white px-3 py-1 rounded-full text-xs backdrop-blur font-semibold">
+                          {activePhotoIndex + 1} / {listaFotos.length}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#2C3E50]/15 via-[#2C3E50]/5 to-[#D4AF37]/15 p-6 text-center select-none">
+                    <div className="w-16 h-16 rounded-2xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center mb-3 shadow-md">
+                      <Images className="w-8 h-8 text-[#D4AF37]" />
+                    </div>
+                    <h4 className="font-heading text-lg font-bold text-[#2C3E50]">
+                      {tituloSeguro}
+                    </h4>
+                    <p className="text-xs text-[#616F7D] mt-1 max-w-sm">
+                      Gesso &amp; Drywall com padrão superior. Solicite fotos e registros desta
+                      solução pelo WhatsApp.
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Miniaturas da galeria (com fundo blur translúcido e object-contain, sem distorcer) */}
+              {listaFotos.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
+                  {listaFotos.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActivePhotoIndex(idx)}
+                      className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all bg-[#1C252B] flex items-center justify-center ${
+                        activePhotoIndex === idx
+                          ? 'border-[#D4AF37] scale-105 shadow-sm'
+                          : 'border-[#DEE4EA] opacity-75 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover blur-md opacity-30 pointer-events-none select-none"
+                      />
+                      <img
+                        src={img}
+                        alt={`Miniatura ${idx + 1}`}
+                        className="relative z-1 max-w-full max-h-full object-contain"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Aviso quando sem fotos cadastradas */}
+              {listaFotos.length === 0 && (
+                <div className="p-4 rounded-xl bg-white border border-[#DEE4EA] text-xs text-[#616F7D] flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#2C3E50] shrink-0" />
+                  <span>
+                    Fotos e registros deste serviço podem ser consultados diretamente com nossos
+                    especialistas via WhatsApp.
+                  </span>
+                </div>
+              )}
+            </SectionErrorBoundary>
 
             {/* Benefícios e Vantagens */}
             <div className="mt-8 p-6 rounded-2xl bg-[#f4f4f4] border border-[#DEE4EA]">
@@ -824,13 +884,19 @@ const ServicoDetailPageInner: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <LandingParceiros />
+      {/* Mini-boundary para LandingParceiros */}
+      <SectionErrorBoundary name="LandingParceiros">
+        <LandingParceiros />
+      </SectionErrorBoundary>
 
-      <LandingCTA
-        titulo={`Gostaria de aplicar ${tituloSeguro.toLowerCase()} no seu espaço?`}
-        subtitulo="Envie suas medidas, fotos do local ou planta pelo WhatsApp para receber um orçamento transparente e personalizado."
-        botaoTexto="Falar com especialista agora"
-      />
+      {/* Mini-boundary para LandingCTA */}
+      <SectionErrorBoundary name="LandingCTA">
+        <LandingCTA
+          titulo={`Gostaria de aplicar ${tituloSeguro.toLowerCase()} no seu espaço?`}
+          subtitulo="Envie suas medidas, fotos do local ou planta pelo WhatsApp para receber um orçamento transparente e personalizado."
+          botaoTexto="Falar com especialista agora"
+        />
+      </SectionErrorBoundary>
     </>
   )
 }

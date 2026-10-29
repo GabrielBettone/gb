@@ -168,11 +168,6 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   useEffect(() => {
     if (!open) return
 
-    const hoje = new Date()
-    const em7Dias = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const em14Dias = new Date(hoje.getTime() + 14 * 24 * 60 * 60 * 1000)
-    const em30Dias = new Date(hoje.getTime() + 30 * 24 * 60 * 60 * 1000)
-
     if (orcamentoParaEditar) {
       setNumeroPrevisto(orcamentoParaEditar.numero)
       setClienteId(orcamentoParaEditar.cliente_cadastrado || 'novo')
@@ -269,7 +264,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         },
       ])
     }
-  }, [open, orcamentoParaEditar, produtos, gruposList, metodosList])
+  }, [open, orcamentoParaEditar?.id])
 
   // Quando o usuário seleciona um cliente cadastrado no Select:
   const handleSelecionarCliente = (id: string) => {
@@ -692,9 +687,11 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         desconto: descontoNum,
         valor_total: valorAPrazo,
         identificacao: identificacao?.trim() || undefined,
-        data_inicio_prevista: dataInicioPrevista || undefined,
-        data_fim_prevista: dataFimPrevista || undefined,
-        validade: validade || undefined,
+        data_inicio_prevista:
+          dataInicioPrevista && dataInicioPrevista.trim() ? dataInicioPrevista.trim() : null,
+        data_fim_prevista:
+          dataFimPrevista && dataFimPrevista.trim() ? dataFimPrevista.trim() : null,
+        validade: validade && validade.trim() ? validade.trim() : null,
         observacoes,
       }
 
@@ -771,15 +768,15 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl w-[95vw] lg:w-full max-h-[92vh] overflow-y-auto p-0 gap-0">
-          <DialogHeader className="p-5 bg-white border-b border-[#DEE4EA] sticky top-0 z-10">
-            <div className="flex items-center justify-between">
+        <DialogContent className="max-w-7xl w-[98vw] lg:w-[94vw] h-[95vh] max-h-[95vh] p-0 gap-0 flex flex-col overflow-hidden bg-white">
+          <DialogHeader className="p-4 sm:p-5 bg-white border-b border-[#DEE4EA] shrink-0 z-10">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center font-heading font-bold text-sm shadow-sm border border-[#D4AF37]/30 flex-shrink-0">
                   GB
                 </div>
                 <div>
-                  <DialogTitle className="font-heading text-lg font-bold text-[#2C3E50]">
+                  <DialogTitle className="font-heading text-base sm:text-lg font-bold text-[#2C3E50]">
                     {orcamentoParaEditar
                       ? `Editar Orçamento: ${orcamentoParaEditar.numero}`
                       : 'Novo Orçamento Gesso Bettone'}
@@ -803,12 +800,16 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                 className="h-9 text-xs border-[#2C3E50]/30 text-[#2C3E50] hover:bg-[#E8EDF2]"
               >
                 <FileDown className="w-4 h-4 mr-1.5 text-[#D4AF37]" />
-                Visualizar / Exportar PDF
+                <span className="hidden sm:inline">Visualizar / Exportar PDF</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
             </div>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6 bg-[#f4f4f4]">
+          <form
+            onSubmit={handleSubmit}
+            className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#f4f4f4]"
+          >
             {/* SEÇÃO 1: CLIENTE, GRUPO & MÉTODO */}
             <div className="bg-white p-4 sm:p-5 rounded-xl border border-[#DEE4EA] space-y-4 shadow-xs">
               <div className="flex items-center justify-between border-b border-[#DEE4EA] pb-2">
@@ -1518,10 +1519,21 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
-                    Início Previsto
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
+                      Início Previsto
+                    </Label>
+                    {dataInicioPrevista && (
+                      <button
+                        type="button"
+                        onClick={() => setDataInicioPrevista('')}
+                        className="text-[10px] text-red-600 hover:underline"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="date"
                     value={dataInicioPrevista}
@@ -1531,10 +1543,21 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
-                    Conclusão Prevista
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#2C3E50]" />
+                      Conclusão Prevista
+                    </Label>
+                    {dataFimPrevista && (
+                      <button
+                        type="button"
+                        onClick={() => setDataFimPrevista('')}
+                        className="text-[10px] text-red-600 hover:underline"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="date"
                     value={dataFimPrevista}
@@ -1544,9 +1567,20 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-[#2C3E50]">
-                    Validade da Proposta
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-[#2C3E50]">
+                      Validade da Proposta
+                    </Label>
+                    {validade && (
+                      <button
+                        type="button"
+                        onClick={() => setValidade('')}
+                        className="text-[10px] text-red-600 hover:underline"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="date"
                     value={validade}
@@ -1570,7 +1604,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               </div>
             </div>
 
-            <DialogFooter className="p-4 bg-white border-t border-[#DEE4EA] flex items-center justify-between sm:justify-end gap-2 sticky bottom-0">
+            <div className="p-4 bg-white border-t border-[#DEE4EA] flex items-center justify-between sm:justify-end gap-2 shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -1592,7 +1626,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                     ? 'Salvar Alterações'
                     : 'Salvar Orçamento'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

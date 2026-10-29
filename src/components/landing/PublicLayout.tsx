@@ -1,10 +1,33 @@
-import React, { useEffect, useState } from 'react'
+import React, { Component, type ReactNode, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import LandingNavbar from './LandingNavbar'
 import LandingFooter from './LandingFooter'
 import FloatingWhatsApp from './FloatingWhatsApp'
 import { obterConfiguracoes, registrarEventoAnalytics, SiteSettings } from '@/services/site'
 import { CIDADES_ATENDIDAS } from '@/data/landingData'
+
+/** Mini-boundary silencioso/defensivo para componentes fora do Outlet */
+class SilentErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode; name?: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode; name?: string }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error(`[SilentErrorBoundary:${this.props.name || 'Component'}]`, error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? null
+    }
+    return this.props.children
+  }
+}
 
 export const PublicLayout: React.FC = () => {
   const [settings, setSettings] = useState<SiteSettings | null>(null)
@@ -101,12 +124,18 @@ export const PublicLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#2C3E50] selection:bg-[#D4AF37]/30 selection:text-[#2C3E50]">
-      <LandingNavbar />
+      <SilentErrorBoundary name="LandingNavbar">
+        <LandingNavbar />
+      </SilentErrorBoundary>
       <main className="flex-1 w-full">
         <Outlet />
       </main>
-      <LandingFooter />
-      <FloatingWhatsApp />
+      <SilentErrorBoundary name="LandingFooter">
+        <LandingFooter />
+      </SilentErrorBoundary>
+      <SilentErrorBoundary name="FloatingWhatsApp">
+        <FloatingWhatsApp />
+      </SilentErrorBoundary>
     </div>
   )
 }

@@ -115,34 +115,29 @@ export const GanttView: React.FC<GanttViewProps> = ({
     return Math.round((dNormalizada.getTime() - inicioNormalizado.getTime()) / DIA_MS)
   }
 
-  // Prepara orçamentos com datas válidas para o Gantt
+  // Prepara orçamentos para o Gantt — orçamentos sem datas são agrupados como sem barra / sem data
   const itensGantt = useMemo(() => {
-    return orcamentos.map((orc, index) => {
+    return orcamentos.map((orc) => {
+      const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
+      const parsedFim = parseDataGantt(orc.data_fim_prevista)
+      const temData = Boolean(parsedInicio || parsedFim)
+
       let dInicio: Date
       let dFim: Date
 
-      const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
-      if (parsedInicio) {
+      if (parsedInicio && parsedFim) {
         dInicio = parsedInicio
-      } else {
-        // Fallback: hoje + 1 dia
-        dInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
-      }
-
-      const parsedFim = parseDataGantt(orc.data_fim_prevista)
-      if (parsedFim) {
-        dFim = parsedFim
+        dFim = parsedFim >= parsedInicio ? parsedFim : parsedInicio
       } else if (parsedInicio) {
-        // Se tem APENAS data de início (sem data de fim), a barra ocupa APENAS aquele dia (1 dia completo)
-        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
+        dInicio = parsedInicio
+        dFim = parsedInicio
+      } else if (parsedFim) {
+        dInicio = parsedFim
+        dFim = parsedFim
       } else {
-        // Fallback genérico quando não há nem início nem fim: ocupa o dia de início fallback (1 dia)
-        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
-      }
-
-      // Garante que o fim seja >= início
-      if (dFim < dInicio) {
-        dFim = new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate(), 12, 0, 0, 0)
+        // Sem datas: usa placeholder apenas se vier a ser arrastado
+        dInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
+        dFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
       }
 
       // Se este item estiver em drag ativo, usa as datas atuais do drag
@@ -151,15 +146,17 @@ export const GanttView: React.FC<GanttViewProps> = ({
         dFim = new Date(dragState.currentFimMs)
       }
 
-      // Duração em dias corridos inclusivos (ex: 01/11 a 01/11 = 1 dia; 01/11 a 06/11 = 6 dias)
-      const duracaoDias = Math.max(
-        1,
-        Math.round(
-          (new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate()).getTime() -
-            new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate()).getTime()) /
-            DIA_MS,
-        ) + 1,
-      )
+      const duracaoDias = temData
+        ? Math.max(
+            1,
+            Math.round(
+              (new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate()).getTime() -
+                new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate()).getTime()) /
+                DIA_MS,
+            ) + 1,
+          )
+        : 0
+
       const prodNome =
         orc.expand?.produto_principal?.nome ||
         parseItens(orc.itens)[0]?.descricao ||
@@ -167,6 +164,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
 
       return {
         orcamento: orc,
+        temData,
         dInicio,
         dFim,
         duracaoDias,
@@ -551,7 +549,9 @@ export const GanttView: React.FC<GanttViewProps> = ({
                       <div className="flex items-center justify-between text-[11px] text-[#5B6470] mt-0.5 truncate">
                         <span className="truncate">{item.prodNome}</span>
                         <span className="font-bold text-[#2C3E50] ml-1">
-                          {item.duracaoDias} {item.duracaoDias === 1 ? 'dia' : 'dias'}
+                          {item.temData
+                            ? `${item.duracaoDias} ${item.duracaoDias === 1 ? 'dia' : 'dias'}`
+                            : 'Sem data definida'}
                         </span>
                       </div>
                     </div>
@@ -573,55 +573,66 @@ export const GanttView: React.FC<GanttViewProps> = ({
                     </div>
 
                     {/* BARRA DO GANTT (ARRASTÁVEL E REDIMENSIONÁVEL NAS BORDAS) */}
-                    <div
-                      style={{
-                        left: `${barLeft}px`,
-                        width: `${barWidth}px`,
-                      }}
-                      className={`absolute top-2.5 h-11 rounded-lg border shadow-xs flex items-center justify-between px-2 cursor-grab active:cursor-grabbing transition-shadow z-10 ${getCorBarra(
-                        orc.status,
-                      )} ${isBeingDragged ? 'ring-2 ring-black/40 shadow-lg opacity-90' : 'hover:shadow-md'}`}
-                      onMouseDown={(e) =>
-                        handleMouseDown(e, orc.id, 'move', item.dInicio, item.dFim)
-                      }
-                      title={`${orc.numero} — ${orc.cliente} (${item.duracaoDias} dias)`}
-                    >
-                      {/* Borda Esquerda para Redimensionar (Aumentar/Diminuir início) */}
+                    {item.temData || isBeingDragged ? (
                       <div
+                        style={{
+                          left: `${barLeft}px`,
+                          width: `${barWidth}px`,
+                        }}
+                        className={`absolute top-2.5 h-11 rounded-lg border shadow-xs flex items-center justify-between px-2 cursor-grab active:cursor-grabbing transition-shadow z-10 ${getCorBarra(
+                          orc.status,
+                        )} ${isBeingDragged ? 'ring-2 ring-black/40 shadow-lg opacity-90' : 'hover:shadow-md'}`}
                         onMouseDown={(e) =>
-                          handleMouseDown(e, orc.id, 'resize-left', item.dInicio, item.dFim)
+                          handleMouseDown(e, orc.id, 'move', item.dInicio, item.dFim)
                         }
-                        className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center hover:bg-black/20 rounded-l-lg transition-colors group/handle"
-                        title="Arrastar borda para alterar data de início"
+                        title={`${orc.numero} — ${orc.cliente} (${item.duracaoDias} dias)`}
                       >
-                        <div className="w-1 h-4 bg-white/70 rounded-full" />
-                      </div>
+                        {/* Borda Esquerda para Redimensionar (Aumentar/Diminuir início) */}
+                        <div
+                          onMouseDown={(e) =>
+                            handleMouseDown(e, orc.id, 'resize-left', item.dInicio, item.dFim)
+                          }
+                          className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center hover:bg-black/20 rounded-l-lg transition-colors group/handle"
+                          title="Arrastar borda para alterar data de início"
+                        >
+                          <div className="w-1 h-4 bg-white/70 rounded-full" />
+                        </div>
 
-                      {/* Conteúdo Central da Barra */}
-                      <div className="flex-1 flex items-center justify-between px-2 overflow-hidden pointer-events-none">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <GripHorizontal className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
-                          <span className="font-semibold text-xs truncate">
-                            {orc.numero}: {orc.cliente}
-                            {orc.identificacao && ` — ${orc.identificacao}`}
+                        {/* Conteúdo Central da Barra */}
+                        <div className="flex-1 flex items-center justify-between px-2 overflow-hidden pointer-events-none">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <GripHorizontal className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
+                            <span className="font-semibold text-xs truncate">
+                              {orc.numero}: {orc.cliente}
+                              {orc.identificacao && ` — ${orc.identificacao}`}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold bg-black/20 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">
+                            {item.duracaoDias}d
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold bg-black/20 px-1.5 py-0.5 rounded ml-1 flex-shrink-0">
-                          {item.duracaoDias}d
-                        </span>
-                      </div>
 
-                      {/* Borda Direita para Redimensionar (Aumentar/Diminuir fim/duração) */}
-                      <div
-                        onMouseDown={(e) =>
-                          handleMouseDown(e, orc.id, 'resize-right', item.dInicio, item.dFim)
-                        }
-                        className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center hover:bg-black/20 rounded-r-lg transition-colors group/handle"
-                        title="Arrastar borda para aumentar ou diminuir dias de duração"
-                      >
-                        <div className="w-1 h-4 bg-white/70 rounded-full" />
+                        {/* Borda Direita para Redimensionar (Aumentar/Diminuir fim/duração) */}
+                        <div
+                          onMouseDown={(e) =>
+                            handleMouseDown(e, orc.id, 'resize-right', item.dInicio, item.dFim)
+                          }
+                          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize flex items-center justify-center hover:bg-black/20 rounded-r-lg transition-colors group/handle"
+                          title="Arrastar borda para aumentar ou diminuir dias de duração"
+                        >
+                          <div className="w-1 h-4 bg-white/70 rounded-full" />
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        className="absolute top-3.5 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-md bg-[#F4F4F4] border border-dashed border-[#DEE4EA] text-[11px] text-[#616F7D] cursor-pointer hover:bg-[#E8EDF2]"
+                        style={{ left: `${COL_INFO_WIDTH + 16}px` }}
+                        onClick={() => onAbrirDetalhes(orc)}
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-[#8A94A0]" />
+                        <span>Sem datas definidas no cronograma — clique para agendar</span>
+                      </div>
+                    )}
                   </div>
                 )
               })
