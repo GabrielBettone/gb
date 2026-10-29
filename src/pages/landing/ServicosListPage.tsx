@@ -1,32 +1,55 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import SEO from '@/components/landing/SEO'
 import LandingServicos from '@/components/landing/LandingServicos'
 import LandingCTA from '@/components/landing/LandingCTA'
 import LandingCidades from '@/components/landing/LandingCidades'
 import { SERVICOS } from '@/data/landingData'
+import { obterConfiguracoes, SiteSettings } from '@/services/site'
+import { buildAreaServedCities } from '@/lib/geoStructuredData'
 
 export const ServicosListPage: React.FC = () => {
-  const itemListJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    name: 'Serviços de Gesso e Drywall — Gesso Bettone',
-    description:
-      'Catálogo de soluções em gesso, drywall e acabamentos da Gesso Bettone em São Pedro/SP.',
-    itemListElement: SERVICOS.map((servico, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      item: {
-        '@type': 'Service',
-        name: servico.titulo,
-        description: servico.descricaoCurta,
-        url: `https://gessobettone.com.br/servicos/${servico.slug}`,
-        provider: {
-          '@type': 'LocalBusiness',
-          name: 'Gesso Bettone',
+  const [settings, setSettings] = useState<SiteSettings | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    obterConfiguracoes()
+      .then((cfg) => {
+        if (ativo) setSettings(cfg)
+      })
+      .catch((err) => {
+        console.warn('Falha ao obter configs em ServicosListPage:', err)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  const itemListJsonLd = useMemo(() => {
+    const areaServed = buildAreaServedCities(settings?.cidades_atendidas)
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Serviços de Gesso e Drywall — Gesso Bettone',
+      description:
+        'Catálogo de soluções em gesso, drywall e acabamentos da Gesso Bettone em São Pedro/SP.',
+      itemListElement: SERVICOS.map((servico, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: {
+          '@type': 'Service',
+          name: servico.titulo,
+          description: servico.descricaoCurta,
+          url: `https://gessobettone.com.br/servicos/${servico.slug}`,
+          areaServed,
+          provider: {
+            '@type': 'LocalBusiness',
+            name: settings?.nome_site || 'Gesso Bettone',
+            areaServed,
+          },
         },
-      },
-    })),
-  }
+      })),
+    }
+  }, [settings])
 
   return (
     <>

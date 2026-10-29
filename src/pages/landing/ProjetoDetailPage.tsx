@@ -343,6 +343,14 @@ export const ProjetoDetailPage: React.FC = () => {
       '@type': 'LocalBusiness',
       name: 'Gesso Bettone',
     },
+    ...(projeto.cidade
+      ? {
+          contentLocation: {
+            '@type': 'Place',
+            name: projeto.cidade,
+          },
+        }
+      : {}),
   }
 
   const fotosVisiveisCard = fotos.slice(

@@ -4,7 +4,7 @@ import LandingNavbar from './LandingNavbar'
 import LandingFooter from './LandingFooter'
 import FloatingWhatsApp from './FloatingWhatsApp'
 import { obterConfiguracoes, registrarEventoAnalytics, SiteSettings } from '@/services/site'
-import { CIDADES_ATENDIDAS } from '@/data/landingData'
+import { buildAreaServedCities } from '@/lib/geoStructuredData'
 
 /** Mini-boundary silencioso/defensivo para componentes fora do Outlet */
 class SilentErrorBoundary extends Component<
@@ -91,13 +91,7 @@ export const PublicLayout: React.FC = () => {
         latitude: -22.5486,
         longitude: -47.9139,
       },
-      areaServed: (settings?.cidades_atendidas && settings.cidades_atendidas.length > 0
-        ? settings.cidades_atendidas
-        : CIDADES_ATENDIDAS
-      ).map((cidade) => ({
-        '@type': 'City',
-        name: cidade,
-      })),
+      areaServed: buildAreaServedCities(settings?.cidades_atendidas),
       openingHoursSpecification: [
         {
           '@type': 'OpeningHoursSpecification',

@@ -13,6 +13,7 @@ import {
   SiteSettings,
   registrarEventoAnalytics,
 } from '@/services/site'
+import { buildAreaServedCities } from '@/lib/geoStructuredData'
 
 export const ParceirosPublicPage: React.FC = () => {
   const [parceiros, setParceiros] = useState<SiteParceiro[]>([])
@@ -115,15 +116,7 @@ export const ParceirosPublicPage: React.FC = () => {
                 description: p.descricao || `${p.papel || 'Parceiro'} em São Pedro e região`,
                 telephone: p.whatsapp ? `+${p.whatsapp.replace(/\D/g, '')}` : undefined,
                 image: p.logo || undefined,
-                areaServed: [
-                  'São Pedro',
-                  'Águas de São Pedro',
-                  'Piracicaba',
-                  'Charqueada',
-                  'Santa Maria da Serra',
-                  'Rio Claro',
-                  'Brotas',
-                ],
+                areaServed: buildAreaServedCities(settings?.cidades_atendidas),
               },
             })),
           },

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } 
 import { useParams, Link } from 'react-router-dom'
 import {
   SERVICOS,
+  CIDADES_ATENDIDAS as FALLBACK_CIDADES,
   getWhatsAppUrlForService,
-  CIDADES_ATENDIDAS,
   WHATSAPP_LINK,
 } from '@/data/landingData'
+import { buildAreaServedCities } from '@/lib/geoStructuredData'
+import { obterConfiguracoes, SiteSettings } from '@/services/site'
 import { resolverUrlMidia } from '@/lib/watermark'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
@@ -177,11 +179,27 @@ function normalizarListaStrings(valor: any): string[] {
 const ServicoDetailPageInner: React.FC = () => {
   const { slug } = useParams<{ slug: string }>()
   const [servicoDb, setServicoDb] = useState<any>(null)
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [carregamentoConcluido, setCarregamentoConcluido] = useState(false)
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null)
   const [activePhotoIndex, setActivePhotoIndex] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
+
+  // Carregar configurações do site para alimentar cidades atendidas e contatos reais
+  useEffect(() => {
+    let ativo = true
+    obterConfiguracoes()
+      .then((cfg) => {
+        if (ativo) setSiteSettings(cfg)
+      })
+      .catch((err) => {
+        console.warn('Falha ao carregar configurações em ServicoDetailPage:', err)
+      })
+    return () => {
+      ativo = false
+    }
+  }, [])
 
   const servicoLocal = useMemo(() => {
     try {
@@ -445,12 +463,7 @@ const ServicoDetailPageInner: React.FC = () => {
             addressCountry: 'BR',
           },
         },
-        areaServed: Array.isArray(CIDADES_ATENDIDAS)
-          ? CIDADES_ATENDIDAS.map((c) => ({
-              '@type': 'AdministrativeArea',
-              name: String(c || ''),
-            }))
-          : [],
+        areaServed: buildAreaServedCities(siteSettings?.cidades_atendidas),
       }
 
       if (precoMinimo) {
@@ -470,7 +483,7 @@ const ServicoDetailPageInner: React.FC = () => {
     } catch {
       return undefined
     }
-  }, [servico, tituloSeguro, precoMinimo, fotoAtualUrl])
+  }, [servico, tituloSeguro, precoMinimo, fotoAtualUrl, siteSettings])
 
   const whatsappUrl = getWhatsAppUrlForService(tituloSeguro)
 
@@ -787,15 +800,17 @@ const ServicoDetailPageInner: React.FC = () => {
                   <span>Atendimento com visita técnica em:</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {Array.isArray(CIDADES_ATENDIDAS) &&
-                    CIDADES_ATENDIDAS.map((cidade) => (
-                      <span
-                        key={String(cidade)}
-                        className="px-2.5 py-1 rounded-md bg-[#f4f4f4] border border-[#DEE4EA] text-[11px] text-[#2C3E50]"
-                      >
-                        {String(cidade)}
-                      </span>
-                    ))}
+                  {(siteSettings?.cidades_atendidas && siteSettings.cidades_atendidas.length > 0
+                    ? siteSettings.cidades_atendidas
+                    : FALLBACK_CIDADES
+                  ).map((cidade) => (
+                    <span
+                      key={String(cidade)}
+                      className="px-2.5 py-1 rounded-md bg-[#f4f4f4] border border-[#DEE4EA] text-[11px] text-[#2C3E50]"
+                    >
+                      {String(cidade)}
+                    </span>
+                  ))}
                 </div>{' '}
               </div>
 
