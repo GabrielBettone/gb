@@ -15,13 +15,18 @@ export const LandingFooter: React.FC = () => {
   const [zapLink, setZapLink] = useState(WHATSAPP_LINK)
 
   useEffect(() => {
-    obterConfiguracoes().then((cfg) => {
-      setSettings(cfg)
-      if (cfg.whatsapp_principal) {
-        const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
-        setZapLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
-      }
-    })
+    obterConfiguracoes()
+      .then((cfg) => {
+        if (!cfg) return
+        setSettings(cfg)
+        if (cfg.whatsapp_principal) {
+          const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
+          setZapLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+        }
+      })
+      .catch((err) => {
+        console.warn('Footer: falha ao buscar configurações:', err)
+      })
   }, [])
 
   const cidades = settings?.cidades_atendidas || CIDADES_ATENDIDAS

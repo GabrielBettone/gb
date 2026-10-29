@@ -89,7 +89,7 @@ cronAdd('alertas_check', '*/10 * * * *', (e) => {
         }
 
         novoAlerta.set('mensagem', msg)
-        novoAlerta.set('valor_atual', Math.round(valorAtual * 100) / 100)
+        novoAlerta.set('valor_atual', String(Math.round(valorAtual * 100) / 100))
         novoAlerta.set('lido', false)
         app.save(novoAlerta)
       }

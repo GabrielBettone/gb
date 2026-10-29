@@ -12,7 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import PublicLayout from '@/components/landing/PublicLayout'
 import LandingHomePage from '@/pages/landing/LandingHomePage'
 import ServicosListPage from '@/pages/landing/ServicosListPage'
-import ServicoDetailPage from '@/pages/landing/ServicoDetailPage'
+import ServicoRouteWrapper from '@/components/landing/ServicoRouteWrapper'
 import PortfolioListPage from '@/pages/landing/PortfolioListPage'
 import ProjetoDetailPage from '@/pages/landing/ProjetoDetailPage'
 import SobrePage from '@/pages/landing/SobrePage'
@@ -63,19 +63,7 @@ const AppRoutes = () => {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingHomePage />} />
         <Route path="/servicos" element={<ServicosListPage />} />
-        <Route
-          path="/servicos/:slug"
-          element={
-            <ErrorBoundary
-              fallbackTitle="Serviço indisponível no momento"
-              fallbackMessage="Não foi possível exibir os detalhes deste serviço. Você pode consultar nossa lista completa de serviços ou falar diretamente com nossa equipe no WhatsApp."
-              returnUrl="/servicos"
-              returnLabel="Ver todos os serviços"
-            >
-              <ServicoDetailPage />
-            </ErrorBoundary>
-          }
-        />
+        <Route path="/servicos/:slug" element={<ServicoRouteWrapper />} />
         <Route path="/portfolio" element={<PortfolioListPage />} />
         <Route
           path="/portfolio/:slug"

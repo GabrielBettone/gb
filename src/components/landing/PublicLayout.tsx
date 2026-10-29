@@ -11,7 +11,11 @@ export const PublicLayout: React.FC = () => {
   const location = useLocation()
 
   useEffect(() => {
-    obterConfiguracoes().then(setSettings)
+    obterConfiguracoes()
+      .then(setSettings)
+      .catch((err) => {
+        console.warn('Falha ao carregar configurações públicas no layout:', err)
+      })
   }, [])
 
   useEffect(() => {

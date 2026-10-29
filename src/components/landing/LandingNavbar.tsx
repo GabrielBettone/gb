@@ -15,17 +15,22 @@ export const LandingNavbar: React.FC = () => {
   const location = useLocation()
 
   React.useEffect(() => {
-    obterConfiguracoes().then((cfg) => {
-      setSettings(cfg)
-      if (cfg.whatsapp_principal) {
-        const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
-        setWhatsappLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
-        if (cfg.whatsapp_principal.length >= 10) {
-          const num = cfg.whatsapp_principal.replace(/^55/, '')
-          setPhoneDisplay(`(${num.slice(0, 2)}) ${num.slice(2, 7)}-${num.slice(7)}`)
+    obterConfiguracoes()
+      .then((cfg) => {
+        if (!cfg) return
+        setSettings(cfg)
+        if (cfg.whatsapp_principal) {
+          const text = encodeURIComponent(cfg.mensagem_orcamento || WHATSAPP_DEFAULT_TEXT)
+          setWhatsappLink(`https://wa.me/${cfg.whatsapp_principal}?text=${text}`)
+          if (cfg.whatsapp_principal.length >= 10) {
+            const num = cfg.whatsapp_principal.replace(/^55/, '')
+            setPhoneDisplay(`(${num.slice(0, 2)}) ${num.slice(2, 7)}-${num.slice(7)}`)
+          }
         }
-      }
-    })
+      })
+      .catch((err) => {
+        console.warn('Navbar: falha ao buscar configurações:', err)
+      })
   }, [])
 
   const navLinks = [

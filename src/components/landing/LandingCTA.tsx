@@ -25,11 +25,16 @@ export const LandingCTA: React.FC<Props> = ({
   const [settings, setSettings] = useState<SiteSettings | null>(null)
 
   useEffect(() => {
-    obterConfiguracoes().then((cfg) => {
-      setSettings(cfg)
-      if (cfg.whatsapp_principal) setZapNumber(cfg.whatsapp_principal)
-      if (cfg.mensagem_orcamento) setDefaultMsg(cfg.mensagem_orcamento)
-    })
+    obterConfiguracoes()
+      .then((cfg) => {
+        if (!cfg) return
+        setSettings(cfg)
+        if (cfg.whatsapp_principal) setZapNumber(cfg.whatsapp_principal)
+        if (cfg.mensagem_orcamento) setDefaultMsg(cfg.mensagem_orcamento)
+      })
+      .catch((err) => {
+        console.warn('LandingCTA: falha ao buscar configurações:', err)
+      })
   }, [])
 
   const whatsappUrl = servicoContexto
