@@ -117,6 +117,25 @@ export const Orcamentos: React.FC = () => {
   const [predefinicoes, setPredefinicoes] = useState<PredefinicaoFiltroEtapas[]>([])
   const [filtroCanal, setFiltroCanal] = useState<string>('todos')
 
+  // Preferência do usuário: esconder itens sem data definida por padrão (persistido em localStorage)
+  const [exibirSemData, setExibirSemData] = useState<boolean>(() => {
+    try {
+      const salvo = localStorage.getItem('bettone_orcamentos_exibir_sem_data')
+      return salvo !== null ? JSON.parse(salvo) : false
+    } catch {
+      return false
+    }
+  })
+
+  const handleToggleExibirSemData = (valor: boolean) => {
+    setExibirSemData(valor)
+    try {
+      localStorage.setItem('bettone_orcamentos_exibir_sem_data', JSON.stringify(valor))
+    } catch (e) {
+      console.warn('Erro ao salvar preferência no localStorage:', e)
+    }
+  }
+
   // Modais
   const [modalNovoOpen, setModalNovoOpen] = useState(false)
   const [orcamentoParaEditar, setOrcamentoParaEditar] = useState<Orcamento | null>(null)
@@ -430,6 +449,21 @@ export const Orcamentos: React.FC = () => {
     const termo = busca.toLowerCase().trim()
 
     return orcamentos.filter((orc) => {
+      // Por padrão, itens sem data definida (sem data_inicio_prevista e sem data_fim_prevista) NÃO aparecem no Kanban e no Gantt.
+      // Se a opção 'Exibir itens sem data definida' estiver desligada (padrão), filtra-os.
+      // Na visualização em Tabela o usuário pode ver todos ou seguir o mesmo toggle.
+      if (!exibirSemData) {
+        const temDataInicio = Boolean(
+          orc.data_inicio_prevista && String(orc.data_inicio_prevista).trim() !== '',
+        )
+        const temDataFim = Boolean(
+          orc.data_fim_prevista && String(orc.data_fim_prevista).trim() !== '',
+        )
+        if (!temDataInicio && !temDataFim) {
+          return false
+        }
+      }
+
       // Filtro Multi-Select de Etapas: se houver seleção, o status deve estar contido
       if (filtroEtapas.length > 0 && !filtroEtapas.includes(orc.status)) {
         return false
@@ -457,7 +491,7 @@ export const Orcamentos: React.FC = () => {
 
       return true
     })
-  }, [orcamentos, busca, filtroEtapas, filtroCanal])
+  }, [orcamentos, busca, filtroEtapas, filtroCanal, exibirSemData])
 
   // Métricas de resumo rápido
   const metricas = useMemo(() => {
@@ -781,11 +815,25 @@ export const Orcamentos: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* TOGGLE: EXIBIR ITENS SEM DATA DEFINIDA */}
+                <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#DEE4EA] bg-white hover:bg-[#F6F7F9] cursor-pointer text-xs select-none transition-colors whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={exibirSemData}
+                    onChange={(e) => handleToggleExibirSemData(e.target.checked)}
+                    className="w-4 h-4 rounded text-[#2C3E50] border-[#DEE4EA] focus:ring-[#2C3E50] accent-[#2C3E50] cursor-pointer"
+                  />
+                  <span className="font-medium text-[#2C3E50]">Exibir itens sem data definida</span>
+                </label>
               </div>
             </div>
 
-            {/* BARRA DE FEEDBACK DE FILTROS ATIVOS SE HOUVER FILTRO DE ETAPAS OU BUSCA */}
-            {(filtroEtapas.length > 0 || busca.trim() || filtroCanal !== 'todos') && (
+            {/* BARRA DE FEEDBACK DE FILTROS ATIVOS SE HOUVER FILTRO DE ETAPAS OU BUSCA OU SEM DATA */}
+            {(filtroEtapas.length > 0 ||
+              busca.trim() ||
+              filtroCanal !== 'todos' ||
+              !exibirSemData) && (
               <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-[#F6F7F9] border border-[#DEE4EA] rounded-lg text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[#616F7D] font-medium">Filtros aplicados:</span>
@@ -835,6 +883,11 @@ export const Orcamentos: React.FC = () => {
                       </button>
                     </span>
                   )}
+                  {!exibirSemData && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white text-[#616F7D] border border-[#DEE4EA]">
+                      Ocultando sem data
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -848,6 +901,7 @@ export const Orcamentos: React.FC = () => {
                       setFiltroEtapas([])
                       setBusca('')
                       setFiltroCanal('todos')
+                      handleToggleExibirSemData(false)
                     }}
                     className="text-[11px] font-semibold text-[#C4453C] hover:underline"
                   >

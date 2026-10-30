@@ -104,9 +104,9 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   }
 
   return (
-    <div className="w-full overflow-x-auto pb-4">
-      {/* Colunas com largura mínima fixa para permitir scroll horizontal suave */}
-      <div className="flex gap-4 min-w-max items-start">
+    <div className="w-full overflow-x-auto pb-4 -mx-1 px-1 sm:mx-0 sm:px-0 scroll-smooth overscroll-x-contain touch-pan-x snap-x snap-mandatory sm:snap-none">
+      {/* Colunas com largura otimizada no mobile (82vw a 88vw snapada) e largura fixa no desktop (w-72) */}
+      <div className="flex gap-3 sm:gap-4 min-w-max items-start">
         {etapas.map((etapa) => {
           const config = getEtapaConfig(etapa.nome)
           const orcamentosDaEtapa = orcamentos.filter((o) => o.status === etapa.nome)
@@ -119,7 +119,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               onDragOver={(e) => handleDragOver(e, etapa.nome)}
               onDragLeave={(e) => handleDragLeave(e, etapa.nome)}
               onDrop={(e) => handleDrop(e, etapa.nome)}
-              className={`w-72 flex-shrink-0 flex flex-col bg-[#F6F7F9] rounded-xl border transition-all duration-200 min-h-[580px] ${
+              className={`w-[84vw] max-w-[320px] sm:w-72 sm:max-w-none flex-shrink-0 flex flex-col bg-[#F6F7F9] rounded-xl border transition-all duration-200 min-h-[480px] sm:min-h-[580px] snap-start shadow-xs ${
                 isHovered
                   ? 'border-[#2C3E50] ring-2 ring-[#2C3E50]/20 bg-[#E8EDF2]/60'
                   : 'border-[#E3E6EA]'
@@ -203,7 +203,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               </div>
 
               {/* Área de Cards Arrasta-e-Solta */}
-              <div className="p-2.5 flex-1 space-y-2.5 overflow-y-auto max-h-[calc(100vh-280px)]">
+              <div className="p-2.5 flex-1 space-y-2.5 overflow-y-auto max-h-[calc(100vh-240px)] sm:max-h-[calc(100vh-280px)]">
                 {orcamentosDaEtapa.length === 0 ? (
                   <div className="h-32 border-2 border-dashed border-[#D5DAE0] rounded-lg flex flex-col items-center justify-center p-3 text-center text-xs text-[#8A94A0]">
                     <span>Nenhum trabalho nesta etapa</span>
