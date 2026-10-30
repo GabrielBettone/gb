@@ -7,12 +7,20 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Plus, X, Save, Check } from 'lucide-react'
+import { Plus, X, Save, Check, Download, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { baixarTodasMidiasZip } from '@/services/siteMidiasDownload'
 
 export const SiteConfiguracoesPage: React.FC = () => {
   // Seção lateral selecionada
   const [secaoAtiva, setSecaoAtiva] = useState<'contato' | 'identidade' | 'cidades'>('contato')
+
+  const [downloadingZip, setDownloadingZip] = useState(false)
+  const [progressoZip, setProgressoZip] = useState<{
+    atual: number
+    total: number
+    mensagem: string
+  } | null>(null)
 
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
@@ -133,15 +141,166 @@ export const SiteConfiguracoesPage: React.FC = () => {
       <SiteTopNav />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-        <div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold text-[#2C3E50]">
-            Configurações
-          </h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold text-[#2C3E50]">
+              Configurações
+            </h1>
+            <p className="text-xs text-[#616F7D] mt-0.5">
+              Parâmetros gerais do site, dados de contato e backup das mídias originais.
+            </p>
+          </div>
+
+          {/* Botão Baixar Todas as Mídias em posição de destaque nas ações do cabeçalho */}
+          <Button
+            type="button"
+            disabled={downloadingZip}
+            onClick={async () => {
+              setDownloadingZip(true)
+              try {
+                toast({
+                  title: 'Preparando download...',
+                  description:
+                    'Localizando mídias de projetos e serviços para estruturação das pastas no ZIP.',
+                })
+                const resultado = await baixarTodasMidiasZip((prog) => {
+                  setProgressoZip(prog)
+                })
+                const msgSucesso =
+                  resultado.pulados > 0
+                    ? `Download concluído com ${resultado.baixados} arquivos. (${resultado.pulados} não puderam ser acessados e foram ignorados)`
+                    : `Download concluído com sucesso! ${resultado.baixados} arquivos organizados em /projetos e /servicos.`
+                toast({
+                  title: 'Download concluído!',
+                  description: msgSucesso,
+                })
+              } catch (err: any) {
+                toast({
+                  title: 'Erro ao baixar mídias',
+                  description: err.message || 'Verifique sua conexão com o servidor.',
+                  variant: 'destructive',
+                })
+              } finally {
+                setDownloadingZip(false)
+                setProgressoZip(null)
+              }
+            }}
+            className="bg-[#2C3E50] hover:bg-[#1B2631] text-white font-bold text-xs h-10 px-4 rounded-xl shadow-sm flex items-center gap-2 self-start sm:self-auto"
+          >
+            {downloadingZip ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                <span>
+                  Preparando download ({progressoZip?.atual || 0}/{progressoZip?.total || '...'})
+                </span>
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 text-[#D4AF37]" />
+                <span>Baixar todas as mídias</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Card Informativo com Barra de Progresso Durante Download de Mídias */}
+        {downloadingZip && progressoZip && (
+          <div className="bg-[#2C3E50] text-white p-4 rounded-2xl border border-[#D4AF37]/40 shadow-md space-y-2 animate-in fade-in">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
+                {progressoZip.mensagem}
+              </span>
+              <span className="font-mono text-[#D4AF37] font-bold">
+                {Math.round((progressoZip.atual / Math.max(progressoZip.total, 1)) * 100)}%
+              </span>
+            </div>
+            <div className="h-2 w-full bg-black/30 rounded-full overflow-hidden">
+              <div
+                style={{
+                  width: `${Math.max(4, Math.min(100, (progressoZip.atual / Math.max(progressoZip.total, 1)) * 100))}%`,
+                }}
+                className="h-full bg-[#D4AF37] transition-all duration-300"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Card em destaque para Download de Mídias do Site */}
+        <div className="bg-white rounded-2xl border border-[#DEE4EA] p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+              <h2 className="font-heading text-sm sm:text-base font-bold text-[#2C3E50]">
+                Download das Mídias Originais (ZIP)
+              </h2>
+            </div>
+            <p className="text-xs text-[#616F7D] max-w-2xl leading-relaxed">
+              Baixe um pacote compactado completo contendo as fotos e vídeos originais dos projetos
+              e serviços organizados em subpastas estruturadas (
+              <code className="bg-[#f4f4f4] px-1 py-0.5 rounded text-[#2C3E50] font-mono">
+                projetos/&lt;nome&gt;
+              </code>{' '}
+              e{' '}
+              <code className="bg-[#f4f4f4] px-1 py-0.5 rounded text-[#2C3E50] font-mono">
+                servicos/&lt;nome&gt;
+              </code>
+              ).
+            </p>
+          </div>
+
+          <Button
+            type="button"
+            disabled={downloadingZip}
+            onClick={async () => {
+              setDownloadingZip(true)
+              try {
+                toast({
+                  title: 'Preparando download...',
+                  description:
+                    'Localizando mídias de projetos e serviços para estruturação das pastas no ZIP.',
+                })
+                const resultado = await baixarTodasMidiasZip((prog) => {
+                  setProgressoZip(prog)
+                })
+                const msgSucesso =
+                  resultado.pulados > 0
+                    ? `Download concluído com ${resultado.baixados} arquivos. (${resultado.pulados} não puderam ser acessados e foram ignorados)`
+                    : `Download concluído com sucesso! ${resultado.baixados} arquivos organizados em /projetos e /servicos.`
+                toast({
+                  title: 'Download concluído!',
+                  description: msgSucesso,
+                })
+              } catch (err: any) {
+                toast({
+                  title: 'Erro ao baixar mídias',
+                  description: err.message || 'Verifique sua conexão com o servidor.',
+                  variant: 'destructive',
+                })
+              } finally {
+                setDownloadingZip(false)
+                setProgressoZip(null)
+              }
+            }}
+            className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs h-9 px-4 rounded-xl shadow-xs flex items-center gap-2 shrink-0"
+          >
+            {downloadingZip ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#2C3E50]" />
+                <span>Baixando...</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 text-[#2C3E50]" />
+                <span>Baixar ZIP de Mídias</span>
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Layout de 2 Colunas exatamente como no Print 1 */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-          {/* Menu Lateral Escuro (Print 1) */}
+          {/* Menu Lateral Escuro */}
           <div className="md:col-span-3 bg-[#1B2631] rounded-2xl overflow-hidden shadow-xs border border-[#2C3E50]/60 p-2 space-y-1">
             <button
               type="button"
@@ -187,20 +346,6 @@ export const SiteConfiguracoesPage: React.FC = () => {
               )}
               Cidades atendidas
             </button>
-
-            {/* Link para o controle do Simulador */}
-            <a
-              href="/painel/site/simulador"
-              className="block px-4 py-3 text-xs text-white/80 hover:text-white hover:bg-white/5 rounded-xl transition-colors font-medium"
-            >
-              Controles do Simulador IA →
-            </a>
-            <a
-              href="/painel/site"
-              className="block px-4 py-3 text-xs text-white/70 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-            >
-              Analytics
-            </a>
           </div>
 
           {/* Área Principal de Conteúdo do Print 1 */}

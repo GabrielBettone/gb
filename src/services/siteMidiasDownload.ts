@@ -100,10 +100,25 @@ async function baixarArquivoBytes(url: string): Promise<ArrayBuffer | null> {
  * Coleta todas as mídias estruturadas de Projetos e Serviços
  */
 export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadItem[]> {
-  const [projetos, servicos] = await Promise.all([
-    dataAdapter.getFullList<any>('site_portfolio').catch(() => []),
-    dataAdapter.getFullList<any>('site_servicos').catch(() => []),
-  ])
+  // Coletar projetos do banco (com fallback tolerante)
+  let projetos: any[] = []
+  try {
+    projetos = await dataAdapter.getFullList<any>('site_portfolio')
+  } catch (err) {
+    console.warn('[coletarTodasMidiasEstruturadas] Erro ao buscar site_portfolio:', err)
+  }
+
+  // Coletar serviços: atentar que no banco a collection é 'site_services' (não site_servicos)
+  let servicos: any[] = []
+  try {
+    servicos = await dataAdapter.getFullList<any>('site_services')
+  } catch {
+    try {
+      servicos = await dataAdapter.getFullList<any>('site_servicos')
+    } catch (err) {
+      console.warn('[coletarTodasMidiasEstruturadas] Erro ao buscar site_services:', err)
+    }
+  }
 
   const itens: MidiaDownloadItem[] = []
 
@@ -112,6 +127,23 @@ export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadIte
     const nomeProjeto = sanitizarNomePasta(proj.titulo || proj.slug || `projeto_${proj.id}`)
     const pasta = `projetos/${nomeProjeto}`
     const urlsVistas = new Set<string>()
+
+    const parseArrayFlexivel = (val: any): string[] => {
+      if (!val) return []
+      if (Array.isArray(val))
+        return val.filter((x): x is string => typeof x === 'string' && !!x.trim())
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed))
+            return parsed.filter((x): x is string => typeof x === 'string' && !!x.trim())
+        } catch {
+          // valor string único
+          return [val.trim()]
+        }
+      }
+      return []
+    }
 
     const adicionarMidia = (midiaRaw: string | undefined | null, isVideo: boolean = false) => {
       if (!midiaRaw || typeof midiaRaw !== 'string') return
@@ -139,18 +171,12 @@ export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadIte
     if (proj.imagem_capa) adicionarMidia(proj.imagem_capa)
 
     // Galeria
-    const galeriaArquivos = Array.isArray(proj.arquivos_galeria) ? proj.arquivos_galeria : []
-    galeriaArquivos.forEach((f: string) => adicionarMidia(f))
-
-    const galeriaLegada = Array.isArray(proj.galeria) ? proj.galeria : []
-    galeriaLegada.forEach((f: string) => adicionarMidia(f))
+    parseArrayFlexivel(proj.arquivos_galeria).forEach((f) => adicionarMidia(f))
+    parseArrayFlexivel(proj.galeria).forEach((f) => adicionarMidia(f))
 
     // Vídeos
-    const videosArquivos = Array.isArray(proj.arquivos_videos) ? proj.arquivos_videos : []
-    videosArquivos.forEach((f: string) => adicionarMidia(f, true))
-
-    const videosLegados = Array.isArray(proj.videos) ? proj.videos : []
-    videosLegados.forEach((f: string) => adicionarMidia(f, true))
+    parseArrayFlexivel(proj.arquivos_videos).forEach((f) => adicionarMidia(f, true))
+    parseArrayFlexivel(proj.videos).forEach((f) => adicionarMidia(f, true))
   }
 
   // 2. Processar Serviços
@@ -158,6 +184,22 @@ export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadIte
     const nomeServico = sanitizarNomePasta(serv.nome || serv.slug || `servico_${serv.id}`)
     const pasta = `servicos/${nomeServico}`
     const urlsVistas = new Set<string>()
+
+    const parseArrayFlexivel = (val: any): string[] => {
+      if (!val) return []
+      if (Array.isArray(val))
+        return val.filter((x): x is string => typeof x === 'string' && !!x.trim())
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed))
+            return parsed.filter((x): x is string => typeof x === 'string' && !!x.trim())
+        } catch {
+          return [val.trim()]
+        }
+      }
+      return []
+    }
 
     const adicionarMidia = (midiaRaw: string | undefined | null, isVideo: boolean = false) => {
       if (!midiaRaw || typeof midiaRaw !== 'string') return
@@ -180,23 +222,20 @@ export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadIte
       })
     }
 
-    // Imagem principal / capa
+    // Imagem principal / capa (arquivo físico ou url externa)
     if (serv.arquivo_principal) adicionarMidia(serv.arquivo_principal)
     if (serv.imagem_principal) adicionarMidia(serv.imagem_principal)
 
-    // Galeria
-    const galeriaArquivos = Array.isArray(serv.arquivos_galeria) ? serv.arquivos_galeria : []
-    galeriaArquivos.forEach((f: string) => adicionarMidia(f))
+    // Galeria de arquivos físicos ou URLs legadas
+    parseArrayFlexivel(serv.arquivos_galeria).forEach((f) => adicionarMidia(f))
+    parseArrayFlexivel(serv.galeria).forEach((f) => adicionarMidia(f))
 
-    const galeriaLegada = Array.isArray(serv.galeria) ? serv.galeria : []
-    galeriaLegada.forEach((f: string) => adicionarMidia(f))
+    // Vídeos (caso o serviço tenha arquivos_videos ou videos)
+    parseArrayFlexivel(serv.arquivos_videos).forEach((f) => adicionarMidia(f, true))
+    parseArrayFlexivel(serv.videos).forEach((f) => adicionarMidia(f, true))
 
-    // Vídeos
-    const videosArquivos = Array.isArray(serv.arquivos_videos) ? serv.arquivos_videos : []
-    videosArquivos.forEach((f: string) => adicionarMidia(f, true))
-
-    const videosLegados = Array.isArray(serv.videos) ? serv.videos : []
-    videosLegados.forEach((f: string) => adicionarMidia(f, true))
+    // Destaques de fotos (caso aponte para arquivo específico diferente)
+    parseArrayFlexivel(serv.destaques_fotos).forEach((f) => adicionarMidia(f))
   }
 
   return itens
