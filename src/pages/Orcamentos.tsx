@@ -453,11 +453,16 @@ export const Orcamentos: React.FC = () => {
       // Se a opção 'Exibir itens sem data definida' estiver desligada (padrão), filtra-os.
       // Na visualização em Tabela o usuário pode ver todos ou seguir o mesmo toggle.
       if (!exibirSemData) {
+        const rawInicio = orc.data_inicio_prevista ? String(orc.data_inicio_prevista).trim() : ''
+        const rawFim = orc.data_fim_prevista ? String(orc.data_fim_prevista).trim() : ''
         const temDataInicio = Boolean(
-          orc.data_inicio_prevista && String(orc.data_inicio_prevista).trim() !== '',
+          rawInicio &&
+          rawInicio !== 'null' &&
+          rawInicio !== 'undefined' &&
+          rawInicio !== '0000-00-00',
         )
         const temDataFim = Boolean(
-          orc.data_fim_prevista && String(orc.data_fim_prevista).trim() !== '',
+          rawFim && rawFim !== 'null' && rawFim !== 'undefined' && rawFim !== '0000-00-00',
         )
         if (!temDataInicio && !temDataFim) {
           return false
@@ -940,6 +945,7 @@ export const Orcamentos: React.FC = () => {
                     orcamentos={orcamentosFiltrados}
                     onAtualizarDatas={handleAtualizarDatasGantt}
                     onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
+                    exibirSemData={exibirSemData}
                   />
                 )}
 
