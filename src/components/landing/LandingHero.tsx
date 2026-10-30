@@ -81,43 +81,61 @@ export const LandingHero: React.FC = () => {
       .then((servicos: SiteServico[]) => {
         if (!ativo) return
 
-        // 1. Filtrar primeiro serviços ativos com destaque marcado
+        // 1. Prioriza serviços ativos marcados com destaque do serviço
         const servicosDestaque = servicos.filter((s) => s.ativo !== false && !!s.destaque)
-        // Se houver menos de 2 destaques, complementar com outros serviços ativos
         const servicosCandidatos =
           servicosDestaque.length > 0 ? servicosDestaque : servicos.filter((s) => s.ativo !== false)
 
         const novosSlides: HeroSlide[] = []
 
         servicosCandidatos.forEach((serv) => {
-          // Extrai a melhor foto para o serviço:
-          // 1. arquivo_principal (foto nativa marcada como principal/destaque)
-          // 2. imagem_principal (URL legada)
-          // 3. primeira foto da galeria nativa
-          // 4. primeira foto da galeria externa
-          let fotoUrl = ''
+          const categoriaTag =
+            (serv.categorias && serv.categorias[0]) || serv.categoria || 'Gesso & Drywall'
+          const tagTexto = serv.destaque ? `★ Destaque • ${categoriaTag}` : categoriaTag
+          const subtituloTexto =
+            serv.descricao_curta || 'Acabamento refinado e alto padrão sob medida'
 
-          if (serv.arquivo_principal) {
-            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.arquivo_principal)
-          } else if (serv.imagem_principal) {
-            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.imagem_principal)
-          } else if (serv.arquivos_galeria && serv.arquivos_galeria.length > 0) {
-            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.arquivos_galeria[0])
-          } else if (serv.galeria && serv.galeria.length > 0) {
-            fotoUrl = resolverUrlMidia('site_services', serv.id, serv.galeria[0])
+          // Foto de capa com fallback em cascata:
+          // capa (arquivo_principal ou imagem_principal)
+          // -> primeira de destaques_fotos
+          // -> primeira de arquivos_galeria
+          // -> primeira de galeria
+          const capaRaw =
+            serv.arquivo_principal ||
+            serv.imagem_principal ||
+            (serv.destaques_fotos && serv.destaques_fotos[0]) ||
+            (serv.arquivos_galeria && serv.arquivos_galeria[0]) ||
+            (serv.galeria && serv.galeria[0]) ||
+            ''
+
+          // Monta a lista de fotos a exibir nos slides deste serviço:
+          // A capa vem como a principal de apresentação do card do serviço,
+          // seguida pelas fotos adicionais listadas em destaques_fotos (sem duplicar a capa)
+          const fotosRawDoServico: string[] = []
+          if (capaRaw) {
+            fotosRawDoServico.push(capaRaw)
           }
 
-          if (fotoUrl) {
-            const categoriaTag =
-              (serv.categorias && serv.categorias[0]) || serv.categoria || 'Gesso & Drywall'
-            novosSlides.push({
-              image: fotoUrl,
-              title: serv.nome,
-              subtitle: serv.descricao_curta || 'Acabamento refinado e alto padrão sob medida',
-              tag: serv.destaque ? `★ Destaque • ${categoriaTag}` : categoriaTag,
-              serviceSlug: serv.slug,
+          if (serv.destaques_fotos && serv.destaques_fotos.length > 0) {
+            serv.destaques_fotos.forEach((fotoDest) => {
+              if (fotoDest && fotoDest !== capaRaw && !fotosRawDoServico.includes(fotoDest)) {
+                fotosRawDoServico.push(fotoDest)
+              }
             })
           }
+
+          fotosRawDoServico.forEach((fotoItem) => {
+            const resolvedUrl = resolverUrlMidia('site_services', serv.id, fotoItem)
+            if (resolvedUrl) {
+              novosSlides.push({
+                image: resolvedUrl,
+                title: serv.nome,
+                subtitle: subtituloTexto,
+                tag: tagTexto,
+                serviceSlug: serv.slug,
+              })
+            }
+          })
         })
 
         if (novosSlides.length > 0) {

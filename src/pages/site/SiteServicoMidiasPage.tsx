@@ -16,7 +16,9 @@ import { resolverUrlMidia } from '@/lib/watermark'
 export interface MidiaServicoItem {
   id: string
   url: string
-  isPrincipal: boolean
+  rawIdentifier: string // fileName (se nativo) ou URL (se legado/externo)
+  isPrincipal: boolean // Capa do serviço
+  isDestaque: boolean // Destaque no carrossel (múltiplo)
   isArquivoNativo: boolean
   fileName?: string
 }
@@ -56,32 +58,43 @@ export const SiteServicoMidiasPage: React.FC = () => {
 
       const midiasList: MidiaServicoItem[] = []
 
-      // Foto principal/destaque
+      const destaquesSet = new Set(serv.destaques_fotos || [])
+
+      // 1. Foto principal (capa) se houver
       if (serv.arquivo_principal) {
+        const isDest = destaquesSet.has(serv.arquivo_principal)
         midiasList.push({
           id: `princ_${serv.arquivo_principal}`,
           url: resolverUrlMidia('site_services', serv.id, serv.arquivo_principal),
+          rawIdentifier: serv.arquivo_principal,
           isPrincipal: true,
+          isDestaque: isDest,
           isArquivoNativo: true,
           fileName: serv.arquivo_principal,
         })
       } else if (serv.imagem_principal) {
+        const isDest = destaquesSet.has(serv.imagem_principal)
         midiasList.push({
           id: `princ_legacy_${serv.imagem_principal}`,
           url: serv.imagem_principal,
+          rawIdentifier: serv.imagem_principal,
           isPrincipal: true,
+          isDestaque: isDest,
           isArquivoNativo: false,
         })
       }
 
-      // Arquivos nativos de galeria
+      // 2. Arquivos nativos de galeria
       if (serv.arquivos_galeria && serv.arquivos_galeria.length > 0) {
         serv.arquivos_galeria.forEach((arq) => {
           if (arq !== serv.arquivo_principal) {
+            const isDest = destaquesSet.has(arq)
             midiasList.push({
               id: `gal_${arq}`,
               url: resolverUrlMidia('site_services', serv.id, arq),
+              rawIdentifier: arq,
               isPrincipal: false,
+              isDestaque: isDest,
               isArquivoNativo: true,
               fileName: arq,
             })
@@ -89,21 +102,23 @@ export const SiteServicoMidiasPage: React.FC = () => {
         })
       }
 
-      // URLs de galeria externa (apenas as que NÃO forem espelho de arquivos_galeria)
+      // 3. URLs de galeria externa (apenas as que NÃO forem espelho de arquivos_galeria)
       if (serv.galeria && serv.galeria.length > 0) {
         const pathsNativos = new Set(serv.arquivos_galeria || [])
         serv.galeria.forEach((gUrl, idx) => {
-          // Se a URL na verdade aponta para um dos arquivos_galeria já adicionados, ignorar para não duplicar
           const jaAdicionada =
             gUrl === serv.imagem_principal ||
             midiasList.some((m) => m.url === gUrl) ||
             Array.from(pathsNativos).some((p) => gUrl.includes(p))
 
           if (!jaAdicionada) {
+            const isDest = destaquesSet.has(gUrl)
             midiasList.push({
               id: `legacy_gal_${idx}_${gUrl.slice(-15)}`,
               url: gUrl,
+              rawIdentifier: gUrl,
               isPrincipal: false,
+              isDestaque: isDest,
               isArquivoNativo: false,
             })
           }
@@ -198,8 +213,48 @@ export const SiteServicoMidiasPage: React.FC = () => {
     }
   }
 
-  // Definir ou remover destaque (foto principal)
-  const handleToggleDestaque = async (midiaId: string) => {
+  // Ação (a): Alternar Destaque no Carrossel (seleção MÚLTIPLA 0 a N em destaques_fotos)
+  const handleToggleDestaqueCarrossel = async (midiaId: string) => {
+    if (!servico) return
+    const midiaAlvo = midias.find((m) => m.id === midiaId)
+    if (!midiaAlvo) return
+
+    const novoEstado = !midiaAlvo.isDestaque
+    const identificador = midiaAlvo.rawIdentifier
+
+    // Monta a nova lista de identificadores destacados
+    const destaquesAtuais = new Set(servico.destaques_fotos || [])
+    if (novoEstado) {
+      destaquesAtuais.add(identificador)
+    } else {
+      destaquesAtuais.delete(identificador)
+    }
+    const novosDestaques = Array.from(destaquesAtuais)
+
+    // Atualização otimista
+    setMidias((prev) => prev.map((m) => (m.id === midiaId ? { ...m, isDestaque: novoEstado } : m)))
+    setServico({ ...servico, destaques_fotos: novosDestaques })
+
+    setSalvando(true)
+    try {
+      await atualizarServico(servico.id, {
+        destaques_fotos: novosDestaques,
+      })
+      toast({
+        title: novoEstado
+          ? 'Foto adicionada aos destaques do carrossel!'
+          : 'Foto removida dos destaques do carrossel.',
+      })
+    } catch {
+      toast({ title: 'Erro ao atualizar destaques do carrossel', variant: 'destructive' })
+      await carregarServico()
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  // Ação (b): Definir Capa do Serviço (exclusiva: campo arquivo_principal/imagem_principal)
+  const handleDefinirCapa = async (midiaId: string) => {
     if (!servico) return
     const midiaAlvo = midias.find((m) => m.id === midiaId)
     if (!midiaAlvo) return
@@ -207,34 +262,41 @@ export const SiteServicoMidiasPage: React.FC = () => {
     setSalvando(true)
     try {
       if (midiaAlvo.isPrincipal) {
-        // Remove destaque
+        // Já é a capa, desmarca
         await atualizarServico(servico.id, {
           arquivo_principal: '',
           imagem_principal: '',
         })
-        setMidias((prev) => prev.map((m) => (m.id === midiaId ? { ...m, isPrincipal: false } : m)))
-        toast({ title: 'Destaque removido' })
+        setMidias((prev) => prev.map((m) => ({ ...m, isPrincipal: false })))
+        setServico({ ...servico, arquivo_principal: '', imagem_principal: '' })
+        toast({ title: 'Capa do serviço desmarcada' })
       } else {
-        // Define como principal/destaque
+        // Define esta foto como a capa exclusiva
+        const payload: Partial<SiteServico> = {}
         if (midiaAlvo.isArquivoNativo && midiaAlvo.fileName) {
-          await atualizarServico(servico.id, {
-            arquivo_principal: midiaAlvo.fileName,
-          })
+          payload.arquivo_principal = midiaAlvo.fileName
+          payload.imagem_principal = ''
         } else {
-          await atualizarServico(servico.id, {
-            imagem_principal: midiaAlvo.url,
-          })
+          payload.imagem_principal = midiaAlvo.url
+          payload.arquivo_principal = ''
         }
+
+        await atualizarServico(servico.id, payload)
         setMidias((prev) =>
           prev.map((m) => ({
             ...m,
             isPrincipal: m.id === midiaId,
           })),
         )
-        toast({ title: 'Foto definida como destaque com sucesso!' })
+        setServico({
+          ...servico,
+          arquivo_principal: payload.arquivo_principal || '',
+          imagem_principal: payload.imagem_principal || '',
+        })
+        toast({ title: 'Foto definida como Capa do Serviço!' })
       }
     } catch {
-      toast({ title: 'Erro ao alterar destaque', variant: 'destructive' })
+      toast({ title: 'Erro ao alterar capa do serviço', variant: 'destructive' })
     } finally {
       setSalvando(false)
     }
@@ -269,6 +331,14 @@ export const SiteServicoMidiasPage: React.FC = () => {
         payload.arquivos_galeria = restantesGaleria
       }
 
+      // Se estava nos destaques_fotos, remover também
+      const novosDestaques = (servico.destaques_fotos || []).filter(
+        (d) => d !== midiaAlvo.rawIdentifier,
+      )
+      if (novosDestaques.length !== (servico.destaques_fotos || []).length) {
+        payload.destaques_fotos = novosDestaques
+      }
+
       await atualizarServico(servico.id, payload)
       setMidias(novasMidias)
       toast({ title: 'Foto excluída com sucesso!' })
@@ -279,7 +349,14 @@ export const SiteServicoMidiasPage: React.FC = () => {
     }
   }
 
-  // Drag and drop para ordenação com persistência imediata
+  // Drag and drop para ordenação (HTML5 Drag + Pointer/Touch) com persistência imediata
+  const touchCardRef = useRef<{
+    index: number
+    active: boolean
+    startX: number
+    startY: number
+  }>({ index: -1, active: false, startX: 0, startY: 0 })
+
   const handleDragStart = (index: number) => {
     setDraggedIndex(index)
   }
@@ -290,12 +367,12 @@ export const SiteServicoMidiasPage: React.FC = () => {
     setDragOverIndex(index)
   }
 
-  const handleDrop = async (index: number) => {
-    if (draggedIndex === null || draggedIndex === index || !servico) return
+  const reordenarEMPersistir = async (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || !servico) return
 
     const reordenadas = [...midias]
-    const [itemMovido] = reordenadas.splice(draggedIndex, 1)
-    reordenadas.splice(index, 0, itemMovido)
+    const [itemMovido] = reordenadas.splice(fromIdx, 1)
+    reordenadas.splice(toIdx, 0, itemMovido)
 
     setMidias(reordenadas)
     setDraggedIndex(null)
@@ -318,6 +395,57 @@ export const SiteServicoMidiasPage: React.FC = () => {
       toast({ title: 'Ordem das fotos atualizada!' })
     } catch {
       toast({ title: 'Erro ao salvar ordenação', variant: 'destructive' })
+    }
+  }
+
+  const handleDrop = async (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return
+    await reordenarEMPersistir(draggedIndex, index)
+  }
+
+  // Pointer/Touch events para celular
+  const handleCardPointerDown = (index: number, e: React.PointerEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('input')) return
+
+    touchCardRef.current = {
+      index,
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+    }
+  }
+
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchCardRef.current.active) return
+    const dist = Math.hypot(
+      e.clientX - touchCardRef.current.startX,
+      e.clientY - touchCardRef.current.startY,
+    )
+    if (dist > 8 && draggedIndex === null) {
+      setDraggedIndex(touchCardRef.current.index)
+    }
+
+    if (touchCardRef.current.active && draggedIndex !== null) {
+      const elemBelow = document.elementFromPoint(e.clientX, e.clientY)
+      const card = elemBelow?.closest('[data-midia-index]') as HTMLElement | null
+      if (card && card.dataset.midiaIndex !== undefined) {
+        const targetIdx = parseInt(card.dataset.midiaIndex, 10)
+        if (!isNaN(targetIdx) && targetIdx !== dragOverIndex) {
+          setDragOverIndex(targetIdx)
+        }
+      }
+    }
+  }
+
+  const handleContainerPointerUp = () => {
+    if (touchCardRef.current.active) {
+      if (draggedIndex !== null && dragOverIndex !== null && draggedIndex !== dragOverIndex) {
+        reordenarEMPersistir(draggedIndex, dragOverIndex)
+      }
+      touchCardRef.current = { index: -1, active: false, startX: 0, startY: 0 }
+      setDraggedIndex(null)
+      setDragOverIndex(null)
     }
   }
 
@@ -399,13 +527,25 @@ export const SiteServicoMidiasPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Grade de fotos com drag-handle, destaque e exclusão */}
+        {/* Grade de fotos com drag-and-drop direto (mouse + toque), Destaque no Carrossel (multi) e Capa do Serviço */}
         <div className="space-y-3">
-          <p className="text-xs text-[#616F7D]">
-            Arraste as fotos pelo <span className="font-mono font-bold">≡</span> para alterar a
-            ordem. A posição é salva automaticamente. Você pode marcar quantas fotos quiser como
-            destaque.
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#616F7D]">
+            <p>
+              Arraste as fotos direto pelo card ou pelo{' '}
+              <span className="font-mono font-bold">≡</span> para reordenar (funciona também no
+              celular).
+            </p>
+            <div className="flex items-center gap-3 text-[11px]">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#D4AF37]" />
+                <strong>Capa:</strong> Foto principal do card
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Star className="w-3 h-3 text-[#D4AF37] fill-[#D4AF37]" />
+                <strong>Destaque:</strong> Vai ao carrossel
+              </span>
+            </div>
+          </div>
 
           {loading ? (
             <div className="bg-white rounded-2xl border border-[#DEE4EA] p-12 text-center text-xs text-[#616F7D]">
@@ -419,14 +559,20 @@ export const SiteServicoMidiasPage: React.FC = () => {
               imagens.
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div
+              onPointerMove={handleContainerPointerMove}
+              onPointerUp={handleContainerPointerUp}
+              onPointerCancel={handleContainerPointerUp}
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
               {midias.map((midia, index) => {
-                const isOver = dragOverIndex === index
+                const isOver = dragOverIndex === index && draggedIndex !== index
                 const isDragging = draggedIndex === index
 
                 return (
                   <div
                     key={midia.id}
+                    data-midia-index={index}
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(e) => handleDragOver(e, index)}
@@ -435,12 +581,15 @@ export const SiteServicoMidiasPage: React.FC = () => {
                       setDragOverIndex(null)
                     }}
                     onDrop={() => handleDrop(index)}
-                    className={`bg-white rounded-xl border overflow-hidden shadow-xs flex flex-col transition-all ${
+                    onPointerDown={(e) => handleCardPointerDown(index, e)}
+                    className={`bg-white rounded-xl border overflow-hidden shadow-xs flex flex-col transition-all cursor-grab active:cursor-grabbing select-none ${
                       midia.isPrincipal
-                        ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]'
-                        : 'border-[#DEE4EA]'
-                    } ${isOver ? 'scale-102 border-[#2C3E50]' : ''} ${
-                      isDragging ? 'opacity-40' : 'opacity-100'
+                        ? 'border-[#D4AF37] ring-2 ring-[#D4AF37]'
+                        : midia.isDestaque
+                          ? 'border-[#D4AF37]/60'
+                          : 'border-[#DEE4EA]'
+                    } ${isOver ? 'scale-102 border-[#2C3E50] shadow-md ring-2 ring-[#2C3E50]' : ''} ${
+                      isDragging ? 'opacity-40 scale-95' : 'opacity-100'
                     }`}
                   >
                     {/* Visualização da Foto */}
@@ -455,27 +604,35 @@ export const SiteServicoMidiasPage: React.FC = () => {
                         src={midia.url}
                         alt={`Foto #${index + 1}`}
                         crossOrigin="anonymous"
-                        className="relative z-1 max-w-full max-h-full object-contain"
+                        className="relative z-1 max-w-full max-h-full object-contain pointer-events-none"
                         loading="lazy"
                       />
 
                       {/* Cabo de arrastar ≡ */}
                       <div
-                        className="absolute top-2 left-2 w-7 h-7 rounded-md bg-black/70 hover:bg-black text-white flex items-center justify-center cursor-grab active:cursor-grabbing shadow-sm z-10"
+                        className="absolute top-2 left-2 w-7 h-7 rounded-md bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-sm z-10 pointer-events-none"
                         title="Arraste para reordenar"
                       >
                         <GripVertical className="w-4 h-4" />
                       </div>
 
-                      {/* Badge Destaque */}
-                      {midia.isPrincipal && (
-                        <div className="absolute top-2 right-2 bg-[#D4AF37] text-[#2C3E50] font-bold text-[10px] px-2 py-0.5 rounded shadow-xs uppercase tracking-wider z-10">
-                          DESTAQUE
-                        </div>
-                      )}
+                      {/* Badges superiores: Capa e/ou Destaque Carrossel */}
+                      <div className="absolute top-2 right-2 flex flex-col items-end gap-1 z-10 pointer-events-none">
+                        {midia.isPrincipal && (
+                          <span className="bg-[#D4AF37] text-[#2C3E50] font-bold text-[9px] px-2 py-0.5 rounded shadow-xs uppercase tracking-wider">
+                            CAPA DO SERVIÇO
+                          </span>
+                        )}
+                        {midia.isDestaque && (
+                          <span className="bg-[#2C3E50] text-[#D4AF37] border border-[#D4AF37]/50 font-bold text-[9px] px-2 py-0.5 rounded shadow-xs uppercase tracking-wider flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 fill-current" />
+                            CARROSSEL
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Rodapé do Card: Info + Ações */}
+                    {/* Rodapé do Card: Info + 2 Ações Separadas (Destaque e Capa) + Excluir */}
                     <div className="p-3 flex-1 flex flex-col justify-between space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="font-heading font-bold text-xs text-[#2C3E50]">
@@ -491,30 +648,61 @@ export const SiteServicoMidiasPage: React.FC = () => {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t border-[#DEE4EA]/60">
+                      <div className="space-y-1.5 pt-1 border-t border-[#DEE4EA]/60">
+                        {/* Ação (a): Destaque no Carrossel (seleção MÚLTIPLA com estrela) */}
                         <button
                           type="button"
-                          onClick={() => handleToggleDestaque(midia.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleToggleDestaqueCarrossel(midia.id)
+                          }}
                           disabled={salvando}
-                          className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 ${
-                            midia.isPrincipal
+                          className={`w-full py-1.5 px-2 rounded-md text-[11px] font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                            midia.isDestaque
                               ? 'bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50]'
                               : 'border border-[#DEE4EA] text-[#2C3E50] hover:bg-[#f4f4f4]'
                           }`}
+                          title="Exibir esta foto no carrossel da home"
                         >
-                          <Star className={`w-3 h-3 ${midia.isPrincipal ? 'fill-current' : ''}`} />
-                          {midia.isPrincipal ? 'Remover destaque' : 'Definir destaque'}
+                          <Star
+                            className={`w-3.5 h-3.5 ${midia.isDestaque ? 'fill-current' : ''}`}
+                          />
+                          {midia.isDestaque ? 'No carrossel (destacada)' : 'Destacar no carrossel'}
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleExcluirMidia(midia.id)}
-                          disabled={salvando}
-                          className="py-1.5 px-2.5 rounded-md border border-[#C4453C]/30 text-[#C4453C] hover:bg-red-50 text-[11px] font-semibold transition-colors"
-                          title="Excluir foto"
-                        >
-                          Excluir
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {/* Ação (b): Definir Capa do Serviço (exclusiva) */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDefinirCapa(midia.id)
+                            }}
+                            disabled={salvando}
+                            className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 ${
+                              midia.isPrincipal
+                                ? 'bg-[#2C3E50] text-[#D4AF37] hover:bg-[#1E2B37]'
+                                : 'border border-[#DEE4EA] text-[#2C3E50] hover:bg-[#f4f4f4]'
+                            }`}
+                            title="Definir como foto de capa principal do serviço"
+                          >
+                            {midia.isPrincipal ? '✓ Foto de Capa' : 'Definir Capa'}
+                          </button>
+
+                          {/* Excluir Foto */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleExcluirMidia(midia.id)
+                            }}
+                            disabled={salvando}
+                            className="py-1.5 px-2 rounded-md border border-[#C4453C]/30 text-[#C4453C] hover:bg-red-50 text-[11px] font-semibold transition-colors"
+                            title="Excluir foto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

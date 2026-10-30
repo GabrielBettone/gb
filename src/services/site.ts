@@ -31,6 +31,7 @@ export interface SiteServico {
   galeria: string[]
   arquivo_principal?: string
   arquivos_galeria?: string[]
+  destaques_fotos?: string[]
   meta_title?: string
   meta_description?: string
   keywords?: string[]
@@ -193,6 +194,7 @@ export async function listarServicos(apenasAtivos = false): Promise<SiteServico[
           : r.arquivos_galeria
             ? [r.arquivos_galeria]
             : [],
+        destaques_fotos: parseJsonArray<string>(r.destaques_fotos),
         meta_title: r.meta_title,
         meta_description: r.meta_description,
         keywords: parseJsonArray<string>(r.keywords),
@@ -233,6 +235,7 @@ export async function obterServicoPorId(id: string): Promise<SiteServico | null>
         : record.arquivos_galeria
           ? [record.arquivos_galeria]
           : [],
+      destaques_fotos: parseJsonArray<string>(record.destaques_fotos),
       meta_title: record.meta_title,
       meta_description: record.meta_description,
       keywords: parseJsonArray<string>(record.keywords),
@@ -309,6 +312,7 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
         : record.arquivos_galeria
           ? [record.arquivos_galeria]
           : [],
+      destaques_fotos: parseJsonArray<string>(record.destaques_fotos),
       meta_title: record.meta_title,
       meta_description: record.meta_description,
       keywords: parseJsonArray<string>(record.keywords),
@@ -350,6 +354,7 @@ export async function obterServicoPorSlug(slug: string): Promise<SiteServico | n
             : achado.arquivos_galeria
               ? [achado.arquivos_galeria]
               : [],
+          destaques_fotos: parseJsonArray<string>(achado.destaques_fotos),
           meta_title: achado.meta_title,
           meta_description: achado.meta_description,
           keywords: parseJsonArray<string>(achado.keywords),
@@ -386,6 +391,11 @@ export async function criarServico(
         ? data.beneficios
         : []
       : JSON.stringify(data.beneficios || []),
+    destaques_fotos: isSelfHostedSupabase()
+      ? Array.isArray(data.destaques_fotos)
+        ? data.destaques_fotos
+        : []
+      : JSON.stringify(data.destaques_fotos || []),
     galeria: isSelfHostedSupabase()
       ? Array.isArray(data.galeria)
         ? data.galeria
@@ -451,7 +461,12 @@ export async function criarServico(
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val === undefined || val === null) return
-      if (key === 'beneficios' || key === 'galeria' || key === 'keywords') {
+      if (
+        key === 'beneficios' ||
+        key === 'galeria' ||
+        key === 'keywords' ||
+        key === 'destaques_fotos'
+      ) {
         formData.append(key, JSON.stringify(val))
       } else {
         formData.append(key, String(val))
@@ -507,6 +522,7 @@ export async function atualizarServico(
     if (data.beneficios !== undefined) payload.beneficios = data.beneficios
     if (data.galeria !== undefined) payload.galeria = data.galeria
     if (data.keywords !== undefined) payload.keywords = data.keywords
+    if (data.destaques_fotos !== undefined) payload.destaques_fotos = data.destaques_fotos
 
     if (arquivos?.arquivo_principal) {
       const ext = arquivos.arquivo_principal.name.split('.').pop() || 'jpg'
@@ -521,10 +537,14 @@ export async function atualizarServico(
     }
 
     if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      // Buscar dados existentes caso payload não traga a lista atual para não sobrescrever nem duplicar
-      const currentArquivos = Array.isArray(payload.arquivos_galeria)
-        ? [...payload.arquivos_galeria]
-        : []
+      // Buscar dados existentes do serviço para somar [...arquivosAntigos, ...novos]
+      let currentArquivos: string[] = []
+      if (Array.isArray(payload.arquivos_galeria)) {
+        currentArquivos = [...payload.arquivos_galeria]
+      } else {
+        const servicoAtual = await obterServicoPorId(id)
+        currentArquivos = servicoAtual?.arquivos_galeria ? [...servicoAtual.arquivos_galeria] : []
+      }
       const currentGaleria = Array.isArray(payload.galeria) ? [...payload.galeria] : []
       const galeriaUrls: string[] = currentGaleria
       const galeriaPaths: string[] = currentArquivos
@@ -550,6 +570,7 @@ export async function atualizarServico(
       beneficios: parseJsonArray<string>(record.beneficios),
       galeria: parseJsonArray<string>(record.galeria),
       keywords: parseJsonArray<string>(record.keywords),
+      destaques_fotos: parseJsonArray<string>(record.destaques_fotos),
       arquivo_principal: record.arquivo_principal,
       arquivos_galeria: record.arquivos_galeria || [],
     } as unknown as SiteServico
@@ -563,7 +584,12 @@ export async function atualizarServico(
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val === undefined || val === null) return
-      if (key === 'beneficios' || key === 'galeria' || key === 'keywords') {
+      if (
+        key === 'beneficios' ||
+        key === 'galeria' ||
+        key === 'keywords' ||
+        key === 'destaques_fotos'
+      ) {
         formData.append(key, JSON.stringify(val))
       } else {
         formData.append(key, String(val))
@@ -573,7 +599,8 @@ export async function atualizarServico(
       formData.append('arquivo_principal', arquivos.arquivo_principal)
     }
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+      // No PocketBase, usar a chave 'arquivos_galeria+' para somar (merge) sem sobrescrever os existentes
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria+', f))
     }
     const record = await dataAdapter.upload<any>('site_services', formData, id)
     return {
@@ -581,6 +608,7 @@ export async function atualizarServico(
       beneficios: parseJsonArray<string>(record.beneficios),
       galeria: parseJsonArray<string>(record.galeria),
       keywords: parseJsonArray<string>(record.keywords),
+      destaques_fotos: parseJsonArray<string>(record.destaques_fotos),
       arquivo_principal: record.arquivo_principal,
       arquivos_galeria: record.arquivos_galeria || [],
     } as unknown as SiteServico
@@ -589,6 +617,8 @@ export async function atualizarServico(
   if (data.beneficios !== undefined) payload.beneficios = JSON.stringify(data.beneficios)
   if (data.galeria !== undefined) payload.galeria = JSON.stringify(data.galeria)
   if (data.keywords !== undefined) payload.keywords = JSON.stringify(data.keywords)
+  if (data.destaques_fotos !== undefined)
+    payload.destaques_fotos = JSON.stringify(data.destaques_fotos)
 
   const record = await dataAdapter.update<any>('site_services', id, payload)
   return {
@@ -596,6 +626,7 @@ export async function atualizarServico(
     beneficios: parseJsonArray<string>(record.beneficios),
     galeria: parseJsonArray<string>(record.galeria),
     keywords: parseJsonArray<string>(record.keywords),
+    destaques_fotos: parseJsonArray<string>(record.destaques_fotos),
   } as unknown as SiteServico
 }
 

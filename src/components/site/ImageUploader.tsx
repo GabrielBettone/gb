@@ -1,6 +1,13 @@
 import React, { useRef, useState } from 'react'
-import { Upload, X, ArrowUp, ArrowDown, Image as ImageIcon, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import {
+  Upload,
+  X,
+  ArrowUp,
+  ArrowDown,
+  Image as ImageIcon,
+  Loader2,
+  GripVertical,
+} from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import pb from '@/lib/pocketbase/client'
 import { isSelfHostedSupabase } from '@/lib/dataAdapter'
@@ -40,6 +47,23 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  // Estado para drag-and-drop de reordenação (HTML5 Drag + Pointer/Touch)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const touchDragRef = useRef<{
+    index: number
+    active: boolean
+    element: HTMLElement | null
+    startX: number
+    startY: number
+  }>({
+    index: -1,
+    active: false,
+    element: null,
+    startX: 0,
+    startY: 0,
+  })
 
   // Normalizar itens para pré-visualização
   const resolvePreviewUrl = (val: string) => {
@@ -113,6 +137,72 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     onChange(updated)
   }
 
+  const reorderItems = (fromIndex: number, toIndex: number) => {
+    if (
+      fromIndex === toIndex ||
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= values.length ||
+      toIndex >= values.length
+    ) {
+      return
+    }
+    const updated = [...values]
+    const [moved] = updated.splice(fromIndex, 1)
+    updated.splice(toIndex, 0, moved)
+    onChange(updated)
+  }
+
+  // Pointer events para suporte a toque suave no mobile
+  const handlePointerDown = (index: number, e: React.PointerEvent<HTMLElement>) => {
+    if (!multiple) return
+    const target = e.target as HTMLElement
+    // Se clicou num botão de remover/mover, não iniciar drag
+    if (target.closest('button')) return
+
+    touchDragRef.current = {
+      index,
+      active: true,
+      element: e.currentTarget,
+      startX: e.clientX,
+      startY: e.clientY,
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (!touchDragRef.current.active) return
+    const dist = Math.hypot(
+      e.clientX - touchDragRef.current.startX,
+      e.clientY - touchDragRef.current.startY,
+    )
+    if (dist > 8 && draggingIndex === null) {
+      setDraggingIndex(touchDragRef.current.index)
+    }
+
+    if (touchDragRef.current.active && draggingIndex !== null) {
+      // Descobre sobre qual elemento está passando
+      const elemBelow = document.elementFromPoint(e.clientX, e.clientY)
+      const card = elemBelow?.closest('[data-image-index]') as HTMLElement | null
+      if (card && card.dataset.imageIndex !== undefined) {
+        const targetIdx = parseInt(card.dataset.imageIndex, 10)
+        if (!isNaN(targetIdx) && targetIdx !== dragOverIndex) {
+          setDragOverIndex(targetIdx)
+        }
+      }
+    }
+  }
+
+  const handlePointerUp = () => {
+    if (touchDragRef.current.active) {
+      if (draggingIndex !== null && dragOverIndex !== null && draggingIndex !== dragOverIndex) {
+        reorderItems(draggingIndex, dragOverIndex)
+      }
+      touchDragRef.current = { index: -1, active: false, element: null, startX: 0, startY: 0 }
+      setDraggingIndex(null)
+      setDragOverIndex(null)
+    }
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -171,16 +261,59 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       {/* Grid de Pré-visualização com Reordenação e Remoção */}
       {values.length > 0 && (
         <div
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           className={`grid gap-3 pt-2 ${
             multiple ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4' : 'grid-cols-1 max-w-[280px]'
           }`}
         >
           {values.map((val, idx) => {
             const previewUrl = resolvePreviewUrl(val)
+            const isDragging = draggingIndex === idx
+            const isOver = dragOverIndex === idx && draggingIndex !== idx
+
             return (
               <div
                 key={idx}
-                className="relative group rounded-xl overflow-hidden border border-[#DEE4EA] bg-[#2C3E50]/5 shadow-xs"
+                data-image-index={idx}
+                draggable={multiple}
+                onDragStart={(e) => {
+                  if (!multiple) return
+                  setDraggingIndex(idx)
+                  e.dataTransfer.setData('text/plain', String(idx))
+                }}
+                onDragOver={(e) => {
+                  if (!multiple) return
+                  e.preventDefault()
+                  if (dragOverIndex !== idx) setDragOverIndex(idx)
+                }}
+                onDragLeave={() => {
+                  if (!multiple) return
+                  if (dragOverIndex === idx) setDragOverIndex(null)
+                }}
+                onDrop={(e) => {
+                  if (!multiple) return
+                  e.preventDefault()
+                  const from = draggingIndex ?? parseInt(e.dataTransfer.getData('text/plain'), 10)
+                  if (!isNaN(from)) {
+                    reorderItems(from, idx)
+                  }
+                  setDraggingIndex(null)
+                  setDragOverIndex(null)
+                }}
+                onDragEnd={() => {
+                  setDraggingIndex(null)
+                  setDragOverIndex(null)
+                }}
+                onPointerDown={(e) => handlePointerDown(idx, e)}
+                className={`relative group rounded-xl overflow-hidden border bg-[#2C3E50]/5 shadow-xs transition-all touch-none select-none ${
+                  isDragging ? 'opacity-40 scale-95' : 'opacity-100'
+                } ${
+                  isOver
+                    ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-102 shadow-md'
+                    : 'border-[#DEE4EA]'
+                } ${multiple ? 'cursor-grab active:cursor-grabbing' : ''}`}
               >
                 <div
                   className={`${aspectRatioClass} w-full overflow-hidden flex items-center justify-center bg-black/5`}
@@ -189,7 +322,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     <img
                       src={previewUrl}
                       alt={`Preview ${idx + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover pointer-events-none"
                       crossOrigin="anonymous"
                     />
                   ) : (
@@ -197,49 +330,63 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   )}
                 </div>
 
-                {/* Controles de exclusão e ordem no hover */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 p-1.5">
-                  {multiple && idx > 0 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleMove(idx, 'up')
-                      }}
-                      className="p-1 rounded bg-white/80 hover:bg-white text-[#2C3E50] transition-colors"
-                      title="Mover para trás"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  {multiple && idx < values.length - 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleMove(idx, 'down')
-                      }}
-                      className="p-1 rounded bg-white/80 hover:bg-white text-[#2C3E50] transition-colors"
-                      title="Mover para frente"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemove(idx)
-                    }}
-                    className="p-1 rounded bg-red-600 hover:bg-red-700 text-white transition-colors"
-                    title="Remover imagem"
+                {/* Ícone sutil de arraste visível no canto superior esquerdo para reforçar drag-and-drop */}
+                {multiple && (
+                  <div
+                    className="absolute top-1.5 left-1.5 p-1 rounded-md bg-black/60 text-white/90 shadow-xs flex items-center justify-center z-10 pointer-events-none"
+                    title="Arrastar para reordenar"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </div>
+                )}
+
+                {/* Botão de exclusão sempre acessível no mobile e no desktop */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemove(idx)
+                  }}
+                  className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-red-600/90 hover:bg-red-700 text-white shadow-sm transition-all z-20"
+                  title="Remover imagem"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Controles de ordem secundários no hover para acessibilidade desktop */}
+                {multiple && (
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-2 z-10">
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMove(idx, 'up')
+                        }}
+                        className="p-1 rounded bg-white/90 hover:bg-white text-[#2C3E50] transition-colors"
+                        title="Mover para trás"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {idx < values.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleMove(idx, 'down')
+                        }}
+                        className="p-1 rounded bg-white/90 hover:bg-white text-[#2C3E50] transition-colors"
+                        title="Mover para frente"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {multiple && (
-                  <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                  <div className="absolute bottom-1.5 left-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-10">
                     #{idx + 1}
                   </div>
                 )}
