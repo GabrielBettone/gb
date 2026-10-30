@@ -35,11 +35,30 @@ const navItems = [
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth()
   const { filtros, importModalOpen, setImportModalOpen } = useFilters()
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const salvo = localStorage.getItem('bettone_sidebar_recolhida')
+      return salvo !== null ? JSON.parse(salvo) : false
+    } catch {
+      return false
+    }
+  })
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [siteLogoUrl, setSiteLogoUrl] = useState<string | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
+
+  const handleToggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('bettone_sidebar_recolhida', JSON.stringify(next))
+      } catch (e) {
+        console.warn('Erro ao salvar estado da sidebar no localStorage:', e)
+      }
+      return next
+    })
+  }
 
   React.useEffect(() => {
     obterConfiguracoes().then((cfg) => {
@@ -131,32 +150,71 @@ export const Layout: React.FC = () => {
           collapsed ? 'w-[72px]' : 'w-[260px]'
         }`}
       >
-        {/* Topo: Logo & Marca Oficial */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[#DEE4EA]">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <LogoBettone
-              variant="icon"
-              className="w-10 h-10 flex-shrink-0"
-              customLogoUrl={siteLogoUrl}
-            />
-            {!collapsed && (
-              <div className="flex flex-col leading-none truncate">
-                <span className="font-heading font-bold text-sm text-[#2C3E50] tracking-tight">
-                  Gesso Bettone
-                </span>
-                <span className="text-[11px] text-[#616F7D] mt-0.5">Painel de Gestão</span>
+        {/* Topo: Logo & Marca Oficial com botão recolher/expandir visível em tablet e desktop */}
+        <div
+          className={`h-16 flex items-center border-b border-[#DEE4EA] transition-all duration-200 ${
+            collapsed ? 'justify-center px-2 relative' : 'justify-between px-4'
+          }`}
+        >
+          {collapsed ? (
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleToggleCollapse}
+                  className="group relative flex items-center justify-center p-1 rounded-xl hover:ring-2 hover:ring-[#2C3E50]/20 transition-all cursor-pointer focus:outline-none"
+                  aria-label="Expandir menu lateral"
+                >
+                  <LogoBettone
+                    variant="icon"
+                    className="w-10 h-10 flex-shrink-0"
+                    customLogoUrl={siteLogoUrl}
+                  />
+                  <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#2C3E50] text-[#D4AF37] flex items-center justify-center shadow-xs border border-white group-hover:scale-110 transition-transform">
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs font-medium">
+                Clique para expandir o menu
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 overflow-hidden">
+                <LogoBettone
+                  variant="icon"
+                  className="w-10 h-10 flex-shrink-0"
+                  customLogoUrl={siteLogoUrl}
+                />
+                <div className="flex flex-col leading-none truncate">
+                  <span className="font-heading font-bold text-sm text-[#2C3E50] tracking-tight">
+                    Gesso Bettone
+                  </span>
+                  <span className="text-[11px] text-[#616F7D] mt-0.5">Painel de Gestão</span>
+                </div>
               </div>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCollapsed(!collapsed)}
-            className="h-7 w-7 p-0 text-[#616F7D] hover:text-[#2C3E50] hidden lg:flex"
-            aria-label={collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleCollapse}
+                    className="h-8 w-8 p-0 text-[#616F7D] hover:text-[#2C3E50] hover:bg-[#E8EDF2] flex items-center justify-center rounded-lg transition-colors"
+                    aria-label="Recolher menu lateral"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="right"
+                  className="bg-[#2C3E50] text-white text-xs font-medium"
+                >
+                  Recolher menu (transformar em ícones)
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
         </div>
 
         {/* Menu de Navegação */}
@@ -219,23 +277,25 @@ export const Layout: React.FC = () => {
           {!collapsed ? (
             <Link
               to="/"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors"
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors"
             >
               <span>Ir para o Site Público</span>
-              <span className="text-[10px] text-[#D4AF37] font-bold">↗</span>
+              <span className="text-xs text-[#D4AF37] font-bold">↗</span>
             </Link>
           ) : (
-            <Tooltip delayDuration={100}>
+            <Tooltip delayDuration={150}>
               <TooltipTrigger asChild>
                 <Link
                   to="/"
-                  className="flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors"
+                  className="flex items-center justify-center h-10 w-10 mx-auto rounded-lg text-[#2C3E50] bg-[#E8EDF2] hover:bg-[#DEE4EA] transition-colors relative"
+                  aria-label="Ir para o Site Público"
                 >
-                  <span className="text-xs font-bold">Site</span>
+                  <Globe className="w-5 h-5 text-[#2C3E50]" />
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#D4AF37]" />
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
-                Ir para o Site Público
+                Ir para o Site Público ↗
               </TooltipContent>
             </Tooltip>
           )}
@@ -244,20 +304,41 @@ export const Layout: React.FC = () => {
         {/* Rodapé da Sidebar: Usuário logado & Logout */}
         <div className="p-3 border-t border-[#DEE4EA]">
           {collapsed ? (
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg text-[#C4453C] hover:bg-[#FBEFEE] transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
-                Sair da conta
-              </TooltipContent>
-            </Tooltip>
+            <div className="flex flex-col items-center gap-2">
+              {/* Avatar do usuário com tooltip contendo nome e email */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <div className="cursor-pointer">
+                    <Avatar className="w-9 h-9 rounded-full border border-[#DEE4EA] bg-[#f4f4f4] text-[#2C3E50]">
+                      <AvatarFallback className="text-xs font-bold text-[#2C3E50]">
+                        {getInitials(user?.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
+                  <div className="font-semibold">{user?.name || 'Administrador'}</div>
+                  <div className="text-[10px] text-slate-300">{user?.email}</div>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Botão Sair da conta acessível em modo recolhido */}
+              <Tooltip delayDuration={150}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-10 h-10 mx-auto flex items-center justify-center rounded-lg text-[#C4453C] hover:bg-[#FBEFEE] transition-colors"
+                    aria-label="Sair da conta"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-[#2C3E50] text-white text-xs">
+                  Sair da conta
+                </TooltipContent>
+              </Tooltip>
+            </div>
           ) : (
             <div className="flex items-center justify-between p-2 rounded-lg bg-[#f4f4f4] border border-[#DEE4EA]">
               <div className="flex items-center gap-2.5 overflow-hidden">
