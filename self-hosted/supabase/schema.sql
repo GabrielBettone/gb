@@ -442,6 +442,7 @@ CREATE TABLE IF NOT EXISTS public.site_services (
 -- Garante coluna categorias e backfill a partir da coluna categoria legado
 ALTER TABLE IF EXISTS public.site_settings ADD COLUMN IF NOT EXISTS google_site_verification TEXT;
 ALTER TABLE IF EXISTS public.site_services ADD COLUMN IF NOT EXISTS categorias JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE IF EXISTS public.site_services ADD COLUMN IF NOT EXISTS destaques_fotos JSONB DEFAULT '[]'::jsonb;
 UPDATE public.site_services
   SET categorias = jsonb_build_array(categoria)
   WHERE (categorias IS NULL OR categorias = '[]'::jsonb)

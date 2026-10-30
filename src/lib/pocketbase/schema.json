@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-30T14:05:41.074Z",
+  "generatedAt": "2026-10-30T14:21:31.220Z",
   "collections": [
     {
       "name": "users",
@@ -686,6 +686,12 @@
         {
           "name": "arquivos_galeria",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destaques_fotos",
+          "type": "json",
           "required": false,
           "system": false
         }
