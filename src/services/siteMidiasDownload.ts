@@ -1,309 +1,319 @@
-import pb from '@/lib/pocketbase/client'
 import { isSelfHostedSupabase, dataAdapter } from '@/lib/dataAdapter'
-import { getSupabaseConfig } from '@/lib/supabase/client'
-import { supabaseAuth } from '@/lib/supabase/auth'
+import { resolverUrlMidia } from '@/lib/watermark'
+import JSZip from 'jszip'
 
-export interface MidiaInventarioItem {
-  origem?: string
-  pasta: string
-  nome_arquivo: string
-  url: string
-  tipo?: 'arquivo_nativo' | 'url_externa'
-}
-
-export interface MidiaInventarioResponse {
+export interface MidiaDownloadProgress {
+  atual: number
   total: number
-  itens: MidiaInventarioItem[]
-  contagem?: {
-    projetos: number
-    servicos: number
-    parceiros: number
-  }
+  mensagem: string
+  pulados: number
+}
+
+export interface MidiaDownloadItem {
+  pasta: string // ex: "projetos/nome-do-projeto" ou "servicos/nome-do-servico"
+  nomeArquivo: string
+  url: string
 }
 
 /**
- * Obtém a lista completa de mídias cadastradas para o empacotamento ZIP
+ * Sanitiza o nome de pastas e arquivos para o ZIP
  */
-export async function obterInventarioMidias(): Promise<MidiaInventarioResponse> {
-  if (isSelfHostedSupabase()) {
-    const { url, publicKey } = getSupabaseConfig()
-    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
-    const functionUrl = `${url}/functions/v1/site-midias-inventario`
-
-    const res = await fetch(functionUrl, {
-      method: 'GET',
-      headers: {
-        apikey: publicKey,
-        Authorization: `Bearer ${token || publicKey}`,
-      },
-    })
-
-    if (res.ok) {
-      return res.json()
+function limparCaracteresInvalidos(str: string): string {
+  let res = ''
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i)
+    const char = str[i]
+    if (
+      code < 32 ||
+      char === '<' ||
+      char === '>' ||
+      char === ':' ||
+      char === '"' ||
+      char === '/' ||
+      char === '\\' ||
+      char === '|' ||
+      char === '?' ||
+      char === '*'
+    ) {
+      res += '_'
+    } else {
+      res += char
     }
-
-    // Fallback: se edge function não estiver disponível no Supabase, monta o inventário pelo client
-    const [servicos, portfolio, depoimentos, parceiros, settingsList] = await Promise.all([
-      dataAdapter.getFullList<any>('site_servicos'),
-      dataAdapter.getFullList<any>('site_portfolio'),
-      dataAdapter.getFullList<any>('site_depoimentos'),
-      dataAdapter.getFullList<any>('site_parceiros'),
-      dataAdapter.getFullList<any>('site_settings', { limit: 1 }),
-    ])
-
-    const itens: MidiaInventarioItem[] = []
-    const settings = settingsList?.[0]
-    if (settings?.logo_url) {
-      itens.push({
-        origem: 'Configurações',
-        pasta: 'configuracoes/logo',
-        nome_arquivo: 'logo.png',
-        url: settings.logo_url,
-      })
-    }
-
-    for (const s of servicos) {
-      const fotos: string[] = Array.isArray(s.fotos) ? s.fotos : []
-      fotos.forEach((foto, idx) => {
-        if (foto) {
-          itens.push({
-            origem: 'Serviços',
-            pasta: `servicos/${s.slug || s.id}`,
-            nome_arquivo: `foto_${idx + 1}.jpg`,
-            url: foto,
-          })
-        }
-      })
-    }
-
-    for (const p of portfolio) {
-      const fotos: string[] = Array.isArray(p.fotos) ? p.fotos : []
-      fotos.forEach((foto, idx) => {
-        if (foto) {
-          itens.push({
-            origem: 'Portfólio',
-            pasta: `portfolio/${p.id}`,
-            nome_arquivo: `projeto_${idx + 1}.jpg`,
-            url: foto,
-          })
-        }
-      })
-    }
-
-    for (const d of depoimentos) {
-      if (d.foto) {
-        itens.push({
-          origem: 'Depoimentos',
-          pasta: 'depoimentos',
-          nome_arquivo: `${d.id}_foto.jpg`,
-          url: d.foto,
-        })
-      }
-    }
-
-    for (const parc of parceiros) {
-      if (parc.foto) {
-        itens.push({
-          origem: 'Parceiros',
-          pasta: 'parceiros',
-          nome_arquivo: `${parc.slug || parc.id}.jpg`,
-          url: parc.foto,
-        })
-      }
-    }
-
-    return { total: itens.length, itens }
   }
+  return res
+}
 
-  const pbBase = pb.baseUrl || ''
-  const token = pb.authStore.token
-  const res = await fetch(`${pbBase.replace(/\/+$/, '')}/backend/v1/site/midias-inventario`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}))
-    throw new Error(errData.error || `Falha ao obter inventário (Status ${res.status})`)
-  }
-
-  return res.json()
+export function sanitizarNomePasta(nome: string): string {
+  if (!nome) return 'sem_nome'
+  const limpo = limparCaracteresInvalidos(nome.trim()).replace(/\s+/g, ' ').trim()
+  return limpo || 'item'
 }
 
 /**
- * Baixa uma imagem como Uint8Array
+ * Extrai a extensão e nome do arquivo de uma URL ou path
  */
-async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
+function extrairNomeExtensao(
+  urlOuPath: string,
+  padraoExt: string = 'jpg',
+): { nome: string; ext: string } {
   try {
-    const fullUrl = url.startsWith('http') ? url : `${(pb.baseUrl || '').replace(/\/+$/, '')}${url}`
-    const res = await fetch(fullUrl)
-    if (!res.ok) return null
-    const buffer = await res.arrayBuffer()
-    return new Uint8Array(buffer)
+    const semQuery = urlOuPath.split('?')[0].split('#')[0]
+    const partes = semQuery.split('/')
+    const ultimo = partes[partes.length - 1] || 'arquivo'
+    const pontoIdx = ultimo.lastIndexOf('.')
+    if (pontoIdx > 0 && pontoIdx < ultimo.length - 1) {
+      const nomeBase = limparCaracteresInvalidos(ultimo.substring(0, pontoIdx))
+      const ext = ultimo.substring(pontoIdx + 1).toLowerCase()
+      return { nome: nomeBase || 'arquivo', ext }
+    }
+    return {
+      nome: limparCaracteresInvalidos(ultimo) || 'arquivo',
+      ext: padraoExt,
+    }
   } catch {
+    return { nome: 'arquivo', ext: padraoExt }
+  }
+}
+
+/**
+ * Baixa um arquivo como ArrayBuffer com timeout e proteção contra CORS/falhas
+ */
+async function baixarArquivoBytes(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 20000) // 20s timeout por arquivo
+    const res = await fetch(url, {
+      signal: controller.signal,
+      mode: 'cors',
+      cache: 'no-store',
+    })
+    clearTimeout(timer)
+    if (!res.ok) return null
+    return await res.arrayBuffer()
+  } catch (err) {
+    console.warn(`[baixarArquivoBytes] Falha ao baixar ${url}:`, err)
     return null
   }
 }
 
 /**
- * Implementação pura em JS para gerar ZIP no navegador sem dependências pesadas
- * Utiliza o formato ZIP padrão PKWARE (sem compressão ou Deflate básico via CompressionStream)
+ * Coleta todas as mídias estruturadas de Projetos e Serviços
  */
-class SimpleZipBuilder {
-  private files: { path: string; data: Uint8Array; modTime: Date }[] = []
+export async function coletarTodasMidiasEstruturadas(): Promise<MidiaDownloadItem[]> {
+  const [projetos, servicos] = await Promise.all([
+    dataAdapter.getFullList<any>('site_portfolio').catch(() => []),
+    dataAdapter.getFullList<any>('site_servicos').catch(() => []),
+  ])
 
-  addFile(path: string, data: Uint8Array) {
-    this.files.push({
-      path: path.replace(/^\/+/, ''),
-      data,
-      modTime: new Date(),
-    })
+  const itens: MidiaDownloadItem[] = []
+
+  // 1. Processar Projetos
+  for (const proj of projetos) {
+    const nomeProjeto = sanitizarNomePasta(proj.titulo || proj.slug || `projeto_${proj.id}`)
+    const pasta = `projetos/${nomeProjeto}`
+    const urlsVistas = new Set<string>()
+
+    const adicionarMidia = (midiaRaw: string | undefined | null, isVideo: boolean = false) => {
+      if (!midiaRaw || typeof midiaRaw !== 'string') return
+      const trimmed = midiaRaw.trim()
+      if (!trimmed) return
+
+      let urlFinal = trimmed
+      if (proj.id) {
+        urlFinal = resolverUrlMidia('site_portfolio', proj.id, trimmed)
+      }
+
+      if (!urlFinal || urlsVistas.has(urlFinal)) return
+      urlsVistas.add(urlFinal)
+
+      const { nome, ext } = extrairNomeExtensao(trimmed, isVideo ? 'mp4' : 'jpg')
+      itens.push({
+        pasta,
+        nomeArquivo: `${nome}.${ext}`,
+        url: urlFinal,
+      })
+    }
+
+    // Capa
+    if (proj.arquivo_capa) adicionarMidia(proj.arquivo_capa)
+    if (proj.imagem_capa) adicionarMidia(proj.imagem_capa)
+
+    // Galeria
+    const galeriaArquivos = Array.isArray(proj.arquivos_galeria) ? proj.arquivos_galeria : []
+    galeriaArquivos.forEach((f: string) => adicionarMidia(f))
+
+    const galeriaLegada = Array.isArray(proj.galeria) ? proj.galeria : []
+    galeriaLegada.forEach((f: string) => adicionarMidia(f))
+
+    // Vídeos
+    const videosArquivos = Array.isArray(proj.arquivos_videos) ? proj.arquivos_videos : []
+    videosArquivos.forEach((f: string) => adicionarMidia(f, true))
+
+    const videosLegados = Array.isArray(proj.videos) ? proj.videos : []
+    videosLegados.forEach((f: string) => adicionarMidia(f, true))
   }
 
-  async buildBlob(): Promise<Blob> {
-    const parts: Uint8Array[] = []
-    const centralDirectoryHeaders: Uint8Array[] = []
-    let offset = 0
+  // 2. Processar Serviços
+  for (const serv of servicos) {
+    const nomeServico = sanitizarNomePasta(serv.nome || serv.slug || `servico_${serv.id}`)
+    const pasta = `servicos/${nomeServico}`
+    const urlsVistas = new Set<string>()
 
-    // CRC32 Table
-    const crcTable = new Uint32Array(256)
-    for (let i = 0; i < 256; i++) {
-      let c = i
-      for (let k = 0; k < 8; k++) {
-        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    const adicionarMidia = (midiaRaw: string | undefined | null, isVideo: boolean = false) => {
+      if (!midiaRaw || typeof midiaRaw !== 'string') return
+      const trimmed = midiaRaw.trim()
+      if (!trimmed) return
+
+      let urlFinal = trimmed
+      if (serv.id) {
+        urlFinal = resolverUrlMidia('site_services', serv.id, trimmed)
       }
-      crcTable[i] = c
+
+      if (!urlFinal || urlsVistas.has(urlFinal)) return
+      urlsVistas.add(urlFinal)
+
+      const { nome, ext } = extrairNomeExtensao(trimmed, isVideo ? 'mp4' : 'jpg')
+      itens.push({
+        pasta,
+        nomeArquivo: `${nome}.${ext}`,
+        url: urlFinal,
+      })
     }
 
-    const calcCrc32 = (buf: Uint8Array): number => {
-      let crc = -1
-      for (let i = 0; i < buf.length; i++) {
-        crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xff]
-      }
-      return (crc ^ -1) >>> 0
-    }
+    // Imagem principal / capa
+    if (serv.arquivo_principal) adicionarMidia(serv.arquivo_principal)
+    if (serv.imagem_principal) adicionarMidia(serv.imagem_principal)
 
-    const encoder = new TextEncoder()
+    // Galeria
+    const galeriaArquivos = Array.isArray(serv.arquivos_galeria) ? serv.arquivos_galeria : []
+    galeriaArquivos.forEach((f: string) => adicionarMidia(f))
 
-    for (const file of this.files) {
-      const fileNameBytes = encoder.encode(file.path)
-      const crc = calcCrc32(file.data)
-      const size = file.data.length
+    const galeriaLegada = Array.isArray(serv.galeria) ? serv.galeria : []
+    galeriaLegada.forEach((f: string) => adicionarMidia(f))
 
-      // Local File Header (30 bytes + filename)
-      const localHeader = new Uint8Array(30 + fileNameBytes.length)
-      const dvLocal = new DataView(localHeader.buffer)
-      dvLocal.setUint32(0, 0x04034b50, true) // Local file header signature
-      dvLocal.setUint16(4, 20, true) // Version needed (2.0)
-      dvLocal.setUint16(6, 0x0800, true) // Flags (UTF-8)
-      dvLocal.setUint16(8, 0, true) // Compression method: 0 = Store (sem compressão - preserva imagens já comprimidas)
-      dvLocal.setUint16(10, 0, true) // Mod time
-      dvLocal.setUint16(12, 0, true) // Mod date
-      dvLocal.setUint32(14, crc, true)
-      dvLocal.setUint32(18, size, true) // Compressed size
-      dvLocal.setUint32(22, size, true) // Uncompressed size
-      dvLocal.setUint16(26, fileNameBytes.length, true)
-      dvLocal.setUint16(28, 0, true) // Extra field length
-      localHeader.set(fileNameBytes, 30)
+    // Vídeos
+    const videosArquivos = Array.isArray(serv.arquivos_videos) ? serv.arquivos_videos : []
+    videosArquivos.forEach((f: string) => adicionarMidia(f, true))
 
-      parts.push(localHeader)
-      parts.push(file.data)
-
-      // Central Directory Header (46 bytes + filename)
-      const cdHeader = new Uint8Array(46 + fileNameBytes.length)
-      const dvCd = new DataView(cdHeader.buffer)
-      dvCd.setUint32(0, 0x02014b50, true) // Central directory header signature
-      dvCd.setUint16(4, 20, true) // Version made by
-      dvCd.setUint16(6, 20, true) // Version needed
-      dvCd.setUint16(8, 0x0800, true) // Flags UTF-8
-      dvCd.setUint16(10, 0, true) // Compression 0 (Store)
-      dvCd.setUint16(12, 0, true)
-      dvCd.setUint16(14, 0, true)
-      dvCd.setUint32(16, crc, true)
-      dvCd.setUint32(20, size, true)
-      dvCd.setUint32(24, size, true)
-      dvCd.setUint16(28, fileNameBytes.length, true)
-      dvCd.setUint16(30, 0, true) // Extra len
-      dvCd.setUint16(32, 0, true) // Comment len
-      dvCd.setUint16(34, 0, true) // Disk num
-      dvCd.setUint16(36, 0, true) // Internal attrs
-      dvCd.setUint32(38, 0, true) // External attrs
-      dvCd.setUint32(42, offset, true) // Relative offset of local header
-      cdHeader.set(fileNameBytes, 46)
-
-      centralDirectoryHeaders.push(cdHeader)
-
-      offset += localHeader.length + file.data.length
-    }
-
-    const cdOffset = offset
-    let cdSize = 0
-    for (const h of centralDirectoryHeaders) {
-      parts.push(h)
-      cdSize += h.length
-    }
-
-    // End of Central Directory Record (22 bytes)
-    const eocd = new Uint8Array(22)
-    const dvEocd = new DataView(eocd.buffer)
-    dvEocd.setUint32(0, 0x06054b50, true) // EOCD signature
-    dvEocd.setUint16(4, 0, true) // Disk number
-    dvEocd.setUint16(6, 0, true) // Start disk
-    dvEocd.setUint16(8, this.files.length, true) // Records on this disk
-    dvEocd.setUint16(10, this.files.length, true) // Total records
-    dvEocd.setUint32(12, cdSize, true) // Size of central directory
-    dvEocd.setUint32(16, cdOffset, true) // Offset of central directory
-    dvEocd.setUint16(20, 0, true) // Comment length
-
-    parts.push(eocd)
-
-    return new Blob(parts as unknown as BlobPart[], { type: 'application/zip' })
+    const videosLegados = Array.isArray(serv.videos) ? serv.videos : []
+    videosLegados.forEach((f: string) => adicionarMidia(f, true))
   }
+
+  return itens
 }
 
 /**
- * Função principal que processa e dispara o download do ZIP completo com feedback de progresso
+ * Função principal que processa e dispara o download do ZIP estruturado:
+ * /projetos/<nome-do-projeto>/<arquivos>
+ * /servicos/<nome-do-servico>/<arquivos>
  */
 export async function baixarTodasMidiasZip(
-  onProgress?: (progresso: { atual: number; total: number; mensagem: string }) => void,
-): Promise<void> {
-  onProgress?.({ atual: 0, total: 100, mensagem: 'Consultando inventário de mídias...' })
-  const inventario = await obterInventarioMidias()
+  onProgress?: (progresso: MidiaDownloadProgress) => void,
+): Promise<{ total: number; baixados: number; pulados: number }> {
+  onProgress?.({
+    atual: 0,
+    total: 100,
+    mensagem: 'Localizando projetos, serviços e suas mídias...',
+    pulados: 0,
+  })
 
-  if (!inventario.itens || inventario.itens.length === 0) {
-    throw new Error('Nenhuma mídia encontrada no banco de dados para download.')
+  const itens = await coletarTodasMidiasEstruturadas()
+
+  if (!itens || itens.length === 0) {
+    throw new Error('Nenhuma mídia de projetos ou serviços foi encontrada para download.')
   }
 
-  const zip = new SimpleZipBuilder()
-  const total = inventario.itens.length
+  const zip = new JSZip()
+  const total = itens.length
+  let baixados = 0
+  let pulados = 0
+
+  // Controle de nomes colidentes na mesma pasta
+  const nomesPorPasta = new Map<string, Set<string>>()
 
   for (let i = 0; i < total; i++) {
-    const item = inventario.itens[i]
+    const item = itens[i]
     onProgress?.({
       atual: i + 1,
       total,
-      mensagem: `Baixando [${i + 1}/${total}]: ${item.pasta}/${item.nome_arquivo}...`,
+      mensagem: `Baixando [${i + 1}/${total}]: ${item.pasta}/${item.nomeArquivo}...`,
+      pulados,
     })
 
-    const bytes = await fetchImageBytes(item.url)
-    if (bytes) {
-      const caminhoCompleto = `${item.pasta}/${item.nome_arquivo}`
-      zip.addFile(caminhoCompleto, bytes)
+    const bytes = await baixarArquivoBytes(item.url)
+
+    if (!bytes) {
+      pulados++
+      console.warn(`[ZIP] Arquivo não acessível ou ignorado: ${item.pasta}/${item.nomeArquivo}`)
+      continue
     }
+
+    // Resolver colisão de nomes na mesma subpasta
+    let pastaSet = nomesPorPasta.get(item.pasta)
+    if (!pastaSet) {
+      pastaSet = new Set<string>()
+      nomesPorPasta.set(item.pasta, pastaSet)
+    }
+
+    let nomeFinal = item.nomeArquivo
+    if (pastaSet.has(nomeFinal.toLowerCase())) {
+      const pontoIdx = nomeFinal.lastIndexOf('.')
+      const nomeBase = pontoIdx > 0 ? nomeFinal.substring(0, pontoIdx) : nomeFinal
+      const ext = pontoIdx > 0 ? nomeFinal.substring(pontoIdx) : ''
+      let contador = 2
+      while (pastaSet.has(`${nomeBase}_${contador}${ext}`.toLowerCase())) {
+        contador++
+      }
+      nomeFinal = `${nomeBase}_${contador}${ext}`
+    }
+    pastaSet.add(nomeFinal.toLowerCase())
+
+    const caminhoZip = `${item.pasta}/${nomeFinal}`
+    zip.file(caminhoZip, bytes)
+    baixados++
   }
 
-  onProgress?.({ atual: total, total, mensagem: 'Empacotando arquivo ZIP final...' })
-  const blobZip = await zip.buildBlob()
+  if (baixados === 0) {
+    throw new Error('Nenhum arquivo pôde ser baixado com sucesso das URLs públicas.')
+  }
+
+  onProgress?.({
+    atual: total,
+    total,
+    mensagem: 'Compactando pastas em arquivo ZIP...',
+    pulados,
+  })
+
+  const blobZip = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  })
 
   // Disparar download no navegador
   const urlBlob = URL.createObjectURL(blobZip)
   const a = document.createElement('a')
   const dataHoje = new Date().toISOString().substring(0, 10)
   a.href = urlBlob
-  a.download = `Gesso_Bettone_Midias_Originais_${dataHoje}.zip`
+  a.download = `Gesso_Bettone_Midias_Projetos_Servicos_${dataHoje}.zip`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(urlBlob)
+
+  return { total, baixados, pulados }
+}
+
+// Mantém export legado para compatibilidade se algum ponto ainda chamar
+export async function obterInventarioMidias() {
+  const itens = await coletarTodasMidiasEstruturadas()
+  return {
+    total: itens.length,
+    itens: itens.map((it) => ({
+      origem: it.pasta.startsWith('projetos') ? 'Portfólio' : 'Serviços',
+      pasta: it.pasta,
+      nome_arquivo: it.nomeArquivo,
+      url: it.url,
+    })),
+  }
 }

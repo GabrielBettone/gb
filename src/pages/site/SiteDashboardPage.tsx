@@ -83,7 +83,7 @@ export const SiteDashboardPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Botão Baixar Mídias */}
+            {/* Botão Baixar Todas as Mídias */}
             <Button
               type="button"
               disabled={downloadingZip}
@@ -91,21 +91,25 @@ export const SiteDashboardPage: React.FC = () => {
                 setDownloadingZip(true)
                 try {
                   toast({
-                    title: 'Iniciando download das mídias originais',
+                    title: 'Preparando download...',
                     description:
-                      'Empacotando pastas de Projetos, Serviços e Parceiros sem marca d água...',
+                      'Localizando mídias de projetos e serviços para estruturação das pastas no ZIP.',
                   })
-                  await baixarTodasMidiasZip((prog) => {
+                  const resultado = await baixarTodasMidiasZip((prog) => {
                     setProgressoZip(prog)
                   })
+                  const msgSucesso =
+                    resultado.pulados > 0
+                      ? `Download concluído com ${resultado.baixados} arquivos. (${resultado.pulados} não puderam ser acessados e foram ignorados)`
+                      : `Download concluído com sucesso! ${resultado.baixados} arquivos organizados em /projetos e /servicos.`
                   toast({
-                    title: 'Download concluído com sucesso!',
-                    description: 'O arquivo ZIP com todas as mídias originais foi gerado.',
+                    title: 'Download concluído!',
+                    description: msgSucesso,
                   })
                 } catch (err: any) {
                   toast({
                     title: 'Erro ao baixar mídias',
-                    description: err.message || 'Verifique sua conexão.',
+                    description: err.message || 'Verifique sua conexão com o servidor.',
                     variant: 'destructive',
                   })
                 } finally {
@@ -119,13 +123,13 @@ export const SiteDashboardPage: React.FC = () => {
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" />
                   <span>
-                    Baixando ({progressoZip?.atual || 0}/{progressoZip?.total || '...'})
+                    Preparando download ({progressoZip?.atual || 0}/{progressoZip?.total || '...'})
                   </span>
                 </>
               ) : (
                 <>
                   <Download className="w-4 h-4 text-[#D4AF37]" />
-                  <span>Baixar Mídias (ZIP)</span>
+                  <span>Baixar todas as mídias</span>
                 </>
               )}
             </Button>

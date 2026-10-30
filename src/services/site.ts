@@ -1038,10 +1038,12 @@ export async function criarProjeto(
       formData.append('arquivo_capa', arquivos.arquivo_capa)
     }
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+      // No PocketBase, usar a chave 'arquivos_galeria+' para somar (merge) sem sobrescrever os existentes
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria+', f))
     }
     if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
-      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
+      // No PocketBase, usar a chave 'arquivos_videos+' para somar (merge) sem sobrescrever os existentes
+      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos+', f))
     }
     const record = await dataAdapter.upload<any>('site_portfolio', formData)
     return {
@@ -1102,9 +1104,13 @@ export async function atualizarProjeto(
     }
 
     if (arquivos?.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      const currentArquivos = Array.isArray(payload.arquivos_galeria)
-        ? [...payload.arquivos_galeria]
-        : []
+      let currentArquivos: string[] = []
+      if (Array.isArray(payload.arquivos_galeria)) {
+        currentArquivos = [...payload.arquivos_galeria]
+      } else {
+        const projetoAtual = await obterProjetoPorId(id)
+        currentArquivos = projetoAtual?.arquivos_galeria ? [...projetoAtual.arquivos_galeria] : []
+      }
       const currentGaleria = Array.isArray(payload.galeria) ? [...payload.galeria] : []
       const galeriaUrls: string[] = currentGaleria
       const galeriaPaths: string[] = currentArquivos
@@ -1128,12 +1134,18 @@ export async function atualizarProjeto(
     }
 
     if (arquivos?.arquivos_videos && arquivos.arquivos_videos.length > 0) {
-      const currentArquivos = Array.isArray(payload.arquivos_videos)
-        ? [...payload.arquivos_videos]
-        : []
+      let currentVideosArquivos: string[] = []
+      if (Array.isArray(payload.arquivos_videos)) {
+        currentVideosArquivos = [...payload.arquivos_videos]
+      } else {
+        const projetoAtual = await obterProjetoPorId(id)
+        currentVideosArquivos = projetoAtual?.arquivos_videos
+          ? [...projetoAtual.arquivos_videos]
+          : []
+      }
       const currentVideos = Array.isArray(payload.videos) ? [...payload.videos] : []
       const videosUrls: string[] = currentVideos
-      const videosPaths: string[] = currentArquivos
+      const videosPaths: string[] = currentVideosArquivos
       for (let i = 0; i < arquivos.arquivos_videos.length; i++) {
         const file = arquivos.arquivos_videos[i]
         const ext = file.name.split('.').pop() || 'mp4'
@@ -1182,10 +1194,12 @@ export async function atualizarProjeto(
       formData.append('arquivo_capa', arquivos.arquivo_capa)
     }
     if (arquivos.arquivos_galeria && arquivos.arquivos_galeria.length > 0) {
-      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria', f))
+      // No PocketBase, usar a chave 'arquivos_galeria+' para somar (merge) sem sobrescrever os existentes
+      arquivos.arquivos_galeria.forEach((f) => formData.append('arquivos_galeria+', f))
     }
     if (arquivos.arquivos_videos && arquivos.arquivos_videos.length > 0) {
-      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos', f))
+      // No PocketBase, usar a chave 'arquivos_videos+' para somar (merge) sem sobrescrever os existentes
+      arquivos.arquivos_videos.forEach((f) => formData.append('arquivos_videos+', f))
     }
     const record = await dataAdapter.upload<any>('site_portfolio', formData, id)
     return {

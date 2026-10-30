@@ -223,7 +223,26 @@ export const SitePortfolioPage: React.FC = () => {
       .map((l) => l.trim())
       .filter(Boolean)
 
-    const totalFotos = Math.max(1, imagensGaleriaList.length + arquivosGaleriaFiles.length)
+    // Preservar fotos já existentes na edição do portfólio
+    let galeriaBase = galeria
+    let arquivosGaleriaBase = editando?.arquivos_galeria ? [...editando.arquivos_galeria] : []
+
+    if (editando) {
+      // Garantir que as imagens atuais que não são blobs continuem na lista
+      const existentesValidas = (editando.galeria || []).filter(
+        (u) => !u.startsWith('blob:') && (u.startsWith('http') || !u.includes('/')),
+      )
+      const mescladas = [...existentesValidas]
+      galeria.forEach((g) => {
+        if (!mescladas.includes(g)) mescladas.push(g)
+      })
+      galeriaBase = mescladas
+    }
+
+    const totalFotos = Math.max(
+      1,
+      galeriaBase.length + arquivosGaleriaFiles.length + arquivosGaleriaBase.length,
+    )
 
     const finalCategorias =
       categoriasSelecionadas.length > 0 ? categoriasSelecionadas : [categoria || 'Residencial']
@@ -237,7 +256,8 @@ export const SitePortfolioPage: React.FC = () => {
       cidade,
       descricao,
       imagem_capa: imagemCapa.startsWith('blob:') ? '' : imagemCapa,
-      galeria,
+      galeria: galeriaBase,
+      arquivos_galeria: editando ? arquivosGaleriaBase : undefined,
       fotos_count: totalFotos,
       detalhes_tecnicos: detalhesTecnicos,
       destaque,

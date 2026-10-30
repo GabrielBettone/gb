@@ -26,6 +26,7 @@ import {
   Maximize2,
   ShieldCheck,
 } from 'lucide-react'
+import { FormattedListRenderer } from '@/components/site/FormattedListRenderer'
 
 // Error Boundary LOCAL exclusivo para a página de detalhes de serviço
 interface ServicoBoundaryProps {
@@ -744,41 +745,26 @@ const ServicoDetailPageInner: React.FC = () => {
                 <ShieldCheck className="w-5 h-5 text-[#2C3E50]" />
                 Por que escolher a Gesso Bettone para este serviço:
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
                 {servico?.beneficios && servico.beneficios.length > 0 ? (
-                  servico.beneficios.map((ben, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">{ben}</span>
-                    </div>
-                  ))
+                  <FormattedListRenderer
+                    linhas={servico.beneficios}
+                    bulletIcon={<CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />}
+                    textColor="#2C3E50"
+                    className="text-xs sm:text-sm"
+                  />
                 ) : (
-                  <>
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
-                        Mais de 30 anos de precisão e alto padrão em acabamentos
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
-                        Materiais certificados e isolamento termoacústico superior
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
-                        Execução limpa, rápida e alinhamento milimétrico
-                      </span>
-                    </div>
-                    <div className="flex items-start gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                      <span className="text-xs sm:text-sm text-[#2C3E50] leading-snug">
-                        Atendimento com visita técnica e orçamento transparente
-                      </span>
-                    </div>
-                  </>
+                  <FormattedListRenderer
+                    linhas={[
+                      '* Mais de 30 anos de precisão e alto padrão em acabamentos',
+                      '* Materiais certificados e isolamento termoacústico superior',
+                      '* Execução limpa, rápida e alinhamento milimétrico',
+                      '* Atendimento com visita técnica e orçamento transparente',
+                    ]}
+                    bulletIcon={<CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />}
+                    textColor="#2C3E50"
+                    className="text-xs sm:text-sm"
+                  />
                 )}
               </div>
             </div>

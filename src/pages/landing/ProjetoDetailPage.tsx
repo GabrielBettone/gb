@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import WatermarkedImage from '@/components/landing/WatermarkedImage'
 import { resolverUrlMidia } from '@/lib/watermark'
+import { FormattedListRenderer } from '@/components/site/FormattedListRenderer'
 import {
   MessageCircle,
   ArrowLeft,
@@ -695,29 +696,23 @@ export const ProjetoDetailPage: React.FC = () => {
                       : 'ESTRUTURAÇÃO & ACABAMENTO'}
                   </span>
 
-                  <div className="space-y-1.5 text-xs text-[#616F7D] leading-relaxed">
+                  <div className="text-xs text-[#616F7D] leading-relaxed">
                     {projeto.detalhesTecnicos && projeto.detalhesTecnicos.length > 0 ? (
-                      projeto.detalhesTecnicos.map((det: string, i: number) => (
-                        <p key={i} className="flex items-start gap-1.5">
-                          <span className="text-[#D4AF37] font-bold">•</span>
-                          <span>{det}</span>
-                        </p>
-                      ))
+                      <FormattedListRenderer
+                        linhas={projeto.detalhesTecnicos}
+                        bulletColor="#D4AF37"
+                        textColor="#616F7D"
+                      />
                     ) : (
-                      <>
-                        <p className="flex items-start gap-1.5">
-                          <span className="text-[#D4AF37] font-bold">•</span>
-                          <span>Paredes de fechamento e divisão da sala em drywall</span>
-                        </p>
-                        <p className="flex items-start gap-1.5">
-                          <span className="text-[#D4AF37] font-bold">•</span>
-                          <span>Uso de elemento isolante termoacústico lã de pet</span>
-                        </p>
-                        <p className="flex items-start gap-1.5">
-                          <span className="text-[#D4AF37] font-bold">•</span>
-                          <span>Uso de elemento banda acústica nas extremidades da parede</span>
-                        </p>
-                      </>
+                      <FormattedListRenderer
+                        linhas={[
+                          '* Paredes de fechamento e divisão da sala em drywall',
+                          '* Uso de elemento isolante termoacústico lã de pet',
+                          '* Uso de elemento banda acústica nas extremidades da parede',
+                        ]}
+                        bulletColor="#D4AF37"
+                        textColor="#616F7D"
+                      />
                     )}
                   </div>
                 </div>
