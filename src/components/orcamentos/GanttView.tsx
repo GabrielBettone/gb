@@ -73,21 +73,64 @@ export const GanttView: React.FC<GanttViewProps> = ({
   exibirSemData = false,
 }) => {
   // Configuração de zoom / pixels por dia
-  const [pixelsPorDia, setPixelsPorDia] = useState<number>(44) // 32 = compacto, 44 = padrão, 60 = expandido
+  const [pixelsPorDia, setPixelsPorDia] = useState<number>(44) // 30 = compacto, 44 = padrão, 68 = expandido
   const [offsetDias, setOffsetDias] = useState<number>(0) // Navegação no tempo
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [colunaRecolhida, setColunaRecolhida] = useState<boolean>(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState<number>(0)
+
+  // Mede continuamente a largura útil disponível do contêiner com ResizeObserver
+  // para que o Gantt reaja instantaneamente ao recolher/expandir o menu lateral ou redimensionar a janela
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const updateWidth = () => {
+      const w = el.clientWidth
+      if (w > 0) {
+        setContainerWidth(w)
+      }
+    }
+
+    updateWidth()
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const w = entry.contentRect.width
+          if (w > 0) {
+            setContainerWidth(w)
+          }
+        }
+      })
+      observer.observe(el)
+      return () => observer.disconnect()
+    } else {
+      window.addEventListener('resize', updateWidth)
+      return () => window.removeEventListener('resize', updateWidth)
+    }
+  }, [])
+
+  // Largura da coluna esquerda: recolhível para liberar espaço
+  const COL_INFO_WIDTH = colunaRecolhida ? 140 : 260
 
   // Determina o intervalo do calendário do Gantt
-  // Centraliza próximo do momento atual com margens para o passado e futuro
+  // Garante que o número de dias visíveis preencha SEMPRE 100% da largura útil disponível do contêiner,
+  // sem deixar faixa vazia à direita quando o menu lateral ou a janela se expandem.
   const { dataInicioTimeline, totalDias, diasTimeline } = useMemo(() => {
     const hoje = new Date()
     // Inicia 10 dias antes de hoje (ajustado por offsetDias)
     const base = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 10 + offsetDias)
     base.setHours(0, 0, 0, 0)
 
-    const numDias = 45 // exibe 45 dias na linha do tempo
+    // Espaço útil restante no contêiner para a timeline
+    const larguraDisponivelTimeline = Math.max(0, containerWidth - COL_INFO_WIDTH)
+    const diasNecessariosParaPreencher = Math.ceil(larguraDisponivelTimeline / pixelsPorDia)
+
+    // Exibe no mínimo 45 dias para rolagem agradável, ou mais se a largura do contêiner exigir
+    // + 5 dias extras de margem à direita para que o scroll nunca bata em seco
+    const numDias = Math.max(45, diasNecessariosParaPreencher + 5)
     const dias: Date[] = []
     for (let i = 0; i < numDias; i++) {
       const d = new Date(base.getTime() + i * DIA_MS)
@@ -99,7 +142,7 @@ export const GanttView: React.FC<GanttViewProps> = ({
       totalDias: numDias,
       diasTimeline: dias,
     }
-  }, [offsetDias])
+  }, [offsetDias, containerWidth, COL_INFO_WIDTH, pixelsPorDia])
 
   // Identifica a data atual para linha vermelha "Hoje"
   const hoje = useMemo(() => {
@@ -375,11 +418,10 @@ export const GanttView: React.FC<GanttViewProps> = ({
     }
   }
 
-  // Largura da coluna esquerda: recolhível para liberar até +180px para o cronograma
-  // Em modo recolhido mostra ORC + status + cliente compacto
-  const COL_INFO_WIDTH = colunaRecolhida ? 140 : 260
+  // Largura calculada da timeline e do Gantt
+  // Garante que totalGanttWidth seja pelo menos containerWidth e pelo menos 960px
   const timelineWidth = totalDias * pixelsPorDia
-  const totalGanttWidth = COL_INFO_WIDTH + timelineWidth
+  const totalGanttWidth = Math.max(containerWidth, COL_INFO_WIDTH + timelineWidth)
 
   // Centraliza o scroll no "Hoje" ao inicializar ou mudar offset
   useEffect(() => {
@@ -519,11 +561,11 @@ export const GanttView: React.FC<GanttViewProps> = ({
       {/* ÁREA PRINCIPAL DO GANTT COM SCROLL HORIZONTAL COMPLETO (TOUCH + MOUSE) */}
       <div
         ref={containerRef}
-        className="overflow-x-auto overflow-y-auto max-h-[640px] touch-pan-x touch-pan-y overscroll-x-contain"
+        className="w-full overflow-x-auto overflow-y-auto max-h-[640px] touch-pan-x touch-pan-y overscroll-x-contain"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div
-          className="relative min-w-[960px]"
+          className="relative w-full"
           style={{
             width: `${totalGanttWidth}px`,
             minWidth: `${Math.max(960, totalGanttWidth)}px`,

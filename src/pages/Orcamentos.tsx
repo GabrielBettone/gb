@@ -521,7 +521,11 @@ export const Orcamentos: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 w-full space-y-6">
+      <div
+        className={`mx-auto px-4 sm:px-6 py-6 w-full space-y-6 transition-all duration-200 ${
+          abaAtiva === 'funil' && viewMode === 'gantt' ? 'max-w-none' : 'max-w-[1440px]'
+        }`}
+      >
         {/* CABEÇALHO DO MÓDULO */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
