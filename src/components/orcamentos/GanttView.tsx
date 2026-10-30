@@ -15,14 +15,34 @@ import {
   ZoomOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Maximize2,
+  Minimize2,
+  ArrowDownUp,
+  X,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface GanttViewProps {
   orcamentos: Orcamento[]
   onAtualizarDatas: (id: string, novaDataInicio: string, novaDataFim: string) => void
   onAbrirDetalhes: (orcamento: Orcamento) => void
   exibirSemData?: boolean
+  // Modo tela cheia
+  isFullScreen?: boolean
+  onToggleFullScreen?: () => void
+  // Filtros/controles repassados para a barra de tela cheia
+  filtroEtapasSlot?: React.ReactNode
+  toggleSemDataSlot?: React.ReactNode
+  buscaSlot?: React.ReactNode
 }
+
+export type GanttSortOption = 'padrao' | 'etapa' | 'data_inicio'
 
 type DragMode = 'move' | 'resize-left' | 'resize-right' | null
 
@@ -71,6 +91,11 @@ export const GanttView: React.FC<GanttViewProps> = ({
   onAtualizarDatas,
   onAbrirDetalhes,
   exibirSemData = false,
+  isFullScreen = false,
+  onToggleFullScreen,
+  filtroEtapasSlot,
+  toggleSemDataSlot,
+  buscaSlot,
 }) => {
   // Configuração de zoom / pixels por dia
   const [pixelsPorDia, setPixelsPorDia] = useState<number>(44) // 30 = compacto, 44 = padrão, 68 = expandido
@@ -79,6 +104,28 @@ export const GanttView: React.FC<GanttViewProps> = ({
   const [colunaRecolhida, setColunaRecolhida] = useState<boolean>(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState<number>(0)
+
+  // Opção de ordenação customizável persistida em localStorage
+  const [sortOption, setSortOption] = useState<GanttSortOption>(() => {
+    try {
+      const saved = localStorage.getItem('bettone_gantt_sort_option')
+      if (saved === 'etapa' || saved === 'data_inicio' || saved === 'padrao') {
+        return saved
+      }
+    } catch {
+      // ignore
+    }
+    return 'padrao'
+  })
+
+  const handleChangeSort = (option: GanttSortOption) => {
+    setSortOption(option)
+    try {
+      localStorage.setItem('bettone_gantt_sort_option', option)
+    } catch (e) {
+      console.warn('Erro ao salvar ordenação no localStorage:', e)
+    }
+  }
 
   // Mede continuamente a largura útil disponível do contêiner com ResizeObserver
   // para que o Gantt reaja instantaneamente ao recolher/expandir o menu lateral ou redimensionar a janela
@@ -166,76 +213,114 @@ export const GanttView: React.FC<GanttViewProps> = ({
     return Math.round((dNormalizada.getTime() - inicioNormalizado.getTime()) / DIA_MS)
   }
 
+  // Mapeamento dos pesos da ordem das etapas do funil para ordenação Odoo:
+  // "Orçamento a realizar" → "Aguardando aprovação" → "Aprovado" → "Iniciado" → "Finalizado/Concluído"
+  const getEtapaWeight = useCallback((status: string): number => {
+    const s = (status || '').toLowerCase().trim()
+    if (s.includes('realizar') || s.includes('a fazer')) return 1
+    if (s.includes('aguardando')) return 2
+    if (s.includes('aprovad')) return 3
+    if (s.includes('iniciad') || s.includes('andamento')) return 4
+    if (s.includes('concluid') || s.includes('finalizad')) return 5
+    return 99
+  }, [])
+
   // Prepara orçamentos para o Gantt — filtra itens sem data se exibirSemData estiver desmarcado
+  // e aplica a ordenação selecionada pelo usuário
   const itensGantt = useMemo(() => {
-    return orcamentos
-      .filter((orc) => {
-        if (!exibirSemData) {
-          const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
-          const parsedFim = parseDataGantt(orc.data_fim_prevista)
-          return Boolean(parsedInicio || parsedFim)
-        }
-        return true
-      })
-      .map((orc) => {
+    const filtrados = orcamentos.filter((orc) => {
+      if (!exibirSemData) {
         const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
         const parsedFim = parseDataGantt(orc.data_fim_prevista)
-        const temData = Boolean(parsedInicio || parsedFim)
+        return Boolean(parsedInicio || parsedFim)
+      }
+      return true
+    })
 
-        let dInicio: Date
-        let dFim: Date
+    const ordenados = [...filtrados].sort((a, b) => {
+      if (sortOption === 'etapa') {
+        // 1. Ordem do funil (peso)
+        const pesoA = getEtapaWeight(a.status)
+        const pesoB = getEtapaWeight(b.status)
+        if (pesoA !== pesoB) return pesoA - pesoB
 
-        if (parsedInicio && parsedFim) {
-          dInicio = parsedInicio
-          dFim = parsedFim >= parsedInicio ? parsedFim : parsedInicio
-        } else if (parsedInicio) {
-          dInicio = parsedInicio
-          dFim = parsedInicio
-        } else if (parsedFim) {
-          dInicio = parsedFim
-          dFim = parsedFim
-        } else {
-          // Sem datas: usa placeholder apenas se vier a ser arrastado
-          dInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
-          dFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
-        }
+        // 2. Dentro de cada etapa: data de início (mais antigo primeiro)
+        const inicioA = parseDataGantt(a.data_inicio_prevista)?.getTime() || Number.MAX_SAFE_INTEGER
+        const inicioB = parseDataGantt(b.data_inicio_prevista)?.getTime() || Number.MAX_SAFE_INTEGER
+        if (inicioA !== inicioB) return inicioA - inicioB
 
-        // Se este item estiver em drag ativo, usa as datas atuais do drag
-        if (dragState && dragState.orcamentoId === orc.id && dragState.hasMoved) {
-          dInicio = new Date(dragState.currentInicioMs)
-          dFim = new Date(dragState.currentFimMs)
-        }
+        // Desempate por número
+        return (a.numero || '').localeCompare(b.numero || '')
+      }
 
-        const duracaoDias = temData
-          ? Math.max(
-              1,
-              Math.round(
-                (new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate()).getTime() -
-                  new Date(
-                    dInicio.getFullYear(),
-                    dInicio.getMonth(),
-                    dInicio.getDate(),
-                  ).getTime()) /
-                  DIA_MS,
-              ) + 1,
-            )
-          : 0
+      if (sortOption === 'data_inicio') {
+        // Data de início (mais antigo primeiro; sem data vai para o final)
+        const inicioA = parseDataGantt(a.data_inicio_prevista)?.getTime() || Number.MAX_SAFE_INTEGER
+        const inicioB = parseDataGantt(b.data_inicio_prevista)?.getTime() || Number.MAX_SAFE_INTEGER
+        if (inicioA !== inicioB) return inicioA - inicioB
 
-        const prodNome =
-          orc.expand?.produto_principal?.nome ||
-          parseItens(orc.itens)[0]?.descricao ||
-          'Serviço Sob Medida'
+        return (a.numero || '').localeCompare(b.numero || '')
+      }
 
-        return {
-          orcamento: orc,
-          temData,
-          dInicio,
-          dFim,
-          duracaoDias,
-          prodNome,
-        }
-      })
-  }, [orcamentos, hoje, dragState, exibirSemData])
+      // 'padrao' mantém a ordem vinda da lista original
+      return 0
+    })
+
+    return ordenados.map((orc) => {
+      const parsedInicio = parseDataGantt(orc.data_inicio_prevista)
+      const parsedFim = parseDataGantt(orc.data_fim_prevista)
+      const temData = Boolean(parsedInicio || parsedFim)
+
+      let dInicio: Date
+      let dFim: Date
+
+      if (parsedInicio && parsedFim) {
+        dInicio = parsedInicio
+        dFim = parsedFim >= parsedInicio ? parsedFim : parsedInicio
+      } else if (parsedInicio) {
+        dInicio = parsedInicio
+        dFim = parsedInicio
+      } else if (parsedFim) {
+        dInicio = parsedFim
+        dFim = parsedFim
+      } else {
+        // Sem datas: usa placeholder apenas se vier a ser arrastado
+        dInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
+        dFim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1, 12, 0, 0, 0)
+      }
+
+      // Se este item estiver em drag ativo, usa as datas atuais do drag
+      if (dragState && dragState.orcamentoId === orc.id && dragState.hasMoved) {
+        dInicio = new Date(dragState.currentInicioMs)
+        dFim = new Date(dragState.currentFimMs)
+      }
+
+      const duracaoDias = temData
+        ? Math.max(
+            1,
+            Math.round(
+              (new Date(dFim.getFullYear(), dFim.getMonth(), dFim.getDate()).getTime() -
+                new Date(dInicio.getFullYear(), dInicio.getMonth(), dInicio.getDate()).getTime()) /
+                DIA_MS,
+            ) + 1,
+          )
+        : 0
+
+      const prodNome =
+        orc.expand?.produto_principal?.nome ||
+        parseItens(orc.itens)[0]?.descricao ||
+        'Serviço Sob Medida'
+
+      return {
+        orcamento: orc,
+        temData,
+        dInicio,
+        dFim,
+        duracaoDias,
+        prodNome,
+      }
+    })
+  }, [orcamentos, hoje, dragState, exibirSemData, sortOption, getEtapaWeight])
 
   // Drag handlers compatíveis com Mouse e Touch (mobile + desktop)
   const handleStartDrag = (
@@ -423,59 +508,122 @@ export const GanttView: React.FC<GanttViewProps> = ({
   const timelineWidth = totalDias * pixelsPorDia
   const totalGanttWidth = Math.max(containerWidth, COL_INFO_WIDTH + timelineWidth)
 
-  // Centraliza o scroll no "Hoje" ao inicializar ou mudar offset
-  useEffect(() => {
+  // Centraliza o scroll no "Hoje" ao inicializar, mudar offset ou alternar tela cheia
+  const rolarParaHoje = useCallback(() => {
     if (!containerRef.current) return
     const diasHoje = diasDesdeInicio(hoje)
     if (diasHoje >= 0 && diasHoje < totalDias) {
-      // Posiciona o 'hoje' a cerca de 1/3 da largura visível
-      const targetLeft = diasHoje * pixelsPorDia - 100
+      const targetLeft = diasHoje * pixelsPorDia - 120
       containerRef.current.scrollTo({
         left: Math.max(0, targetLeft),
         behavior: 'smooth',
       })
     }
-  }, [offsetDias])
+  }, [diasDesdeInicio, hoje, totalDias, pixelsPorDia])
+
+  useEffect(() => {
+    rolarParaHoje()
+  }, [offsetDias, isFullScreen, rolarParaHoje])
+
+  // Suporte a tecla ESC para sair da tela cheia sem quebrar drag
+  useEffect(() => {
+    if (!isFullScreen || !onToggleFullScreen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onToggleFullScreen()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullScreen, onToggleFullScreen])
 
   return (
-    <div className="w-full flex flex-col bg-white rounded-xl border border-[#E3E6EA] shadow-sm overflow-hidden select-none">
-      {/* BARRA SUPERIOR DE CONTROLE DO GANTT */}
-      <div className="p-3 bg-[#F6F7F9] border-b border-[#E3E6EA] flex flex-wrap items-center justify-between gap-2.5">
-        {/* Navegação de Tempo */}
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setOffsetDias((prev) => prev - 7)}
-            className="h-8 px-2 sm:px-2.5 text-xs bg-white border-[#E3E6EA] text-[#22272A]"
-          >
-            <ChevronLeft className="w-3.5 h-3.5 mr-0.5 sm:mr-1" />
-            <span className="hidden xs:inline">-7 dias</span>
-            <span className="xs:hidden">-7d</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setOffsetDias(0)}
-            className="h-8 px-2.5 text-xs bg-white border-[#DEE4EA] text-[#2C3E50] font-semibold"
-          >
-            Hoje
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setOffsetDias((prev) => prev + 7)}
-            className="h-8 px-2 sm:px-2.5 text-xs bg-white border-[#E3E6EA] text-[#22272A]"
-          >
-            <span className="hidden xs:inline">+7 dias</span>
-            <span className="xs:hidden">+7d</span>
-            <ChevronRight className="w-3.5 h-3.5 ml-0.5 sm:mr-1" />
-          </Button>
+    <div
+      className={`w-full flex flex-col bg-white overflow-hidden select-none transition-all duration-150 ${
+        isFullScreen
+          ? 'fixed inset-0 z-50 h-screen w-screen rounded-none border-none shadow-2xl'
+          : 'rounded-xl border border-[#E3E6EA] shadow-sm'
+      }`}
+    >
+      {/* BARRA SUPERIOR DE CONTROLE DO GANTT (ESTILO ODOO) */}
+      <div className="p-2.5 sm:p-3 bg-[#F6F7F9] border-b border-[#E3E6EA] flex flex-wrap items-center justify-between gap-2">
+        {/* Lado Esquerdo: Navegação de Tempo + Botão Ir para Hoje */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-[#DEE4EA]">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOffsetDias((prev) => prev - 7)}
+              className="h-7 px-2 text-xs text-[#22272A] hover:bg-[#F0F2F5]"
+              title="Voltar 7 dias"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
+              <span>-7d</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setOffsetDias(0)
+                rolarParaHoje()
+              }}
+              className="h-7 px-2.5 text-xs text-[#2C3E50] font-bold hover:bg-[#E8EDF2]"
+              title="Voltar para a data de hoje"
+            >
+              Hoje
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOffsetDias((prev) => prev + 7)}
+              className="h-7 px-2 text-xs text-[#22272A] hover:bg-[#F0F2F5]"
+              title="Avançar 7 dias"
+            >
+              <span>+7d</span>
+              <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+            </Button>
+          </div>
+
+          {/* Seletor de Ordenação Customizável (Odoo Style) */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-[#DEE4EA] text-xs">
+              <ArrowDownUp className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span className="hidden md:inline text-[#616F7D] font-medium mr-1">Ordenar:</span>
+              <Select
+                value={sortOption}
+                onValueChange={(val) => handleChangeSort(val as GanttSortOption)}
+              >
+                <SelectTrigger className="h-7 text-xs border-none shadow-none p-0 w-[140px] sm:w-[170px] font-semibold text-[#2C3E50] focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="padrao" className="text-xs">
+                    Ordem atual (Padrão)
+                  </SelectItem>
+                  <SelectItem value="etapa" className="text-xs">
+                    Por Etapa do Funil (Odoo)
+                  </SelectItem>
+                  <SelectItem value="data_inicio" className="text-xs">
+                    Por Data de Início (Antigos)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Slots integrados quando em modo Tela Cheia: Filtro de etapas, busca e toggle sem data */}
+          {isFullScreen && (
+            <div className="hidden xl:flex items-center gap-2">
+              {filtroEtapasSlot}
+              {buscaSlot}
+              {toggleSemDataSlot}
+            </div>
+          )}
         </div>
 
-        {/* Dica de Uso e Toggle de Coluna */}
-        <div className="flex items-center gap-2">
-          {/* Botão para expandir/recolher coluna de informações para dar mais espaço ao cronograma */}
+        {/* Lado Direito: Controles de Coluna, Zoom e Botão Tela Cheia */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botão para expandir/recolher coluna de informações */}
           <Button
             variant="outline"
             size="sm"
@@ -499,42 +647,84 @@ export const GanttView: React.FC<GanttViewProps> = ({
           </Button>
 
           {/* Dica de Uso do Drag-and-Drop */}
-          <div className="hidden lg:flex items-center gap-1.5 text-xs text-[#5B6470] bg-white px-3 py-1 rounded-full border border-[#E3E6EA]">
+          <div className="hidden 2xl:flex items-center gap-1.5 text-xs text-[#5B6470] bg-white px-3 py-1 rounded-full border border-[#E3E6EA]">
             <MoveHorizontal className="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>
               <strong>Arrastar centro:</strong> move | <strong>Bordas:</strong> redimensiona dias
             </span>
           </div>
-        </div>
 
-        {/* Controles de Zoom */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-[#5B6470] mr-1 hidden md:inline">Zoom:</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPixelsPorDia((prev) => Math.max(30, prev - 6))}
-            disabled={pixelsPorDia <= 30}
-            className="h-8 w-8 p-0 bg-white"
-            title="Diminuir zoom (ver mais dias)"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </Button>
-          <span className="text-xs font-semibold text-[#22272A] w-11 text-center">
-            {pixelsPorDia}px
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPixelsPorDia((prev) => Math.min(68, prev + 6))}
-            disabled={pixelsPorDia >= 68}
-            className="h-8 w-8 p-0 bg-white"
-            title="Aumentar zoom (dias mais largos)"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </Button>
+          {/* Controles de Zoom */}
+          <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-[#DEE4EA]">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPixelsPorDia((prev) => Math.max(30, prev - 6))}
+              disabled={pixelsPorDia <= 30}
+              className="h-7 w-7 p-0"
+              title="Diminuir zoom (ver mais dias)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </Button>
+            <span className="text-[11px] font-semibold text-[#22272A] w-9 text-center">
+              {pixelsPorDia}px
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPixelsPorDia((prev) => Math.min(68, prev + 6))}
+              disabled={pixelsPorDia >= 68}
+              className="h-7 w-7 p-0"
+              title="Aumentar zoom (dias mais largos)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          {/* BOTÃO TELA CHEIA (ESTILO ODOO) */}
+          {onToggleFullScreen && (
+            <Button
+              variant={isFullScreen ? 'default' : 'outline'}
+              size="sm"
+              onClick={onToggleFullScreen}
+              className={`h-8 px-3 text-xs font-semibold transition-all ${
+                isFullScreen
+                  ? 'bg-[#2C3E50] hover:bg-[#1B2631] text-[#D4AF37] border-none shadow-sm'
+                  : 'bg-white border-[#DEE4EA] text-[#2C3E50] hover:bg-[#F0F2F5]'
+              }`}
+              title={
+                isFullScreen
+                  ? 'Sair da tela cheia (ou pressione Esc)'
+                  : 'Expandir Gantt para tela cheia (como no Odoo)'
+              }
+            >
+              {isFullScreen ? (
+                <>
+                  <Minimize2 className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
+                  <span>Sair da tela cheia</span>
+                  <span className="hidden sm:inline ml-1 text-[10px] opacity-75 font-mono">
+                    (Esc)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
+                  <span>Tela cheia</span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* BARRA SECUNDÁRIA DE FILTROS QUANDO EM TELA CHEIA EM TELAS MENORES QUE 2XL */}
+      {isFullScreen && (filtroEtapasSlot || buscaSlot || toggleSemDataSlot) && (
+        <div className="xl:hidden px-3 py-2 bg-white border-b border-[#E3E6EA] flex flex-wrap items-center gap-2">
+          {filtroEtapasSlot}
+          {buscaSlot}
+          {toggleSemDataSlot}
+        </div>
+      )}
 
       {/* DICA DE ROLAGEM HORIZONTAL PARA DISPOSITIVOS MÓVEIS */}
       <div className="flex sm:hidden items-center justify-between px-3 py-1.5 bg-[#FFF9E6] border-b border-[#F5E6B8] text-[11px] text-[#8C6D1F]">
@@ -561,7 +751,9 @@ export const GanttView: React.FC<GanttViewProps> = ({
       {/* ÁREA PRINCIPAL DO GANTT COM SCROLL HORIZONTAL COMPLETO (TOUCH + MOUSE) */}
       <div
         ref={containerRef}
-        className="w-full overflow-x-auto overflow-y-auto max-h-[640px] touch-pan-x touch-pan-y overscroll-x-contain"
+        className={`w-full overflow-x-auto overflow-y-auto touch-pan-x touch-pan-y overscroll-x-contain ${
+          isFullScreen ? 'flex-1 h-[calc(100vh-60px)] max-h-none' : 'max-h-[640px]'
+        }`}
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div

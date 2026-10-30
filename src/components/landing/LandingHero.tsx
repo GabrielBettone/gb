@@ -232,9 +232,9 @@ export const LandingHero: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Carrossel com fotos reais e marca d'água */}
-        <div className="lg:col-span-5 relative">
-          <div className="relative rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black aspect-[4/3] sm:aspect-[16/11]">
+        {/* Lado Direito: Carrossel de Destaque Ampliado com fotos reais e marca d'água */}
+        <div className="lg:col-span-5 relative w-full flex items-center justify-center">
+          <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-[#1C252B] aspect-[4/3] sm:aspect-[16/11] lg:min-h-[460px] group">
             {slides.map((slide, idx) => (
               <div
                 key={slide.image + idx}
@@ -242,26 +242,41 @@ export const LandingHero: React.FC = () => {
                   idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                 }`}
               >
-                <Link to={`/servicos/${slide.serviceSlug}`} className="block w-full h-full">
+                <Link
+                  to={`/servicos/${slide.serviceSlug}`}
+                  className="relative block w-full h-full overflow-hidden flex items-center justify-center"
+                >
+                  {/* Fundo desfocado da própria foto para preencher as laterais de imagens verticais ou horizontais sem corte brusco */}
+                  <img
+                    src={slide.image}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-45 scale-110 pointer-events-none select-none transition-transform duration-700 group-hover:scale-125"
+                  />
+
+                  {/* Foto em primeiro plano com proporção preservada (object-contain), marca d'água protegida e foco nítido */}
                   <WatermarkedImage
                     src={slide.image}
                     alt={slide.title}
                     enableWatermark={true}
-                    className="w-full h-full object-cover object-center"
+                    className="relative z-10 w-full h-full object-contain object-center transition-transform duration-500 group-hover:scale-[1.02]"
                     loading={idx === 0 ? 'eager' : 'lazy'}
                   />
-                  {/* Gradiente de sombra sobre a foto para legibilidade */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
 
-                  {/* Legenda inferior */}
-                  <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
-                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#2C3E50] text-[10px] font-bold tracking-wider uppercase mb-1.5">
+                  {/* Gradiente sutil inferior para garantir legibilidade dos textos e selos */}
+                  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+                  {/* Selo e Legenda inferior sobre a foto */}
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-5 sm:p-6 text-white pointer-events-none">
+                    <span className="inline-block px-3 py-1 rounded-full bg-[#D4AF37] text-[#2C3E50] text-[11px] font-bold tracking-wider uppercase mb-2 shadow-sm">
                       {slide.tag}
                     </span>
-                    <h3 className="font-heading text-lg font-bold text-white drop-shadow-sm leading-snug">
+                    <h3 className="font-heading text-xl sm:text-2xl font-bold text-white drop-shadow-md leading-snug">
                       {slide.title}
                     </h3>
-                    <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{slide.subtitle}</p>
+                    <p className="text-xs sm:text-sm text-white/90 line-clamp-1 mt-1 drop-shadow-sm">
+                      {slide.subtitle}
+                    </p>
                   </div>
                 </Link>
               </div>
@@ -272,31 +287,45 @@ export const LandingHero: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={prevSlide}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    prevSlide()
+                  }}
                   aria-label="Foto anterior"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition-all shadow-md active:scale-95"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
                   type="button"
-                  onClick={nextSlide}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    nextSlide()
+                  }}
                   aria-label="Próxima foto"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-sm transition-all shadow-md active:scale-95"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
 
-                {/* Pontos de paginação */}
-                <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/50 px-2.5 py-1 rounded-full backdrop-blur">
+                {/* Pontos de paginação / Indicadores */}
+                <div className="absolute top-3.5 right-3.5 z-30 flex items-center gap-1.5 bg-black/60 px-3 py-1.5 rounded-full backdrop-blur-sm border border-white/10 shadow-sm">
                   {slides.map((_, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setCurrentSlide(idx)}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setCurrentSlide(idx)
+                      }}
                       aria-label={`Ir para foto ${idx + 1}`}
-                      className={`h-1.5 rounded-full transition-all ${
-                        idx === currentSlide ? 'w-5 bg-[#D4AF37]' : 'w-1.5 bg-white/50'
+                      className={`h-2 rounded-full transition-all ${
+                        idx === currentSlide
+                          ? 'w-6 bg-[#D4AF37]'
+                          : 'w-2 bg-white/50 hover:bg-white/80'
                       }`}
                     />
                   ))}

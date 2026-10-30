@@ -37,9 +37,19 @@ export const TabelaView: React.FC<TabelaViewProps> = ({
   const [pagina, setPagina] = useState(1)
   const itensPorPagina = 10
 
+  // Lê preferência de ordenação inicial do localStorage ou usa 'numero'
   const [sortField, setSortField] = useState<
     'numero' | 'cliente' | 'valor_total' | 'data_inicio' | 'status'
-  >('numero')
+  >(() => {
+    try {
+      const saved = localStorage.getItem('bettone_gantt_sort_option')
+      if (saved === 'etapa') return 'status'
+      if (saved === 'data_inicio') return 'data_inicio'
+    } catch {
+      // ignore
+    }
+    return 'numero'
+  })
   const [sortAsc, setSortAsc] = useState(false)
 
   const formatMoeda = (val: number) => {

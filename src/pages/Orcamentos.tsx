@@ -111,6 +111,9 @@ export const Orcamentos: React.FC = () => {
   // Modo de visualização dentro do Funil: kanban, gantt ou tabela
   const [viewMode, setViewMode] = useState<'kanban' | 'gantt' | 'tabela'>('kanban')
 
+  // Estado do Modo Tela Cheia do Gantt
+  const [ganttFullScreen, setGanttFullScreen] = useState(false)
+
   // Filtros locais do funil (com suporte a múltipla escolha de etapas e predefinições)
   const [busca, setBusca] = useState('')
   const [filtroEtapas, setFiltroEtapas] = useState<string[]>([])
@@ -950,6 +953,51 @@ export const Orcamentos: React.FC = () => {
                     onAtualizarDatas={handleAtualizarDatasGantt}
                     onAbrirDetalhes={(orc) => setOrcamentoDetalhes(orc)}
                     exibirSemData={exibirSemData}
+                    isFullScreen={ganttFullScreen}
+                    onToggleFullScreen={() => setGanttFullScreen((prev) => !prev)}
+                    filtroEtapasSlot={
+                      <FiltroEtapasMultiSelect
+                        etapasDisponiveis={
+                          etapas.length > 0
+                            ? etapas
+                            : ETAPAS_ORCAMENTO.map((nome, idx) => ({
+                                id: `padrao_${idx}`,
+                                nome,
+                                cor: '#2C3E50',
+                                ordem: idx + 1,
+                                padrao: true,
+                              }))
+                        }
+                        etapasSelecionadas={filtroEtapas}
+                        onEtapasChange={setFiltroEtapas}
+                        predefinicoes={predefinicoes}
+                        onSalvarPredefinicao={handleSalvarPredefinicao}
+                        onExcluirPredefinicao={handleExcluirPredefinicao}
+                      />
+                    }
+                    buscaSlot={
+                      <div className="relative w-44 sm:w-60">
+                        <Search className="w-3.5 h-3.5 text-[#8A94A0] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <Input
+                          type="text"
+                          placeholder="Buscar..."
+                          value={busca}
+                          onChange={(e) => setBusca(e.target.value)}
+                          className="pl-8 h-8 text-xs bg-white"
+                        />
+                      </div>
+                    }
+                    toggleSemDataSlot={
+                      <label className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[#DEE4EA] bg-white hover:bg-[#F6F7F9] cursor-pointer text-xs select-none transition-colors whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={exibirSemData}
+                          onChange={(e) => handleToggleExibirSemData(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-[#2C3E50] border-[#DEE4EA] focus:ring-[#2C3E50] accent-[#2C3E50] cursor-pointer"
+                        />
+                        <span className="font-medium text-[#2C3E50] text-[11px]">Sem data</span>
+                      </label>
+                    }
                   />
                 )}
 
