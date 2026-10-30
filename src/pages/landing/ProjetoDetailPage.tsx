@@ -473,9 +473,12 @@ export const ProjetoDetailPage: React.FC = () => {
                     {fotos.length > 1 && (
                       <button
                         type="button"
-                        onClick={prevPhoto}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          prevPhoto()
+                        }}
                         aria-label="Foto anterior"
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md cursor-pointer"
                       >
                         <ChevronLeft className="w-6 h-6" />
                       </button>
@@ -485,9 +488,12 @@ export const ProjetoDetailPage: React.FC = () => {
                     {fotos.length > 1 && (
                       <button
                         type="button"
-                        onClick={nextPhoto}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          nextPhoto()
+                        }}
                         aria-label="Próxima foto"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-14 rounded bg-black/60 hover:bg-black/85 text-white flex items-center justify-center transition-colors shadow-md cursor-pointer"
                       >
                         <ChevronRight className="w-6 h-6" />
                       </button>
@@ -496,8 +502,11 @@ export const ProjetoDetailPage: React.FC = () => {
                     {/* Botão Ampliar discreto no canto */}
                     <button
                       type="button"
-                      onClick={() => setFullscreenOpen(true)}
-                      className="absolute top-3 right-3 bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setFullscreenOpen(true)
+                      }}
+                      className="absolute top-3 right-3 z-20 bg-black/60 hover:bg-black/85 text-white p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       title="Ampliar foto"
                     >
                       <Maximize2 className="w-4 h-4" />
@@ -674,49 +683,33 @@ export const ProjetoDetailPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Card 3: DETALHES (Soluções aplicadas com barra lateral dourada conforme print) */}
-              <div className="bg-white rounded-2xl border border-[#DEE4EA] p-5 shadow-xs space-y-3">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF37] block">
-                    DETALHES
-                  </span>
-                  <h3 className="font-heading text-xl font-bold text-[#2C3E50]">
-                    Soluções aplicadas
-                  </h3>
-                  <p className="text-xs text-[#616F7D] mt-0.5">
-                    Veja os principais materiais, técnicas e soluções utilizadas neste projeto.
-                  </p>
-                </div>
+              {/* Card 3: DETALHES (Soluções aplicadas) — renderiza somente quando houver detalhes reais cadastrados */}
+              {projeto.detalhesTecnicos && projeto.detalhesTecnicos.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[#DEE4EA] p-5 shadow-xs space-y-3">
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#D4AF37] block">
+                      DETALHES
+                    </span>
+                    <h3 className="font-heading text-xl font-bold text-[#2C3E50]">
+                      Soluções aplicadas
+                    </h3>
+                    <p className="text-xs text-[#616F7D] mt-0.5">
+                      Veja os principais materiais, técnicas e soluções utilizadas neste projeto.
+                    </p>
+                  </div>
 
-                {/* Bloco com borda lateral dourada conforme a referência */}
-                <div className="border-l-4 border-[#D4AF37] bg-[#fbfbfb] p-3.5 rounded-r-lg space-y-2.5">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#2C3E50] block">
-                    {projeto.categoria === 'Comercial'
-                      ? 'PAREDE DRYWALL'
-                      : 'ESTRUTURAÇÃO & ACABAMENTO'}
-                  </span>
-
-                  <div className="text-xs text-[#616F7D] leading-relaxed">
-                    {projeto.detalhesTecnicos && projeto.detalhesTecnicos.length > 0 ? (
+                  {/* Bloco com borda lateral dourada sem título hardcoded fictício */}
+                  <div className="border-l-4 border-[#D4AF37] bg-[#fbfbfb] p-3.5 rounded-r-lg space-y-2.5">
+                    <div className="text-xs text-[#616F7D] leading-relaxed">
                       <FormattedListRenderer
                         linhas={projeto.detalhesTecnicos}
                         bulletColor="#D4AF37"
                         textColor="#616F7D"
                       />
-                    ) : (
-                      <FormattedListRenderer
-                        linhas={[
-                          '* Paredes de fechamento e divisão da sala em drywall',
-                          '* Uso de elemento isolante termoacústico lã de pet',
-                          '* Uso de elemento banda acústica nas extremidades da parede',
-                        ]}
-                        bulletColor="#D4AF37"
-                        textColor="#616F7D"
-                      />
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -745,17 +738,23 @@ export const ProjetoDetailPage: React.FC = () => {
               <>
                 <button
                   type="button"
-                  onClick={prevPhoto}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    prevPhoto()
+                  }}
                   aria-label="Foto anterior"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
                 <button
                   type="button"
-                  onClick={nextPhoto}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    nextPhoto()
+                  }}
                   aria-label="Próxima foto"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>

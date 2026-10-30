@@ -84,7 +84,7 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
   if (!displaySrc || hasError) {
     return (
       <div
-        className={`bg-gradient-to-br from-[#2C3E50]/10 via-[#2C3E50]/5 to-[#D4AF37]/10 flex flex-col items-center justify-center text-center p-4 select-none ${className || ''}`}
+        className={`bg-gradient-to-br from-[#2C3E50]/10 via-[#2C3E50]/5 to-[#D4AF37]/10 flex flex-col items-center justify-center text-center p-4 select-none pointer-events-none ${className || ''}`}
       >
         <span className="font-heading text-xs font-semibold text-[#2C3E50]/60 uppercase tracking-wider">
           Gesso Bettone
@@ -97,7 +97,7 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none">
+    <div className="relative w-full h-full overflow-hidden select-none isolate">
       <img
         src={displaySrc}
         alt={alt}
@@ -111,17 +111,17 @@ export const WatermarkedImage: React.FC<WatermarkedImageProps> = ({
       {enableWatermark && !isWatermarkedInPixel && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-3 right-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C252B]/90 backdrop-blur-sm border border-[#D4AF37]/75 shadow-lg select-none transition-opacity"
+          className="pointer-events-none absolute bottom-3 right-3 z-1 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1C252B]/90 backdrop-blur-sm border border-[#D4AF37]/75 shadow-lg select-none transition-opacity"
         >
           <div className="w-7 h-7 rounded-lg bg-white p-0.5 border border-[#D4AF37]/60 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
             <img
               src={logoPngAsset}
               alt=""
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain pointer-events-none"
               loading="eager"
             />
           </div>
-          <div className="flex flex-col text-left leading-none">
+          <div className="flex flex-col text-left leading-none pointer-events-none">
             <span className="text-xs font-bold text-white tracking-wide font-sans drop-shadow-xs">
               Gesso Bettone
             </span>
