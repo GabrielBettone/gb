@@ -1,19 +1,33 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
-/* Ocultar selos/badges ou banners injetados por plataformas externas ou preview (ex: "developed with Skip", "Made with Skip") */
+/* Ocultar selos/badges ou banners injetados por plataformas externas ou preview (ex: "Criado com o Skip", skip.png) */
 [class*='skip-badge'],
 [id*='skip-badge'],
 [class*='goskip'],
 [id*='goskip'],
 [data-skip-badge],
+img[src*='skip.png'],
 a[href*='goskip.dev']:not([data-allow-skip]),
 a[href*='skip.it']:not([data-allow-skip]),
 div:has(> a[href*='goskip.dev']),
-div:has(> a[href*='skip.it']) {
+div:has(> a[href*='skip.it']),
+div:has(> img[src*='skip.png']),
+a:has(> img[src*='skip.png']),
+p:has(> img[src*='skip.png']),
+span:has(> img[src*='skip.png']),
+footer div:has(img[src*='skip.png']),
+body > div:has(img[src*='skip.png']),
+body > a:has(img[src*='skip.png']) {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
 }
 
 /* Fontes Oficiais do Brand Guide Gesso Bettone: Tenor Sans, Inter Tight, Petit Formal Script */
