@@ -1,9 +1,9 @@
 name: Repair pnpm lockfile
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'fix/patch-vulnerabilities-8707c8d5-1793457093'
+      - main
     paths:
       - '.github/workflows/repair-pnpm-lock.yml'
 
@@ -14,8 +14,10 @@ jobs:
   repair-lockfile:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -32,7 +34,7 @@ jobs:
 
       - name: Commit updated lockfile
         env:
-          BRANCH: 'fix/patch-vulnerabilities-8707c8d5-1793457093'
+          BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           if git diff --quiet -- pnpm-lock.yaml; then
             echo "pnpm-lock.yaml is already synchronized."
