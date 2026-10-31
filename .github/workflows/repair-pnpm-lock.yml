@@ -1,0 +1,45 @@
+name: Repair pnpm lockfile
+
+on:
+  push:
+    branches:
+      - 'fix/patch-vulnerabilities-8707c8d5-1793457093'
+    paths:
+      - '.github/workflows/repair-pnpm-lock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair-lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Regenerate lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile --ignore-scripts
+
+      - name: Commit updated lockfile
+        env:
+          BRANCH: 'fix/patch-vulnerabilities-8707c8d5-1793457093'
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "pnpm-lock.yaml is already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "fix: synchronize pnpm lockfile with security updates"
+          git push origin "HEAD:${BRANCH}"
