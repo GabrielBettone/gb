@@ -35,6 +35,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
   )
   const [instagram, setInstagram] = useState('https://www.instagram.com/gessobettone_saopedro')
   const [cnpj, setCnpj] = useState('53.242.055/0001-74')
+  const [linhaDescritiva, setLinhaDescritiva] = useState('')
   const [googleSiteVerification, setGoogleSiteVerification] = useState('')
   const [whatsappWebdesigner, setWhatsappWebdesigner] = useState('')
   const [exibirDepoimentos, setExibirDepoimentos] = useState(true)
@@ -63,6 +64,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
         )
         setInstagram(cfg.instagram || 'https://www.instagram.com/gessobettone_saopedro')
         setCnpj(cfg.cnpj || '53.242.055/0001-74')
+        setLinhaDescritiva(cfg.linha_descritiva || '')
         setGoogleSiteVerification(cfg.google_site_verification || '')
         setWhatsappWebdesigner(cfg.whatsapp_webdesigner || '')
         setExibirDepoimentos(cfg.exibir_depoimentos !== false)
@@ -92,6 +94,7 @@ export const SiteConfiguracoesPage: React.FC = () => {
           mensagem_orcamento: mensagemOrcamento,
           instagram,
           cnpj,
+          linha_descritiva: linhaDescritiva.trim(),
           google_site_verification: googleSiteVerification.trim(),
           whatsapp_webdesigner: whatsappWebdesigner.trim(),
           exibir_depoimentos: exibirDepoimentos,
@@ -372,6 +375,23 @@ export const SiteConfiguracoesPage: React.FC = () => {
                     onChange={(e) => setNomeSite(e.target.value)}
                     className="max-w-xl bg-white border-[#DEE4EA]"
                   />
+                </div>
+
+                {/* Linha descritiva da empresa */}
+                <div className="space-y-1.5 max-w-xl">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    Linha descritiva da empresa
+                  </Label>
+                  <Input
+                    value={linhaDescritiva}
+                    onChange={(e) => setLinhaDescritiva(e.target.value)}
+                    placeholder="Ex: Comércio & Instalações de Gesso, Drywall e Acabamentos Finos"
+                    className="bg-white border-[#DEE4EA]"
+                  />
+                  <p className="text-[11px] text-[#616F7D] leading-relaxed">
+                    Texto descritivo exibido sob o nome da empresa nas propostas e orçamentos em
+                    PDF. Deixe vazio para usar o texto padrão.
+                  </p>
                 </div>
 
                 {/* URL Base do Site para Robots & Sitemap */}

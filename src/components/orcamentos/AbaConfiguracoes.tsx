@@ -64,6 +64,7 @@ export const AbaConfiguracoes: React.FC = () => {
   // Campos
   const [razaoSocial, setRazaoSocial] = useState('Gesso Bettone Comércio e Instalações Eireli')
   const [nomeFantasia, setNomeFantasia] = useState('Gesso Bettone')
+  const [linhaDescritiva, setLinhaDescritiva] = useState('')
   const [cnpj, setCnpj] = useState('32.185.940/0001-72')
   const [cnpjValido, setCnpjValido] = useState(true)
   const [exibirCnpjPadrao, setExibirCnpjPadrao] = useState(true)
@@ -107,6 +108,7 @@ export const AbaConfiguracoes: React.FC = () => {
           setConfigId(cfg.id)
           setRazaoSocial(cfg.razao_social || 'Gesso Bettone Comércio e Instalações Eireli')
           setNomeFantasia(cfg.nome_fantasia || 'Gesso Bettone')
+          setLinhaDescritiva(cfg.linha_descritiva || '')
           setCnpj(cfg.cnpj || '32.185.940/0001-72')
           setExibirCnpjPadrao(cfg.exibir_cnpj_padrao ?? true)
           const comp = Array.isArray(cfg.nosso_compromisso)
@@ -285,6 +287,7 @@ export const AbaConfiguracoes: React.FC = () => {
         id: configId || undefined,
         razao_social: razaoSocial.trim(),
         nome_fantasia: nomeFantasia.trim(),
+        linha_descritiva: linhaDescritiva.trim(),
         cnpj: cnpj.trim(),
         exibir_cnpj_padrao: exibirCnpjPadrao,
         nosso_compromisso: compromissoArray,
@@ -476,6 +479,19 @@ export const AbaConfiguracoes: React.FC = () => {
               placeholder="Gesso Bettone"
               className="h-9 text-xs bg-white"
             />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs font-semibold text-[#2C3E50]">Linha descritiva no PDF</Label>
+            <Input
+              value={linhaDescritiva}
+              onChange={(e) => setLinhaDescritiva(e.target.value)}
+              placeholder="Ex: Comércio & Instalações de Gesso, Drywall e Acabamentos Finos"
+              className="h-9 text-xs bg-white"
+            />
+            <p className="text-[11px] text-[#616F7D] leading-relaxed">
+              Texto exibido sob o nome da empresa no orçamento impresso
+            </p>
           </div>
 
           <div className="space-y-1.5">
