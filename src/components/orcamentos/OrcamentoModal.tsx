@@ -58,7 +58,7 @@ import {
   listarOrcamentoServicos,
   obterConfiguracoesOrcamento,
 } from '@/services/orcamentoModulo'
-import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
+import { formatarCondicoesPrazo, formatMoeda } from '@/services/orcamentoCondicoes'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import {
   listarUnidadesMedida,
@@ -327,10 +327,10 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     )
   }
 
-  // Cálculos de subtotal (considera itens por local quando presentes)
+  // Cálculos de subtotal (soma TODOS os itens: por ambiente/local + gerais)
   const subtotalLocais = itensPorLocal.reduce((acc, it) => acc + (it.total || 0), 0)
   const subtotalItens = itens.reduce((acc, it) => acc + (it.valor_total || 0), 0)
-  const subtotal = itensPorLocal.length > 0 ? subtotalLocais : subtotalItens
+  const subtotal = subtotalLocais + subtotalItens
 
   const descontoNum = Math.max(0, parseFloat(desconto.replace(',', '.')) || 0)
   const valorAPrazo = Math.max(0, subtotal - descontoNum)
@@ -747,13 +747,6 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
     }
   }
 
-  const formatMoeda = (val: number) => {
-    return val.toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    })
-  }
-
   // Dispara impressão do PDF diretamente do modal
   const handleExportarPDF = async () => {
     const fakeOrcamento: Orcamento = {
@@ -769,6 +762,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       canal_origem: canalOrigem,
       status,
       itens,
+      itens_por_local: itensPorLocal,
       subtotal,
       desconto: descontoNum,
       valor_total: valorAPrazo,

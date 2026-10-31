@@ -207,11 +207,28 @@ export async function imprimirOrcamentoPDF(
   // quando INATIVO: exibir "Gesso Bettone" (nome fantasia) + e-mail + WhatsApp, sem CNPJ.
   const nomeExibicao = exibirCnpj ? razaoSocialCadastrada || nomeFantasiaBase : nomeFantasiaBase
 
-  const valorTotal = orcamento.valor_total || 0
-  const valorAVista = orcamento.valor_a_vista || valorTotal
-  const valorAPrazo = orcamento.valor_a_prazo || valorTotal
+  // Recalcula totais a partir de TODOS os itens (ambiente/local + gerais) para garantir
+  // que orçamentos salvos ou em visualização sempre incluam ambos os grupos no PDF
+  const somaLocais = itensPorLocal.reduce((acc, loc) => acc + (Number(loc.total) || 0), 0)
+  const somaGerais = itens.reduce((acc, it) => acc + (Number(it.valor_total) || 0), 0)
+  const somaTodosItens = somaLocais + somaGerais
+
+  const descontoRegistrado = Number(orcamento.desconto) || 0
+  const totalCalculado = Math.max(0, somaTodosItens - descontoRegistrado)
+
+  // Se houver itens no orçamento, utiliza o total que soma locais + gerais caso o valor_total
+  // salvo esteja desatualizado ou excluindo os gerais
+  const valorTotal = somaTodosItens > 0 ? totalCalculado : orcamento.valor_total || 0
+
   const metodoObj = orcamento.expand?.metodo_pagamento
   const percentualDescAVista = metodoObj?.desconto_a_vista || 0
+
+  const valorAPrazo = somaTodosItens > 0 ? totalCalculado : orcamento.valor_a_prazo || valorTotal
+
+  const valorAVista =
+    somaTodosItens > 0 && percentualDescAVista > 0
+      ? Math.round(valorAPrazo * (1 - percentualDescAVista / 100) * 100) / 100
+      : orcamento.valor_a_vista || valorAPrazo
 
   // Condições calculadas com valores reais, sem menção a desconto ou nomes internos do método
   const condicoesMetodo = formatarCondicoesPrazo(metodoObj, valorAPrazo)

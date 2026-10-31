@@ -89,8 +89,22 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
     })
   }
 
-  const valorAPrazo = orcamento.valor_a_prazo ?? orcamento.valor_total ?? 0
-  const valorAVista = orcamento.valor_a_vista ?? valorAPrazo
+  // Soma todos os itens (ambiente/local + gerais) para manter consistência total com o PDF e cálculo corrigido
+  const somaLocais = itensPorLocal.reduce((acc, loc) => acc + (Number(loc.total) || 0), 0)
+  const somaGerais = itens.reduce((acc, it) => acc + (Number(it.valor_total) || 0), 0)
+  const somaTodosItens = somaLocais + somaGerais
+  const subtotalEfetivo = somaTodosItens > 0 ? somaTodosItens : orcamento.subtotal || 0
+  const descontoNum = Number(orcamento.desconto) || 0
+  const totalEfetivo = Math.max(0, subtotalEfetivo - descontoNum)
+
+  const valorAPrazo =
+    somaTodosItens > 0 ? totalEfetivo : (orcamento.valor_a_prazo ?? orcamento.valor_total ?? 0)
+  const valorAVista =
+    somaTodosItens > 0 && (orcamento.expand?.metodo_pagamento?.desconto_a_vista || 0) > 0
+      ? Math.round(
+          valorAPrazo * (1 - orcamento.expand.metodo_pagamento.desconto_a_vista / 100) * 100,
+        ) / 100
+      : (orcamento.valor_a_vista ?? valorAPrazo)
   const metodoAtual = orcamento.expand?.metodo_pagamento
   const percentualDescAVista = metodoAtual?.desconto_a_vista || 0
   const condicoesPrazo = formatarCondicoesPrazo(metodoAtual, valorAPrazo)
@@ -130,7 +144,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
             <div className="text-left sm:text-right shrink-0">
               <span className="text-[11px] text-[#5B6470] block">Valor Total</span>
               <span className="text-xl sm:text-2xl font-bold text-[#2C3E50] whitespace-nowrap">
-                {formatMoeda(orcamento.valor_total)}
+                {formatMoeda(totalEfetivo)}
               </span>
             </div>
           </div>
@@ -364,15 +378,15 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               <div className="pt-3 border-t border-[#E3E6EA] flex flex-wrap items-center justify-between gap-3 text-xs text-[#5B6470]">
                 <span className="whitespace-nowrap">
                   Subtotal:{' '}
-                  <strong className="text-[#2C3E50]">{formatMoeda(orcamento.subtotal)}</strong>
+                  <strong className="text-[#2C3E50]">{formatMoeda(subtotalEfetivo)}</strong>
                 </span>
-                {Boolean(orcamento.desconto) && (
+                {Boolean(descontoNum) && (
                   <span className="text-red-600 whitespace-nowrap font-medium">
-                    Desconto: -{formatMoeda(orcamento.desconto)}
+                    Desconto: -{formatMoeda(descontoNum)}
                   </span>
                 )}
                 <span className="font-bold text-[#2C3E50] text-base whitespace-nowrap">
-                  Total: {formatMoeda(orcamento.valor_total)}
+                  Total: {formatMoeda(totalEfetivo)}
                 </span>
               </div>
             </div>

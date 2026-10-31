@@ -9,12 +9,25 @@ export function formatMoeda(val?: number | string | null): string {
     })
   }
 
-  const num =
-    typeof val === 'number'
-      ? val
-      : typeof val === 'string'
-        ? parseFloat(val.replace(/[^\d,-]/g, '').replace(',', '.')) || 0
-        : 0
+  let num = 0
+  if (typeof val === 'number') {
+    num = val
+  } else if (typeof val === 'string') {
+    const raw = val
+      .trim()
+      .replace(/^R\$\s*/i, '')
+      .trim()
+    if (raw.includes(',') && raw.includes('.')) {
+      // Ex: "1.112,00" (formato pt-BR com separador de milhar)
+      num = parseFloat(raw.replace(/\./g, '').replace(',', '.')) || 0
+    } else if (raw.includes(',')) {
+      // Ex: "111,20" (vírgula como decimal)
+      num = parseFloat(raw.replace(',', '.')) || 0
+    } else {
+      // Ex: "111.20" ou "1112"
+      num = parseFloat(raw) || 0
+    }
+  }
 
   return (isNaN(num) ? 0 : num).toLocaleString('pt-BR', {
     style: 'currency',
