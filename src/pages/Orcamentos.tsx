@@ -248,16 +248,6 @@ export const Orcamentos: React.FC = () => {
           title: 'Parcelas em aberto estornadas',
           description: `Parcelas em aberto foram estornadas devido ao retorno de etapa (${res.parcelasEstornadas} parcela(s) cancelada(s)).`,
         })
-      } else if (novoStatus === 'Concluídos') {
-        toast({
-          title: 'Trabalho Concluído!',
-          description: 'Venda registrada no Dashboard e agenda de pagamentos atualizada.',
-        })
-      } else if (novoStatus === 'Aprovados aguardando início') {
-        toast({
-          title: 'Orçamento Aprovado!',
-          description: 'Agenda de pagamentos gerada para controle e conciliação bancária.',
-        })
       } else {
         toast({
           title: 'Status atualizado',
@@ -1148,6 +1138,9 @@ export const Orcamentos: React.FC = () => {
         }}
         onExcluir={(orc) => {
           setOrcamentoParaExcluir(orc)
+        }}
+        onFinanceiroGerado={() => {
+          carregarDados()
         }}
       />
 

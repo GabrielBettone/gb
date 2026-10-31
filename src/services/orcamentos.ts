@@ -231,19 +231,8 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     observacoes: dados.observacoes?.trim() || '',
   })
 
-  // Se já for criado em etapa avançada, gera a agenda
-  if (
-    status === 'Aprovados aguardando início' ||
-    status === 'Trabalhos iniciados' ||
-    status === 'Concluídos'
-  ) {
-    await gerarAgendaPagamentoSeNaoExistir(record)
-  }
-
-  // Se já for criado como Concluído (caso raro), dispara sincronização de venda
-  if (status === 'Concluídos') {
-    await sincronizarVendaAoConcluir(record)
-  }
+  // Regra do negócio: NADA de geração financeira nem criação de venda automática.
+  // Recebimentos e vendas só são gerados explicitamente via botão manual no orçamento.
 
   return record
 }
@@ -357,28 +346,8 @@ export async function atualizarOrcamento(
     await cancelarParcelasEmAberto(id)
   }
 
-  // Se o valor_total foi alterado, recalcula as parcelas em aberto
-  const mudouValor =
-    dados.valor_total !== undefined &&
-    valorAnterior !== undefined &&
-    Math.abs(dados.valor_total - valorAnterior) > 0.01
-
-  if (
-    novoStatus === 'Aprovados aguardando início' ||
-    novoStatus === 'Trabalhos iniciados' ||
-    novoStatus === 'Concluídos'
-  ) {
-    if (mudouValor) {
-      await gerarAgendaPagamentoSeNaoExistir(updated, true)
-    } else {
-      await gerarAgendaPagamentoSeNaoExistir(updated, false)
-    }
-  }
-
-  // Se passou para 'Concluídos', sincronizar venda de forma idempotente
-  if (dados.status === 'Concluídos') {
-    await sincronizarVendaAoConcluir(updated)
-  }
+  // Regra do negócio: NADA de geração financeira nem criação de venda automática ao editar orçamento.
+  // O usuário decide e controla parcelamento e vendas através do botão manual "Gerar financeiro".
 
   return {
     ...updated,
@@ -477,18 +446,8 @@ export async function atualizarStatusOrcamento(
     parcelasEstornadas = await cancelarParcelasEmAberto(id)
   }
 
-  // Gera parcelas APENAS nas etapas que demandam agenda (e reativa canceladas de forma idempotente)
-  if (
-    novoStatus === 'Aprovados aguardando início' ||
-    novoStatus === 'Trabalhos iniciados' ||
-    novoStatus === 'Concluídos'
-  ) {
-    await gerarAgendaPagamentoSeNaoExistir(updated)
-  }
-
-  if (novoStatus === 'Concluídos') {
-    await sincronizarVendaAoConcluir(updated)
-  }
+  // Regra do negócio: NADA de geração financeira nem criação de venda automática ao mudar status.
+  // Apenas cancelamento/estorno de parcelas em aberto ao retroceder/cancelar é mantido (se existirem parcelas).
 
   return {
     orcamento: {
@@ -765,6 +724,50 @@ export async function gerarAgendaPagamentoSeNaoExistir(
  * Sincroniza uma venda correspondente ao concluir um trabalho/orçamento
  * Evita duplicidade através do campo 'orcamento' na coleção vendas.
  */
+/**
+ * Executa a ação manual de gerar o financeiro de um orçamento:
+ * 1. Verifica se já existem parcelas cadastradas para não gerar duplicadas
+ * 2. Gera a agenda de recebimento conforme método de pagamento selecionado
+ * 3. Cria o registro de venda de forma idempotente (se ainda não existir venda para este orçamento)
+ * Retorna se as parcelas foram criadas e a venda gerada/encontrada.
+ */
+export async function gerarFinanceiroManual(
+  orcamento: Orcamento,
+): Promise<{ parcelasCriadas: boolean; jaExistiam: boolean; venda: Venda | null }> {
+  // 1. Verifica parcelas existentes
+  const porOrcamento = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+    filter: `orcamento = '${orcamento.id}'`,
+  })
+
+  let porOrcamentoId: PagamentoParcela[] = []
+  if (porOrcamento.length === 0) {
+    try {
+      porOrcamentoId = await dataAdapter.getFullList<PagamentoParcela>('pagamentos_parcelas', {
+        filter: `orcamento_id = '${orcamento.id}'`,
+      })
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const existentes = [...porOrcamento, ...porOrcamentoId].filter(
+    (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx,
+  )
+
+  const jaExistiam = existentes.length > 0
+  let parcelasCriadas = false
+
+  if (!jaExistiam) {
+    await gerarAgendaPagamentoSeNaoExistir(orcamento, false)
+    parcelasCriadas = true
+  }
+
+  // Sincroniza a venda de forma idempotente (só cria se não existir)
+  const venda = await sincronizarVendaAoConcluir(orcamento)
+
+  return { parcelasCriadas, jaExistiam, venda }
+}
+
 export async function sincronizarVendaAoConcluir(orcamento: Orcamento): Promise<Venda | null> {
   try {
     // 1. Verifica se já existe venda com este orcamento vinculado

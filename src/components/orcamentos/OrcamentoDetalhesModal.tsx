@@ -25,10 +25,22 @@ import {
   getEtapaConfig,
   parseItens,
   parseItensPorLocal,
+  gerarFinanceiroManual,
 } from '@/services/orcamentos'
-import { obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
+import { obterConfiguracoesOrcamento, listarParcelasPagamento } from '@/services/orcamentoModulo'
 import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
+import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface OrcamentoDetalhesModalProps {
   orcamento: Orcamento | null
@@ -38,6 +50,7 @@ interface OrcamentoDetalhesModalProps {
   onConcluir?: (orcamento: Orcamento) => void
   onExcluir: (orcamento: Orcamento) => void
   onReajustarParcelas?: (orcamento: Orcamento) => void
+  onFinanceiroGerado?: () => void
 }
 
 export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
@@ -48,18 +61,70 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
   onConcluir,
   onExcluir,
   onReajustarParcelas,
+  onFinanceiroGerado,
 }) => {
+  const { toast } = useToast()
   const [configGeral, setConfigGeral] = useState<OrcamentoConfiguracao | null>(null)
+  const [qtdParcelasExistentes, setQtdParcelasExistentes] = useState<number | null>(null)
+  const [checandoParcelas, setChecandoParcelas] = useState(false)
+  const [confirmarFinanceiroOpen, setConfirmarFinanceiroOpen] = useState(false)
+  const [gerandoFinanceiro, setGerandoFinanceiro] = useState(false)
+
+  const checarParcelas = async () => {
+    if (!orcamento?.id) return
+    setChecandoParcelas(true)
+    try {
+      const parcs = await listarParcelasPagamento({ orcamentoId: orcamento.id })
+      setQtdParcelasExistentes(parcs.length)
+    } catch {
+      setQtdParcelasExistentes(null)
+    } finally {
+      setChecandoParcelas(false)
+    }
+  }
 
   useEffect(() => {
-    if (open) {
+    if (open && orcamento?.id) {
+      checarParcelas()
       obterConfiguracoesOrcamento()
         .then((orcConfig) => {
           setConfigGeral(orcConfig)
         })
         .catch(console.error)
+    } else {
+      setQtdParcelasExistentes(null)
     }
-  }, [open])
+  }, [open, orcamento?.id])
+
+  const handleExecutarGerarFinanceiro = async () => {
+    if (!orcamento) return
+    setGerandoFinanceiro(true)
+    try {
+      const res = await gerarFinanceiroManual(orcamento)
+      if (res.jaExistiam) {
+        toast({
+          title: 'Financeiro já existente',
+          description: 'Este orçamento já possui parcelas registradas no Contas a Receber.',
+        })
+      } else {
+        toast({
+          title: 'Financeiro gerado com sucesso!',
+          description: `Agenda de recebimentos gerada para ${orcamento.numero} (${orcamento.cliente}) conforme método de pagamento.`,
+        })
+      }
+      setConfirmarFinanceiroOpen(false)
+      await checarParcelas()
+      if (onFinanceiroGerado) onFinanceiroGerado()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao gerar financeiro',
+        description: err?.message || 'Falha ao processar parcelas.',
+      })
+    } finally {
+      setGerandoFinanceiro(false)
+    }
+  }
 
   if (!orcamento) return null
 
@@ -429,6 +494,33 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               Imprimir / PDF
             </Button>
 
+            {/* BOTÃO GERAR FINANCEIRO MANUAL (Regra do dono: nada automático) */}
+            {qtdParcelasExistentes === 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setConfirmarFinanceiroOpen(true)}
+                disabled={gerandoFinanceiro || checandoParcelas}
+                className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] text-xs h-9 font-bold flex-1 sm:flex-none justify-center shadow-xs"
+                title="Gerar agenda de recebimentos e sincronizar venda"
+              >
+                <DollarSign className="w-3.5 h-3.5 mr-1.5 text-[#2C3E50]" />
+                {gerandoFinanceiro ? 'Gerando...' : 'Gerar financeiro'}
+              </Button>
+            ) : qtdParcelasExistentes !== null && qtdParcelasExistentes > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled
+                className="text-xs h-9 border-emerald-300 bg-emerald-50 text-emerald-800 flex-1 sm:flex-none justify-center opacity-90 cursor-default"
+                title="Este orçamento já possui agenda financeira gerada"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-700" />
+                Financeiro gerado ({qtdParcelasExistentes})
+              </Button>
+            ) : null}
+
             {onReajustarParcelas && (
               <Button
                 type="button"
@@ -466,6 +558,44 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
           </div>
         </div>
       </DialogContent>
+
+      {/* MODAL DE CONFIRMAÇÃO PARA GERAR FINANCEIRO */}
+      <AlertDialog open={confirmarFinanceiroOpen} onOpenChange={setConfirmarFinanceiroOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-[#2C3E50] flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+              Gerar financeiro do orçamento {orcamento?.numero}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-[#616F7D] space-y-2">
+              <p>
+                Deseja gerar a agenda de recebimentos para o cliente{' '}
+                <strong className="text-[#2C3E50]">{orcamento?.cliente}</strong> no valor de{' '}
+                <strong className="text-[#2C3E50]">{formatMoeda(totalEfetivo)}</strong>?
+              </p>
+              <p>
+                As parcelas serão lançadas no Contas a Receber conforme o método de pagamento
+                selecionado e o trabalho será sincronizado com as vendas.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gerandoFinanceiro} className="text-xs">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleExecutarGerarFinanceiro()
+              }}
+              disabled={gerandoFinanceiro}
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] text-xs font-bold"
+            >
+              {gerandoFinanceiro ? 'Gerando...' : 'Sim, gerar financeiro'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

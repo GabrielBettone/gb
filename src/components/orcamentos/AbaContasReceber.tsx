@@ -7,6 +7,7 @@ import {
   excluirRecebimento,
   excluirParcela,
 } from '@/services/orcamentoModulo'
+import { listarOrcamentos, gerarFinanceiroManual } from '@/services/orcamentos'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,6 +41,7 @@ import {
   History,
   PlusCircle,
   HelpCircle,
+  DollarSign,
 } from 'lucide-react'
 import {
   AlertDialog,
@@ -92,6 +94,14 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
   const [parcelaParaExcluir, setParcelaParaExcluir] = useState<PagamentoParcela | null>(null)
   const [excluindoParcela, setExcluindoParcela] = useState(false)
 
+  // Modal para Gerar Financeiro Manual de um orçamento (Regra do dono: nada automático)
+  const [modalGerarFinanceiroOpen, setModalGerarFinanceiroOpen] = useState(false)
+  const [orcamentosSemParcelas, setOrcamentosSemParcelas] = useState<Orcamento[]>([])
+  const [carregandoOrcamentos, setCarregandoOrcamentos] = useState(false)
+  const [orcamentoSelecionadoParaGerar, setOrcamentoSelecionadoParaGerar] = useState<string>('')
+  const [confirmarGeracaoOpen, setConfirmarGeracaoOpen] = useState(false)
+  const [gerandoFinanceiroManualState, setGerandoFinanceiroManualState] = useState(false)
+
   const carregar = async () => {
     setLoading(true)
     try {
@@ -105,6 +115,83 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Carrega orçamentos que ainda não têm parcelas para permitir geração sob demanda
+  const carregarOrcamentosSemParcelas = async () => {
+    setCarregandoOrcamentos(true)
+    try {
+      const [todosOrcamentos, todasParcelas] = await Promise.all([
+        listarOrcamentos(),
+        listarParcelasPagamento(),
+      ])
+
+      const idsComParcelas = new Set<string>()
+      todasParcelas.forEach((p) => {
+        if (p.orcamento) idsComParcelas.add(p.orcamento)
+        if (p.orcamento_id) idsComParcelas.add(p.orcamento_id)
+        if (p.expand?.orcamento?.id) idsComParcelas.add(p.expand.orcamento.id)
+      })
+
+      // Filtra orçamentos ativos (não cancelados/rejeitados) que ainda não têm parcelas
+      const semParcelas = todosOrcamentos.filter(
+        (orc) =>
+          !idsComParcelas.has(orc.id) && orc.status !== 'Rejeitados' && (orc.valor_total || 0) > 0,
+      )
+
+      setOrcamentosSemParcelas(semParcelas)
+      if (semParcelas.length > 0) {
+        setOrcamentoSelecionadoParaGerar(semParcelas[0].id)
+      } else {
+        setOrcamentoSelecionadoParaGerar('')
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao listar orçamentos',
+        description: err?.message,
+      })
+    } finally {
+      setCarregandoOrcamentos(false)
+    }
+  }
+
+  const abrirModalGerarFinanceiro = async () => {
+    setModalGerarFinanceiroOpen(true)
+    await carregarOrcamentosSemParcelas()
+  }
+
+  const handleConfirmarGeracaoManual = async () => {
+    const alvo = orcamentosSemParcelas.find((o) => o.id === orcamentoSelecionadoParaGerar)
+    if (!alvo) return
+
+    setGerandoFinanceiroManualState(true)
+    try {
+      const res = await gerarFinanceiroManual(alvo)
+      if (res.jaExistiam) {
+        toast({
+          title: 'Parcelas já existiam',
+          description: 'Este orçamento já possui agenda de recebimentos lançada.',
+        })
+      } else {
+        toast({
+          title: 'Financeiro gerado com sucesso!',
+          description: `Recebimentos criados para o orçamento ${alvo.numero} (${alvo.cliente}).`,
+        })
+      }
+      setConfirmarGeracaoOpen(false)
+      setModalGerarFinanceiroOpen(false)
+      await carregar()
+      if (onAtualizarOrcamentos) onAtualizarOrcamentos()
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao gerar financeiro',
+        description: err?.message || 'Falha ao processar parcelas.',
+      })
+    } finally {
+      setGerandoFinanceiroManualState(false)
     }
   }
 
@@ -494,15 +581,27 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={carregar}
-          className="h-9 text-xs border-[#DEE4EA] text-[#616F7D]"
-        >
-          <RotateCw className="w-3.5 h-3.5 mr-1" />
-          Atualizar Pagamentos
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={abrirModalGerarFinanceiro}
+            className="h-9 text-xs bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold shadow-xs"
+            title="Gerar agenda de recebimentos para um orçamento que ainda não tem parcelas"
+          >
+            <DollarSign className="w-3.5 h-3.5 mr-1 text-[#2C3E50]" />
+            Gerar financeiro
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={carregar}
+            className="h-9 text-xs border-[#DEE4EA] text-[#616F7D]"
+          >
+            <RotateCw className="w-3.5 h-3.5 mr-1" />
+            Atualizar Pagamentos
+          </Button>
+        </div>
       </div>
 
       {/* TABELA DE PARCELAS / CONTAS A RECEBER */}
@@ -1016,6 +1115,158 @@ export const AbaContasReceber: React.FC<AbaContasReceberProps> = ({ onAtualizarO
               className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
             >
               {excluindoParcela ? 'Removendo...' : 'Sim, remover linha'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* MODAL SELETOR DE ORÇAMENTO PARA GERAR FINANCEIRO (Aba Contas a Receber) */}
+      <Dialog open={modalGerarFinanceiroOpen} onOpenChange={setModalGerarFinanceiroOpen}>
+        <DialogContent className="max-w-md p-0">
+          <DialogHeader className="p-5 border-b border-[#DEE4EA] bg-white">
+            <DialogTitle className="font-heading text-[#2C3E50] flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+              Gerar Financeiro de Orçamento
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-5 space-y-4 bg-[#f8f9fa] text-xs">
+            <p className="text-[#616F7D]">
+              Em conformidade com a regra de <strong>não gerar financeiro automático</strong>,
+              selecione o orçamento desejado para criar as parcelas em Contas a Receber conforme o
+              método de pagamento configurado:
+            </p>
+
+            {carregandoOrcamentos ? (
+              <div className="p-6 text-center text-[#616F7D]">Procurando orçamentos...</div>
+            ) : orcamentosSemParcelas.length === 0 ? (
+              <div className="p-6 text-center bg-white rounded-lg border border-[#DEE4EA] text-[#616F7D] space-y-1">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                <p className="font-semibold text-[#2C3E50]">Nenhum orçamento pendente</p>
+                <p className="text-[11px] text-[#8A94A0]">
+                  Todos os orçamentos ativos já possuem agenda de recebimentos lançada ou não têm
+                  valor a faturar.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">
+                    Selecione o Orçamento ({orcamentosSemParcelas.length} disponível(is)):
+                  </Label>
+                  <Select
+                    value={orcamentoSelecionadoParaGerar}
+                    onValueChange={setOrcamentoSelecionadoParaGerar}
+                  >
+                    <SelectTrigger className="h-10 text-xs bg-white">
+                      <SelectValue placeholder="Escolha um orçamento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orcamentosSemParcelas.map((orc) => (
+                        <SelectItem key={orc.id} value={orc.id} className="text-xs">
+                          {orc.numero} — {orc.cliente} ({formatMoeda(orc.valor_total || 0)}) [
+                          {orc.status}]
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(() => {
+                  const sel = orcamentosSemParcelas.find(
+                    (o) => o.id === orcamentoSelecionadoParaGerar,
+                  )
+                  if (!sel) return null
+                  return (
+                    <div className="bg-white p-3.5 rounded-lg border border-[#DEE4EA] space-y-1 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-[#616F7D]">Cliente:</span>
+                        <strong className="text-[#2C3E50]">{sel.cliente}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#616F7D]">Etapa atual:</span>
+                        <span className="text-[#2C3E50] font-semibold">{sel.status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#616F7D]">Método de pagamento:</span>
+                        <span className="text-[#2C3E50] font-semibold">
+                          {sel.metodo_pagamento_nome || sel.metodo_pagamento || 'Não definido'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-[#DEE4EA] pt-1">
+                        <span className="text-[#616F7D] font-semibold">Valor Total:</span>
+                        <strong className="text-emerald-700 text-xs">
+                          {formatMoeda(sel.valor_total || 0)}
+                        </strong>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setModalGerarFinanceiroOpen(false)}
+                className="text-xs"
+              >
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!orcamentoSelecionadoParaGerar || carregandoOrcamentos}
+                onClick={() => setConfirmarGeracaoOpen(true)}
+                className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs"
+              >
+                Prosseguir para Gerar
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CONFIRMAÇÃO DE GERAÇÃO MANUAL PELA ABA CONTAS A RECEBER */}
+      <AlertDialog open={confirmarGeracaoOpen} onOpenChange={setConfirmarGeracaoOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-heading text-[#2C3E50] flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-[#D4AF37]" />
+              Confirmar geração de financeiro?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-[#616F7D] space-y-2">
+              <p>
+                Deseja gerar a agenda de recebimentos no Contas a Receber para o orçamento{' '}
+                <strong className="text-[#2C3E50]">
+                  {
+                    orcamentosSemParcelas.find((o) => o.id === orcamentoSelecionadoParaGerar)
+                      ?.numero
+                  }
+                </strong>
+                ?
+              </p>
+              <p>
+                As parcelas serão registradas conforme o método de pagamento e o trabalho será
+                sincronizado com as vendas.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={gerandoFinanceiroManualState} className="text-xs">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmarGeracaoManual()
+              }}
+              disabled={gerandoFinanceiroManualState}
+              className="bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] text-xs font-bold"
+            >
+              {gerandoFinanceiroManualState ? 'Gerando...' : 'Confirmar e Gerar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
