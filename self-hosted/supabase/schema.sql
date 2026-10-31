@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS public.orcamento_configuracoes (
   cidade TEXT,
   arquivo_logo TEXT,
   logo_url TEXT,
+  linha_descritiva TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -626,6 +627,7 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   logo_url TEXT,
   google_site_verification TEXT,
   whatsapp_webdesigner TEXT,
+  linha_descritiva TEXT,
   simulador_ativo BOOLEAN DEFAULT true,
   simulador_exigir_login BOOLEAN DEFAULT false,
   simulador_cota_padrao INTEGER DEFAULT 5,
@@ -980,6 +982,8 @@ ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS site_url TEXT DEFAULT 'https://gessobettone.com.br';
 ALTER TABLE IF EXISTS public.site_settings
   ADD COLUMN IF NOT EXISTS whatsapp_webdesigner TEXT;
+ALTER TABLE IF EXISTS public.site_settings
+  ADD COLUMN IF NOT EXISTS linha_descritiva TEXT;
 
 -- Remove colunas duplicadas legadas de site_settings (os dados de razao social, endereco e toggle de CNPJ pertencem a orcamento_configuracoes)
 ALTER TABLE IF EXISTS public.site_settings DROP COLUMN IF EXISTS razao_social;
@@ -996,6 +1000,7 @@ ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS te
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS email TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS cidade TEXT;
 ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS nosso_compromisso JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE IF EXISTS public.orcamento_configuracoes ADD COLUMN IF NOT EXISTS linha_descritiva TEXT;
 
 -- ============================================================================
 -- 19. PREDEFINIÇÕES DE FILTROS DO FUNIL / GANTT (Idempotente DDL)

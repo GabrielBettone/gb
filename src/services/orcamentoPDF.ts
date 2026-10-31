@@ -1,7 +1,11 @@
 import type { Orcamento, OrcamentoConfiguracao } from '@/types'
 import { parseItens, parseItensPorLocal } from '@/services/orcamentos'
 import { parseCompromisso, obterConfiguracoesOrcamento } from '@/services/orcamentoModulo'
-import { formatarCondicoesPrazo } from '@/services/orcamentoCondicoes'
+import {
+  formatarCondicoesPrazo,
+  formatMoeda as formatMoedaGlobal,
+} from '@/services/orcamentoCondicoes'
+import { obterConfiguracoes } from '@/services/site'
 import logoSvgDefault from '@/assets/logo-6927a.svg'
 import logoPngFallback from '@/assets/logo-gesso-bettone-eb5aa.png'
 
@@ -132,11 +136,8 @@ export async function imprimirOrcamentoPDF(
     return `${dia}/${mes}/${ano}`
   }
 
-  const formatMoeda = (val?: number) => {
-    return (val || 0).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    })
+  const formatMoeda = (val?: number | string | null) => {
+    return formatMoedaGlobal(val)
   }
 
   // Se não foi passado config direto na chamada, tenta obter das configurações de orçamento
@@ -148,6 +149,22 @@ export async function imprimirOrcamentoPDF(
       /* fallback */
     }
   }
+
+  // Se a linha descritiva não estiver configurada no orcamento_configuracoes, busca também de site_settings
+  let linhaDescritivaConfigurada = (configOrcamento?.linha_descritiva || '').trim()
+  if (!linhaDescritivaConfigurada) {
+    try {
+      const siteConf = await obterConfiguracoes()
+      if (siteConf?.linha_descritiva?.trim()) {
+        linhaDescritivaConfigurada = siteConf.linha_descritiva.trim()
+      }
+    } catch {
+      /* fallback */
+    }
+  }
+
+  const linhaDescritivaFinal =
+    linhaDescritivaConfigurada || 'Comércio & Instalações de Gesso, Drywall e Acabamentos Finos'
 
   // Resolução dos dados da empresa a partir de orcamento_configuracoes com fallback seguro
   const nomeFantasiaBase = configOrcamento?.nome_fantasia?.trim() || 'Gesso Bettone'
@@ -516,7 +533,7 @@ export async function imprimirOrcamentoPDF(
         </div>
         <div>
           <h1 class="brand-title">${nomeExibicao}</h1>
-          <p class="brand-sub">Comércio & Instalações de Gesso, Drywall e Acabamentos Finos</p>
+          <p class="brand-sub">${linhaDescritivaFinal}</p>
         </div>
       </div>
       <div class="doc-meta">

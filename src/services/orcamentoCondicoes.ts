@@ -1,10 +1,26 @@
 import type { MetodoPagamento } from '@/types'
 import { parseCondicoes } from '@/services/orcamentoModulo'
 
-export function formatMoeda(val?: number): string {
-  return (val || 0).toLocaleString('pt-BR', {
+export function formatMoeda(val?: number | string | null): string {
+  if (val === null || val === undefined) {
+    return (0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    })
+  }
+
+  const num =
+    typeof val === 'number'
+      ? val
+      : typeof val === 'string'
+        ? parseFloat(val.replace(/[^\d,-]/g, '').replace(',', '.')) || 0
+        : 0
+
+  return (isNaN(num) ? 0 : num).toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
 }
 

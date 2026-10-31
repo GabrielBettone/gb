@@ -147,6 +147,9 @@ export interface OrcamentoConfiguracao extends RecordModel {
   email?: string
   endereco?: string
   cidade?: string
+  linha_descritiva?: string
+  arquivo_logo?: string
+  logo_url?: string
 }
 
 export type StatusParcela = 'a_pagar' | 'parcial' | 'paga' | 'cancelada'

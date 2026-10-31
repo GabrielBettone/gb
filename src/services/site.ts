@@ -2,6 +2,7 @@ import pb from '@/lib/pocketbase/client'
 import { isSelfHostedSupabase, dataAdapter } from '@/lib/dataAdapter'
 import { supabaseUpload, supabaseGetPublicUrl } from '@/lib/supabase/client'
 import { supabaseAuth } from '@/lib/supabase/auth'
+import { salvarConfiguracoesOrcamento } from '@/services/orcamentoModulo'
 
 // --- Tipagens ---
 
@@ -129,6 +130,7 @@ export interface SiteSettings {
   pagina_parceiros_ativa: boolean
   google_site_verification?: string
   whatsapp_webdesigner?: string
+  linha_descritiva?: string
   arquivo_logo?: string
   logo_url?: string
   simulador_ativo?: boolean
@@ -1578,6 +1580,7 @@ const FALLBACK_SETTINGS: SiteSettings = {
   mensagem_orcamento: 'Olá! Vim pelo site da Gesso Bettone e gostaria de solicitar um orçamento.',
   instagram: 'https://www.instagram.com/gessobettone_saopedro',
   cnpj: '53.242.055/0001-74',
+  linha_descritiva: 'Comércio & Instalações de Gesso, Drywall e Acabamentos Finos',
   exibir_depoimentos: true,
   pagina_parceiros_ativa: true,
   cidades_atendidas: [
@@ -1624,6 +1627,7 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       ),
       google_site_verification: record.google_site_verification || '',
       whatsapp_webdesigner: record.whatsapp_webdesigner || '',
+      linha_descritiva: record.linha_descritiva || '',
       arquivo_logo: record.arquivo_logo || '',
       logo_url: logoUrl,
       simulador_ativo: record.simulador_ativo !== false,
@@ -1631,7 +1635,12 @@ export async function obterConfiguracoes(): Promise<SiteSettings> {
       simulador_cota_padrao: record.simulador_cota_padrao ?? 5,
     }
   } catch {
-    return { ...FALLBACK_SETTINGS, google_site_verification: '', whatsapp_webdesigner: '' }
+    return {
+      ...FALLBACK_SETTINGS,
+      google_site_verification: '',
+      whatsapp_webdesigner: '',
+      linha_descritiva: '',
+    }
   }
 }
 
@@ -1704,11 +1713,21 @@ export async function salvarConfiguracoes(
       google_site_verification: resultRecord?.google_site_verification || '',
       whatsapp_webdesigner:
         resultRecord?.whatsapp_webdesigner ?? settings.whatsapp_webdesigner ?? '',
+      linha_descritiva: resultRecord?.linha_descritiva ?? settings.linha_descritiva ?? '',
       arquivo_logo: resultRecord?.arquivo_logo,
       logo_url: logoUrl,
       simulador_ativo: resultRecord?.simulador_ativo !== false,
       simulador_exigir_login: !!resultRecord?.simulador_exigir_login,
       simulador_cota_padrao: resultRecord?.simulador_cota_padrao ?? 5,
+    }
+
+    // Mantém orcamento_configuracoes sincronizado com linha_descritiva caso enviado
+    if (settings.linha_descritiva !== undefined) {
+      try {
+        await salvarConfiguracoesOrcamento({ linha_descritiva: settings.linha_descritiva })
+      } catch (e) {
+        console.warn('Aviso ao sincronizar linha_descritiva com orcamento_configuracoes:', e)
+      }
     }
 
     return { settings: finalSettings }
@@ -1769,11 +1788,21 @@ export async function salvarConfiguracoes(
     cidades_atendidas: parseJsonArray<string>(resultRecord?.cidades_atendidas),
     google_site_verification: resultRecord?.google_site_verification || '',
     whatsapp_webdesigner: resultRecord?.whatsapp_webdesigner ?? settings.whatsapp_webdesigner ?? '',
+    linha_descritiva: resultRecord?.linha_descritiva ?? settings.linha_descritiva ?? '',
     arquivo_logo: resultRecord?.arquivo_logo,
     logo_url: logoUrl,
     simulador_ativo: resultRecord?.simulador_ativo !== false,
     simulador_exigir_login: !!resultRecord?.simulador_exigir_login,
     simulador_cota_padrao: resultRecord?.simulador_cota_padrao ?? 5,
+  }
+
+  // Mantém orcamento_configuracoes sincronizado com linha_descritiva caso enviado
+  if (settings.linha_descritiva !== undefined) {
+    try {
+      await salvarConfiguracoesOrcamento({ linha_descritiva: settings.linha_descritiva })
+    } catch (e) {
+      console.warn('Aviso ao sincronizar linha_descritiva com orcamento_configuracoes:', e)
+    }
   }
 
   return { settings: finalSettings }

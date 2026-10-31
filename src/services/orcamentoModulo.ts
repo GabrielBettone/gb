@@ -200,6 +200,7 @@ export async function obterConfiguracoesOrcamento(): Promise<OrcamentoConfigurac
     return {
       ...rec,
       logo_url: logoUrl,
+      linha_descritiva: rec.linha_descritiva || '',
       nosso_compromisso: parseCompromisso(rec.nosso_compromisso),
     }
   } catch {
@@ -209,6 +210,7 @@ export async function obterConfiguracoesOrcamento(): Promise<OrcamentoConfigurac
       chave: 'padrao',
       razao_social: 'Gesso Bettone Comércio e Instalações Eireli',
       nome_fantasia: 'Gesso Bettone',
+      linha_descritiva: 'Comércio & Instalações de Gesso, Drywall e Acabamentos Finos',
       cnpj: '32.185.940/0001-72',
       exibir_cnpj_padrao: true,
       nosso_compromisso: [
