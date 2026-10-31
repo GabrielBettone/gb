@@ -60,11 +60,12 @@ export interface ItemOrcamento {
   metodo_calculo?: string
   valor_unitario: number
   valor_total: number
-  // Para cálculo por largura × comprimento ou dimensões A e B
+  // Para cálculo por largura × comprimento ou dimensões A, B e C
   largura?: number
   comprimento?: number
   dimensao_a?: number
   dimensao_b?: number
+  dimensao_c?: number
 }
 
 export interface ItemPorLocalOrcamento {
@@ -77,6 +78,7 @@ export interface ItemPorLocalOrcamento {
   metodo_calculo?: string
   dimensao_a?: number
   dimensao_b?: number
+  dimensao_c?: number
   valor: number
   total: number
 }
@@ -212,6 +214,7 @@ export interface Orcamento extends RecordModel {
   subtotal?: number
   desconto?: number
   valor_total: number
+  data_emissao?: string
   data_inicio_prevista?: string
   data_fim_prevista?: string
   data_conclusao?: string

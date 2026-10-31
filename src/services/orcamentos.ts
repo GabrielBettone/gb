@@ -173,6 +173,7 @@ export interface CriarOrcamentoDTO {
   subtotal: number
   desconto: number
   valor_total: number
+  data_emissao?: string
   data_inicio_prevista?: string
   data_fim_prevista?: string
   validade?: string
@@ -203,6 +204,12 @@ export async function criarOrcamento(dados: CriarOrcamentoDTO): Promise<Orcament
     subtotal: dados.subtotal,
     desconto: dados.desconto,
     valor_total: dados.valor_total,
+    data_emissao:
+      dados.data_emissao && dados.data_emissao.trim()
+        ? dados.data_emissao.includes('T') || dados.data_emissao.includes('Z')
+          ? dados.data_emissao
+          : dados.data_emissao.substring(0, 10)
+        : null,
     data_inicio_prevista:
       dados.data_inicio_prevista && dados.data_inicio_prevista.trim()
         ? dados.data_inicio_prevista.includes('T') || dados.data_inicio_prevista.includes('Z')
@@ -271,6 +278,15 @@ export async function atualizarOrcamento(
   if (dados.subtotal !== undefined) payload.subtotal = dados.subtotal
   if (dados.desconto !== undefined) payload.desconto = dados.desconto
   if (dados.valor_total !== undefined) payload.valor_total = dados.valor_total
+  if (dados.data_emissao !== undefined) {
+    const raw = dados.data_emissao
+    payload.data_emissao =
+      raw && typeof raw === 'string' && raw.trim()
+        ? raw.includes('T') || raw.includes('Z')
+          ? raw
+          : raw.substring(0, 10)
+        : null
+  }
   if (dados.data_inicio_prevista !== undefined) {
     const raw = dados.data_inicio_prevista
     payload.data_inicio_prevista =

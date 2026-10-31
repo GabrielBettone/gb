@@ -673,14 +673,18 @@ export const AbaConfiguracoes: React.FC = () => {
             {formUnidadeMetodo === 'custom' && (
               <div className="space-y-1">
                 <Label className="text-xs font-semibold text-[#2C3E50]">
-                  Fórmula Personalizada
+                  Fórmula Personalizada (variáveis A, B e C)
                 </Label>
                 <Input
                   value={formUnidadeMetodoCustom}
                   onChange={(e) => setFormUnidadeMetodoCustom(e.target.value)}
-                  placeholder="Ex: AxBxC"
+                  placeholder="Ex: (A+B)*C ou AxBxC"
                   className="h-8 text-xs bg-white font-mono"
                 />
+                <p className="text-[10px] text-[#616F7D]">
+                  Suporta operações (+, -, *, /) e parênteses. Se usar C, a coluna C (m) será
+                  exibida no orçamento e no PDF.
+                </p>
               </div>
             )}
 

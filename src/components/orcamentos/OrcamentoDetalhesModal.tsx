@@ -213,9 +213,15 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
           <div className="bg-white p-4 rounded-xl border border-[#E3E6EA] space-y-2.5">
             <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-[#2C3E50] flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
-              Cronograma do Trabalho (Gantt)
+              Cronograma & Datas do Orçamento
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-2.5 bg-[#F6F7F9] rounded-lg border border-[#E3E6EA]">
+                <span className="text-[11px] text-[#5B6470] block">Data de Emissão</span>
+                <span className="font-semibold text-[#22272A] whitespace-nowrap">
+                  {formatData(orcamento.data_emissao || orcamento.created)}
+                </span>
+              </div>
               <div className="p-2.5 bg-[#F6F7F9] rounded-lg border border-[#E3E6EA]">
                 <span className="text-[11px] text-[#5B6470] block">Início Previsto</span>
                 <span className="font-semibold text-[#22272A] whitespace-nowrap">
@@ -254,44 +260,77 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
                 Detalhamento por Ambiente / Local ({itensPorLocal.length})
               </h4>
 
-              <div className="overflow-x-auto -mx-1 sm:mx-0">
-                <table className="w-full min-w-[560px] text-left text-xs">
-                  <thead className="bg-[#F6F7F9] text-[#5B6470] border-b border-[#E3E6EA]">
-                    <tr>
-                      <th className="py-2.5 px-3 font-semibold whitespace-nowrap w-[25%]">Local</th>
-                      <th className="py-2.5 px-3 font-semibold whitespace-nowrap w-[35%]">
-                        Serviço / Descrição
-                      </th>
-                      <th className="py-2.5 px-3 text-center font-semibold whitespace-nowrap w-[12%]">
-                        Metragem
-                      </th>
-                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap w-[14%]">
-                        Valor Unit.
-                      </th>
-                      <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap w-[14%]">
-                        Total da Linha
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E3E6EA]">
-                    {itensPorLocal.map((linha, idx) => (
-                      <tr key={idx} className="hover:bg-[#F6F7F9]/50 transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-[#2C3E50]">{linha.local}</td>
-                        <td className="py-2.5 px-3 text-[#22272A]">{linha.servico}</td>
-                        <td className="py-2.5 px-3 text-center font-mono font-medium whitespace-nowrap">
-                          {linha.metragem} m²
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
-                          {formatMoeda(linha.valor)}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#2C3E50] whitespace-nowrap">
-                          {formatMoeda(linha.total)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {(() => {
+                const usaC = itensPorLocal.some(
+                  (l) =>
+                    Boolean(l.dimensao_c) ||
+                    (l.metodo_calculo && l.metodo_calculo.toLowerCase().includes('c')),
+                )
+                return (
+                  <div className="overflow-x-auto -mx-1 sm:mx-0">
+                    <table className="w-full min-w-[560px] text-left text-xs">
+                      <thead className="bg-[#F6F7F9] text-[#5B6470] border-b border-[#E3E6EA]">
+                        <tr>
+                          <th className="py-2.5 px-3 font-semibold whitespace-nowrap w-[20%]">
+                            Local
+                          </th>
+                          <th className="py-2.5 px-3 font-semibold whitespace-nowrap w-[30%]">
+                            Serviço / Descrição
+                          </th>
+                          <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap w-[7%]">
+                            A (m)
+                          </th>
+                          <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap w-[7%]">
+                            B (m)
+                          </th>
+                          {usaC && (
+                            <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap w-[7%] text-[#D4AF37]">
+                              C (m)
+                            </th>
+                          )}
+                          <th className="py-2.5 px-3 text-center font-semibold whitespace-nowrap w-[11%]">
+                            Metragem
+                          </th>
+                          <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap w-[12%]">
+                            Valor Unit.
+                          </th>
+                          <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap w-[13%]">
+                            Total da Linha
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E3E6EA]">
+                        {itensPorLocal.map((linha, idx) => (
+                          <tr key={idx} className="hover:bg-[#F6F7F9]/50 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-[#2C3E50]">{linha.local}</td>
+                            <td className="py-2.5 px-3 text-[#22272A]">{linha.servico}</td>
+                            <td className="py-2.5 px-2 text-center font-mono text-[#5B6470]">
+                              {linha.dimensao_a ? linha.dimensao_a : '—'}
+                            </td>
+                            <td className="py-2.5 px-2 text-center font-mono text-[#5B6470]">
+                              {linha.dimensao_b ? linha.dimensao_b : '—'}
+                            </td>
+                            {usaC && (
+                              <td className="py-2.5 px-2 text-center font-mono text-[#D4AF37] font-semibold">
+                                {linha.dimensao_c ? linha.dimensao_c : '—'}
+                              </td>
+                            )}
+                            <td className="py-2.5 px-3 text-center font-mono font-medium whitespace-nowrap">
+                              {linha.metragem} {linha.unidade || 'm²'}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap">
+                              {formatMoeda(linha.valor)}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-[#2C3E50] whitespace-nowrap">
+                              {formatMoeda(linha.total)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
             </div>
           )}
 

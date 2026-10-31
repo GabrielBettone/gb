@@ -63,6 +63,7 @@ import { imprimirOrcamentoPDF } from '@/services/orcamentoPDF'
 import {
   listarUnidadesMedida,
   calcularQuantidadePorDimensoes,
+  formulaUsaVariavelC,
   identificarTipoFormula,
 } from '@/services/unidadesMedida'
 import { useToast } from '@/hooks/use-toast'
@@ -119,6 +120,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
   const [status, setStatus] = useState<StatusOrcamento | string>('Orçamentos a realizar')
   const [produtoPrincipal, setProdutoPrincipal] = useState<string>('')
   const [validade, setValidade] = useState('')
+  const [dataEmissao, setDataEmissao] = useState('')
   const [dataInicioPrevista, setDataInicioPrevista] = useState('')
   const [dataFimPrevista, setDataFimPrevista] = useState('')
   const [identificacao, setIdentificacao] = useState('')
@@ -180,6 +182,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       setCanalOrigem(orcamentoParaEditar.canal_origem || 'WhatsApp')
       setStatus(orcamentoParaEditar.status || 'Orçamentos a realizar')
       setProdutoPrincipal(orcamentoParaEditar.produto_principal || '')
+      setDataEmissao(
+        orcamentoParaEditar.data_emissao
+          ? orcamentoParaEditar.data_emissao.substring(0, 10)
+          : orcamentoParaEditar.created
+            ? orcamentoParaEditar.created.substring(0, 10)
+            : new Date().toISOString().substring(0, 10),
+      )
       setValidade(orcamentoParaEditar.validade ? orcamentoParaEditar.validade.substring(0, 10) : '')
       setDataInicioPrevista(
         orcamentoParaEditar.data_inicio_prevista
@@ -230,6 +239,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       setCanalOrigem('WhatsApp')
       setStatus('Orçamentos a realizar')
       setProdutoPrincipal(produtos[0]?.id || '')
+      setDataEmissao(new Date().toISOString().substring(0, 10))
       setValidade('')
       setDataInicioPrevista('')
       setDataFimPrevista('')
@@ -419,11 +429,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               if (identificarTipoFormula(linha.metodo_calculo) === 'livre') {
                 linha.dimensao_a = undefined
                 linha.dimensao_b = undefined
+                linha.dimensao_c = undefined
               }
               const calc = calcularQuantidadePorDimensoes(
                 linha.dimensao_a,
                 linha.dimensao_b,
                 linha.metodo_calculo,
+                linha.dimensao_c,
               )
               if (calc !== null) linha.metragem = calc
             }
@@ -439,21 +451,25 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         if (identificarTipoFormula(linha.metodo_calculo) === 'livre') {
           linha.dimensao_a = undefined
           linha.dimensao_b = undefined
+          linha.dimensao_c = undefined
         }
         const calc = calcularQuantidadePorDimensoes(
           linha.dimensao_a,
           linha.dimensao_b,
           linha.metodo_calculo,
+          linha.dimensao_c,
         )
         if (calc !== null) linha.metragem = calc
       }
 
-      if (campo === 'dimensao_a' || campo === 'dimensao_b') {
+      if (campo === 'dimensao_a' || campo === 'dimensao_b' || campo === 'dimensao_c') {
         const a = campo === 'dimensao_a' ? parseFloat(valor) || 0 : linha.dimensao_a || 0
         const b = campo === 'dimensao_b' ? parseFloat(valor) || 0 : linha.dimensao_b || 0
+        const c = campo === 'dimensao_c' ? parseFloat(valor) || 0 : linha.dimensao_c || 0
         linha.dimensao_a = a
         linha.dimensao_b = b
-        const calc = calcularQuantidadePorDimensoes(a, b, linha.metodo_calculo)
+        linha.dimensao_c = c
+        const calc = calcularQuantidadePorDimensoes(a, b, linha.metodo_calculo, c)
         if (calc !== null) linha.metragem = calc
       }
 
@@ -517,11 +533,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
               if (identificarTipoFormula(itemAtual.metodo_calculo) === 'livre') {
                 itemAtual.dimensao_a = undefined
                 itemAtual.dimensao_b = undefined
+                itemAtual.dimensao_c = undefined
               }
               const calc = calcularQuantidadePorDimensoes(
                 itemAtual.dimensao_a,
                 itemAtual.dimensao_b,
                 itemAtual.metodo_calculo,
+                itemAtual.dimensao_c,
               )
               if (calc !== null) {
                 itemAtual.quantidade = calc
@@ -544,11 +562,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         if (identificarTipoFormula(itemAtual.metodo_calculo) === 'livre') {
           itemAtual.dimensao_a = undefined
           itemAtual.dimensao_b = undefined
+          itemAtual.dimensao_c = undefined
         }
         const calc = calcularQuantidadePorDimensoes(
           itemAtual.dimensao_a,
           itemAtual.dimensao_b,
           itemAtual.metodo_calculo,
+          itemAtual.dimensao_c,
         )
         if (calc !== null) {
           itemAtual.quantidade = calc
@@ -556,16 +576,19 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         }
       }
 
-      // Se alterou as dimensões A/B (cálculo pela unidade: AxB ou (A+B)x2)
-      if (campo === 'dimensao_a' || campo === 'dimensao_b') {
+      // Se alterou as dimensões A, B ou C (cálculo pela unidade)
+      if (campo === 'dimensao_a' || campo === 'dimensao_b' || campo === 'dimensao_c') {
         const a = campo === 'dimensao_a' ? parseFloat(valor) || 0 : itemAtual.dimensao_a || 0
         const b = campo === 'dimensao_b' ? parseFloat(valor) || 0 : itemAtual.dimensao_b || 0
+        const c = campo === 'dimensao_c' ? parseFloat(valor) || 0 : itemAtual.dimensao_c || 0
         itemAtual.dimensao_a = a
         itemAtual.dimensao_b = b
+        itemAtual.dimensao_c = c
         // Mantém largura/comprimento em sinc para compatibilidade do PDF
         itemAtual.largura = a
         itemAtual.comprimento = b
-        const calc = calcularQuantidadePorDimensoes(a, b, itemAtual.metodo_calculo)
+
+        const calc = calcularQuantidadePorDimensoes(a, b, itemAtual.metodo_calculo, c)
         if (calc !== null) {
           itemAtual.quantidade = calc
           itemAtual.valor_total = Math.round(calc * (itemAtual.valor_unitario || 0) * 100) / 100
@@ -687,6 +710,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
         desconto: descontoNum,
         valor_total: valorAPrazo,
         identificacao: identificacao?.trim() || undefined,
+        data_emissao: dataEmissao && dataEmissao.trim() ? dataEmissao.trim() : null,
         data_inicio_prevista:
           dataInicioPrevista && dataInicioPrevista.trim() ? dataInicioPrevista.trim() : null,
         data_fim_prevista:
@@ -752,6 +776,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       valor_a_prazo: valorAPrazo,
       exibir_cnpj: exibirCnpj,
       // NUNCA incluir identificação interna no objeto enviado ao PDF do cliente
+      data_emissao: dataEmissao,
       data_inicio_prevista: dataInicioPrevista,
       data_fim_prevista: dataFimPrevista,
       validade,
@@ -1127,9 +1152,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
                       {/* Bloco de Medidas e Valores: no mobile vira coluna única/grid legível, no desktop alinhado com espaço generoso sem truncar */}
                       <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 shrink-0">
-                        {/* Dimensões A e B se o método não for livre */}
+                        {/* Dimensões A, B e C se o método não for livre */}
                         {identificarTipoFormula(metodoCalculoDe(linha)) !== 'livre' ? (
-                          <div className="grid grid-cols-2 gap-2 sm:contents">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:contents">
                             <div className="w-full md:w-24 space-y-1">
                               <Label
                                 className="text-[10px] text-[#616F7D] font-semibold"
@@ -1166,6 +1191,26 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 className="h-9 text-xs bg-white text-center px-2 min-w-[85px] font-mono font-medium"
                               />
                             </div>
+                            {formulaUsaVariavelC(metodoCalculoDe(linha)) ? (
+                              <div className="w-full md:w-24 space-y-1 col-span-2 sm:col-span-1">
+                                <Label
+                                  className="text-[10px] text-[#D4AF37] font-bold"
+                                  title="Dimensão C"
+                                >
+                                  C (m)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  placeholder="0,00"
+                                  value={linha.dimensao_c ?? ''}
+                                  onChange={(e) =>
+                                    handleLinhaLocalChange(idx, 'dimensao_c', e.target.value)
+                                  }
+                                  className="h-9 text-xs bg-white text-center px-2 min-w-[85px] font-mono font-medium border-[#D4AF37]/50 focus:border-[#D4AF37]"
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
 
@@ -1342,9 +1387,9 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
 
                       {/* Bloco de Medidas e Valores: no mobile coluna única/grid legível, no desktop espaçado e sem cortes */}
                       <div className="w-full md:w-auto grid grid-cols-1 sm:grid-cols-2 md:flex md:items-end gap-3 shrink-0">
-                        {/* Dimensões A e B se a unidade tiver cálculo dimensional */}
+                        {/* Dimensões A, B e C se a unidade tiver cálculo dimensional */}
                         {identificarTipoFormula(metodoCalculoDe(item)) !== 'livre' ? (
-                          <div className="grid grid-cols-2 gap-2 sm:contents">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:contents">
                             <div className="w-full md:w-24 space-y-1">
                               <Label
                                 className="text-[10px] text-[#616F7D] font-semibold"
@@ -1382,6 +1427,27 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                                 className="h-9 text-xs bg-white px-2 text-center min-w-[85px] font-mono font-medium"
                               />
                             </div>
+
+                            {formulaUsaVariavelC(metodoCalculoDe(item)) ? (
+                              <div className="w-full md:w-24 space-y-1 col-span-2 sm:col-span-1">
+                                <Label
+                                  className="text-[10px] text-[#D4AF37] font-bold"
+                                  title="Dimensão C"
+                                >
+                                  C (m)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="any"
+                                  placeholder="0,00"
+                                  value={item.dimensao_c ?? ''}
+                                  onChange={(e) =>
+                                    handleItemChange(idx, 'dimensao_c', e.target.value)
+                                  }
+                                  className="h-9 text-xs bg-white px-2 text-center min-w-[85px] font-mono font-medium border-[#D4AF37]/50 focus:border-[#D4AF37]"
+                                />
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
 
@@ -1517,7 +1583,32 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                 4. Cronograma & Observações (Alimenta o Gantt e o PDF)
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      Data de emissão *
+                    </Label>
+                    {dataEmissao && (
+                      <button
+                        type="button"
+                        onClick={() => setDataEmissao(new Date().toISOString().substring(0, 10))}
+                        className="text-[10px] text-[#2C3E50] hover:underline"
+                      >
+                        Hoje
+                      </button>
+                    )}
+                  </div>
+                  <Input
+                    type="date"
+                    value={dataEmissao}
+                    onChange={(e) => setDataEmissao(e.target.value)}
+                    className="h-9 text-xs bg-white"
+                    required
+                  />
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold text-[#2C3E50] flex items-center gap-1.5">

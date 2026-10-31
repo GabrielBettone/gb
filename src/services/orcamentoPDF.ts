@@ -121,13 +121,20 @@ export async function imprimirOrcamentoPDF(
   const formatData = (d?: string) => {
     if (!d) return 'A definir'
     const str = String(d).trim()
-    // Caso 1: string pura no formato YYYY-MM-DD (com ou sem sufixo de hora)
+    // Caso 1: string pura no formato YYYY-MM-DD (com ou sem sufixo de hora) - data pura sem fuso
     const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
     if (match) {
       const [, ano, mes, dia] = match
       return `${dia}/${mes}/${ano}`
     }
-    // Caso 2: fallback para ISO / timestamp com hora, parseando componentes locais
+    // Caso 2: fallback para ISO / timestamp com hora, parseando componentes UTC se contiver Z ou offset
+    if (str.includes('Z') || str.includes('T')) {
+      const matchIso = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+      if (matchIso) {
+        const [, ano, mes, dia] = matchIso
+        return `${dia}/${mes}/${ano}`
+      }
+    }
     const dateObj = new Date(str)
     if (isNaN(dateObj.getTime())) return str
     const dia = String(dateObj.getDate()).padStart(2, '0')
@@ -135,6 +142,10 @@ export async function imprimirOrcamentoPDF(
     const ano = dateObj.getFullYear()
     return `${dia}/${mes}/${ano}`
   }
+
+  // Data de emissão: usa orcamento.data_emissao com fallback para orcamento.created ou data atual
+  const dataEmissaoEfetiva =
+    orcamento.data_emissao || orcamento.created || new Date().toISOString().substring(0, 10)
 
   const formatMoeda = (val?: number | string | null) => {
     return formatMoedaGlobal(val)
@@ -538,7 +549,7 @@ export async function imprimirOrcamentoPDF(
       </div>
       <div class="doc-meta">
         <div class="doc-number">${orcamento.numero}</div>
-        <div class="doc-date">Emissão: ${formatData(orcamento.created)}</div>
+        <div class="doc-date">Emissão: ${formatData(dataEmissaoEfetiva)}</div>
         <div class="doc-date">Validade da proposta: ${formatData(orcamento.validade)}</div>
       </div>
     </div>
@@ -567,17 +578,26 @@ export async function imprimirOrcamentoPDF(
     <!-- TABELA DE ITENS POR LOCAL / AMBIENTE -->
     ${
       itensPorLocal.length > 0
-        ? `
+        ? (() => {
+            const algumLocalUsaC = itensPorLocal.some((loc) => {
+              const m = loc.metodo_calculo || ''
+              return m.toLowerCase().includes('c') || Boolean(loc.dimensao_c)
+            })
+
+            return `
     <div class="table-container">
       <div class="section-title">Detalhamento por Ambiente / Local</div>
       <table>
         <thead>
           <tr>
-            <th style="width: 22%;">Local</th>
-            <th style="width: 38%;">Serviço / Descrição</th>
-            <th class="text-center" style="width: 12%;">Metragem</th>
-            <th class="text-right" style="width: 14%;">Valor</th>
-            <th class="text-right" style="width: 14%;">Total Linha</th>
+            <th style="width: ${algumLocalUsaC ? '18%' : '22%'};">Local</th>
+            <th style="width: ${algumLocalUsaC ? '28%' : '38%'};">Serviço / Descrição</th>
+            <th class="text-center" style="width: 7%;">A (m)</th>
+            <th class="text-center" style="width: 7%;">B (m)</th>
+            ${algumLocalUsaC ? '<th class="text-center" style="width: 7%;">C (m)</th>' : ''}
+            <th class="text-center" style="width: ${algumLocalUsaC ? '11%' : '12%'};">Metragem</th>
+            <th class="text-right" style="width: 11%;">Valor</th>
+            <th class="text-right" style="width: 11%;">Total Linha</th>
           </tr>
         </thead>
         <tbody>
@@ -587,7 +607,10 @@ export async function imprimirOrcamentoPDF(
             <tr>
               <td><strong style="color: #2C3E50;">${loc.local}</strong></td>
               <td><div class="item-desc">${loc.servico}</div></td>
-              <td class="text-center">${loc.metragem} m²</td>
+              <td class="text-center" style="color: #616F7D;">${loc.dimensao_a !== undefined && loc.dimensao_a !== null && loc.dimensao_a > 0 ? loc.dimensao_a : '—'}</td>
+              <td class="text-center" style="color: #616F7D;">${loc.dimensao_b !== undefined && loc.dimensao_b !== null && loc.dimensao_b > 0 ? loc.dimensao_b : '—'}</td>
+              ${algumLocalUsaC ? `<td class="text-center" style="color: #616F7D;">${loc.dimensao_c !== undefined && loc.dimensao_c !== null && loc.dimensao_c > 0 ? loc.dimensao_c : '—'}</td>` : ''}
+              <td class="text-center">${loc.metragem} ${loc.unidade || 'm²'}</td>
               <td class="text-right">${formatMoeda(loc.valor)}</td>
               <td class="text-right" style="font-weight: 700; color: #2C3E50;">${formatMoeda(loc.total)}</td>
             </tr>
@@ -598,44 +621,60 @@ export async function imprimirOrcamentoPDF(
       </table>
     </div>
     `
+          })()
         : ''
     }
 
     <!-- TABELA DE SERVIÇOS & ITENS GERAIS -->
     ${
       itens.length > 0
-        ? `
+        ? (() => {
+            const algumItemUsaC = itens.some((it) => {
+              const m = it.metodo_calculo || ''
+              return m.toLowerCase().includes('c') || Boolean(it.dimensao_c)
+            })
+
+            return `
     <div class="table-container">
       <div class="section-title">Itens e Serviços Gerais</div>
       <table>
         <thead>
           <tr>
-            <th style="width: 50%;">Descrição do Serviço</th>
-            <th class="text-center" style="width: 15%;">Quantidade</th>
-            <th class="text-right" style="width: 15%;">Valor Unit.</th>
-            <th class="text-right" style="width: 20%;">Total</th>
+            <th style="width: ${algumItemUsaC ? '40%' : '44%'};">Descrição do Serviço</th>
+            <th class="text-center" style="width: 7%;">A (m)</th>
+            <th class="text-center" style="width: 7%;">B (m)</th>
+            ${algumItemUsaC ? '<th class="text-center" style="width: 7%;">C (m)</th>' : ''}
+            <th class="text-center" style="width: ${algumItemUsaC ? '13%' : '14%'};">Quantidade</th>
+            <th class="text-right" style="width: 14%;">Valor Unit.</th>
+            <th class="text-right" style="width: 14%;">Total</th>
           </tr>
         </thead>
         <tbody>
           ${itens
-            .map(
-              (it) => `
+            .map((it) => {
+              const dimA = it.dimensao_a ?? it.largura
+              const dimB = it.dimensao_b ?? it.comprimento
+              const dimC = it.dimensao_c
+              return `
             <tr>
               <td>
                 <div class="item-desc">${it.descricao}</div>
-                ${it.largura && it.comprimento ? `<div class="item-detalhe">Dimensões: ${it.largura}m × ${it.comprimento}m = ${(it.largura * it.comprimento).toFixed(2)} m²</div>` : ''}
               </td>
+              <td class="text-center" style="color: #616F7D;">${dimA !== undefined && dimA !== null && dimA > 0 ? dimA : '—'}</td>
+              <td class="text-center" style="color: #616F7D;">${dimB !== undefined && dimB !== null && dimB > 0 ? dimB : '—'}</td>
+              ${algumItemUsaC ? `<td class="text-center" style="color: #616F7D;">${dimC !== undefined && dimC !== null && dimC > 0 ? dimC : '—'}</td>` : ''}
               <td class="text-center">${it.quantidade} ${it.unidade || 'un'}</td>
               <td class="text-right">${formatMoeda(it.valor_unitario)}</td>
               <td class="text-right" style="font-weight: 700;">${formatMoeda(it.valor_total)}</td>
             </tr>
-          `,
-            )
+          `
+            })
             .join('')}
         </tbody>
       </table>
     </div>
     `
+          })()
         : ''
     }
 
