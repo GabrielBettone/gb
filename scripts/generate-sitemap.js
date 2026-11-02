@@ -261,6 +261,53 @@ async function main() {
     }
   }
 
+  // 3.4. Categorias de Parceiros (/parceiros/categoria/:slug)
+  const partCats = await fetchRows(
+    'partner_categories',
+    { ativa: true },
+    'partner_categories?ativa=eq.true&select=slug,updated_at,created_at&order=ordem.asc',
+  )
+  if (Array.isArray(partCats)) {
+    for (const c of partCats) {
+      const slug = c.slug
+      if (!slug) continue
+      const lastmod = normalizeDate(c.updated_at || c.updated || c.created_at || c.created)
+      itens.push({
+        loc: `${siteUrl}/parceiros/categoria/${slug}`,
+        lastmod,
+        changefreq: 'weekly',
+        priority: '0.8',
+      })
+    }
+  }
+
+  // 3.5. Parceiros Ativos (/parceiros/:slug) — Inativos ficam fora
+  const partners = await fetchRows(
+    'site_partners',
+    { ativo: true },
+    'site_partners?ativo=eq.true&select=nome,slug,destaque,updated_at,created_at&order=ordem.asc',
+  )
+  if (Array.isArray(partners)) {
+    for (const pa of partners) {
+      let slug = pa.slug
+      if (!slug && pa.nome) {
+        slug = pa.nome
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      }
+      if (!slug) continue
+      const lastmod = normalizeDate(pa.updated_at || pa.updated || pa.created_at || pa.created)
+      const isDestaque = !!pa.destaque
+      itens.push({
+        loc: `${siteUrl}/parceiros/${slug}`,
+        lastmod,
+        changefreq: 'weekly',
+        priority: isDestaque ? '0.85' : '0.8',
+      })
+    }
+  }
+
   // 4. Gravar public/sitemap.xml de forma resiliente
   const xml = buildXml(siteUrl, itens)
   if (!fs.existsSync(publicDir)) {

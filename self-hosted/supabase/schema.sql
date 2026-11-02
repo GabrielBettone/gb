@@ -552,11 +552,14 @@ CREATE TABLE IF NOT EXISTS public.partner_categories (
   id TEXT PRIMARY KEY DEFAULT ('pcat_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
   nome TEXT NOT NULL,
   slug TEXT NOT NULL UNIQUE,
+  descricao TEXT,
   ativa BOOLEAN DEFAULT true,
   ordem INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.partner_categories ADD COLUMN IF NOT EXISTS descricao TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_partner_categories_slug ON public.partner_categories(slug);
 
@@ -569,12 +572,20 @@ CREATE TRIGGER trigger_partner_categories_updated_at
 CREATE TABLE IF NOT EXISTS public.site_partners (
   id TEXT PRIMARY KEY DEFAULT ('part_' || substr(md5(random()::text || clock_timestamp()::text), 1, 15)),
   nome TEXT NOT NULL,
+  slug TEXT,
   categoria TEXT,
   papel TEXT,
   whatsapp TEXT,
   logo TEXT,
   arquivo_logo TEXT,
+  capa TEXT,
+  arquivo_capa TEXT,
   descricao TEXT,
+  email TEXT,
+  site TEXT,
+  instagram TEXT,
+  cidade TEXT,
+  endereco TEXT,
   destaque BOOLEAN DEFAULT false,
   ativo BOOLEAN DEFAULT true,
   ordem INTEGER DEFAULT 0,
@@ -582,8 +593,19 @@ CREATE TABLE IF NOT EXISTS public.site_partners (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
+-- Migrações idempotentes para tabelas existentes
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS capa TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS arquivo_capa TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS site TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS instagram TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS cidade TEXT;
+ALTER TABLE public.site_partners ADD COLUMN IF NOT EXISTS endereco TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_site_partners_destaque ON public.site_partners(destaque);
 CREATE INDEX IF NOT EXISTS idx_site_partners_ativo ON public.site_partners(ativo);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_site_partners_slug ON public.site_partners(slug);
 
 DROP TRIGGER IF EXISTS trigger_site_partners_updated_at ON public.site_partners;
 CREATE TRIGGER trigger_site_partners_updated_at

@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Globe,
+  Handshake,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -29,6 +30,7 @@ const navItems = [
   { path: '/painel/orcamentos', label: 'Orçamentos & Contas', icon: Calculator },
   { path: '/painel/produtos', label: 'Produtos', icon: Boxes },
   { path: '/painel/alertas', label: 'Alertas', icon: Bell },
+  { path: '/painel/site/parceiros', label: 'Parceiros', icon: Handshake },
   { path: '/painel/site', label: 'Site (Gerenciador)', icon: Globe },
 ]
 

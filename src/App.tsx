@@ -18,6 +18,8 @@ import ProjetoDetailPage from '@/pages/landing/ProjetoDetailPage'
 import SobrePage from '@/pages/landing/SobrePage'
 import ContatoPage from '@/pages/landing/ContatoPage'
 import ParceirosPublicPage from '@/pages/landing/ParceirosPublicPage'
+import ParceiroDetailPage from '@/pages/landing/ParceiroDetailPage'
+import ParceirosCategoriaPage from '@/pages/landing/ParceirosCategoriaPage'
 import SimuladorPublicPage from '@/pages/landing/SimuladorPublicPage'
 
 // Páginas Autenticadas Internas
@@ -83,6 +85,8 @@ const AppRoutes = () => {
         <Route path="/sobre" element={<SobrePage />} />
         <Route path="/contato" element={<ContatoPage />} />
         <Route path="/parceiros" element={<ParceirosPublicPage />} />
+        <Route path="/parceiros/categoria/:slug" element={<ParceirosCategoriaPage />} />
+        <Route path="/parceiros/:slug" element={<ParceiroDetailPage />} />
         <Route path="/simulador" element={<SimuladorPublicPage />} />
       </Route>
 
@@ -141,6 +145,10 @@ const AppRoutes = () => {
         <Route path="/painel/site/portfolio/:id/midias" element={<SiteProjetoMidiasPage />} />
         <Route path="/painel/site/depoimentos" element={<SiteDepoimentosPage />} />
         <Route path="/painel/site/parceiros" element={<SiteParceirosPage />} />
+        <Route
+          path="/painel/parceiros"
+          element={<Navigate to="/painel/site/parceiros" replace />}
+        />
         <Route path="/painel/site/simulador" element={<SiteSimuladorAdminPage />} />
         <Route path="/painel/site/configuracoes" element={<SiteConfiguracoesPage />} />
 

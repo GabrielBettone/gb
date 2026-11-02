@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-31T16:26:46.150Z",
+  "generatedAt": "2026-11-02T09:52:58.434Z",
   "collections": [
     {
       "name": "users",
@@ -972,6 +972,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_partner_categories_slug ON partner_categories (slug)"]
@@ -1060,11 +1066,60 @@
           "type": "file",
           "required": false,
           "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "capa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo_capa",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "site",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instagram",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_site_partners_destaque ON site_partners (destaque)",
-        "CREATE INDEX idx_site_partners_ativo ON site_partners (ativo)"
+        "CREATE INDEX idx_site_partners_ativo ON site_partners (ativo)",
+        "CREATE UNIQUE INDEX `idx_site_partners_slug` ON `site_partners` (slug)"
       ]
     },
     {

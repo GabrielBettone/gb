@@ -83,6 +83,7 @@ export interface CategoriaParceiro {
   id: string
   nome: string
   slug: string
+  descricao?: string
   ativa: boolean
   ordem?: number
   created?: string
@@ -92,12 +93,20 @@ export interface CategoriaParceiro {
 export interface SiteParceiro {
   id: string
   nome: string
+  slug?: string
   categoria?: string
   papel?: string
   whatsapp?: string
   logo?: string
   arquivo_logo?: string
+  capa?: string
+  arquivo_capa?: string
   descricao?: string
+  email?: string
+  site?: string
+  instagram?: string
+  cidade?: string
+  endereco?: string
   destaque: boolean
   ativo: boolean
   ordem?: number
@@ -1308,13 +1317,52 @@ export async function listarCategoriasParceiros(
       id: r.id,
       nome: r.nome,
       slug: r.slug,
+      descricao: r.descricao || '',
       ativa: !!r.ativa,
       ordem: r.ordem,
       created: r.created,
+      updated: r.updated,
     }))
   } catch (err) {
     console.error('Erro ao listar categorias de parceiros:', err)
     return []
+  }
+}
+
+export async function obterCategoriaParceiroPorSlug(
+  slug: string,
+): Promise<CategoriaParceiro | null> {
+  try {
+    const cleanSlug = (slug || '').trim()
+    if (!cleanSlug) return null
+    let record: any = null
+    try {
+      record = await dataAdapter.getFirstListItem<any>(
+        'partner_categories',
+        `slug = "${cleanSlug}"`,
+      )
+    } catch {
+      const all = await dataAdapter.getFullList<any>('partner_categories')
+      record =
+        all.find(
+          (c) =>
+            (c.slug && c.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+            (c.id && c.id === cleanSlug),
+        ) || null
+    }
+    if (!record) return null
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      descricao: record.descricao || '',
+      ativa: !!record.ativa,
+      ordem: record.ordem,
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
   }
 }
 
@@ -1326,6 +1374,7 @@ export async function criarCategoriaParceiro(
     id: record.id,
     nome: record.nome,
     slug: record.slug,
+    descricao: record.descricao || '',
     ativa: !!record.ativa,
     ordem: record.ordem,
   }
@@ -1340,6 +1389,7 @@ export async function atualizarCategoriaParceiro(
     id: record.id,
     nome: record.nome,
     slug: record.slug,
+    descricao: record.descricao || '',
     ativa: !!record.ativa,
     ordem: record.ordem,
   }
@@ -1359,12 +1409,20 @@ export async function listarParceiros(apenasAtivos = false): Promise<SiteParceir
     return records.map((r) => ({
       id: r.id,
       nome: r.nome,
+      slug: r.slug,
       categoria: r.categoria,
       papel: r.papel,
       whatsapp: r.whatsapp,
       logo: r.logo,
       arquivo_logo: r.arquivo_logo || '',
+      capa: r.capa,
+      arquivo_capa: r.arquivo_capa || '',
       descricao: r.descricao,
+      email: r.email,
+      site: r.site,
+      instagram: r.instagram,
+      cidade: r.cidade,
+      endereco: r.endereco,
       destaque: !!r.destaque,
       ativo: !!r.ativo,
       ordem: r.ordem,
@@ -1377,56 +1435,137 @@ export async function listarParceiros(apenasAtivos = false): Promise<SiteParceir
   }
 }
 
+export async function obterParceiroPorSlug(slug: string): Promise<SiteParceiro | null> {
+  try {
+    const cleanSlug = (slug || '').trim()
+    if (!cleanSlug) return null
+    let record: any = null
+    try {
+      record = await dataAdapter.getFirstListItem<any>('site_partners', `slug = "${cleanSlug}"`)
+    } catch {
+      const all = await dataAdapter.getFullList<any>('site_partners')
+      record =
+        all.find(
+          (p) =>
+            (p.slug && p.slug.toLowerCase() === cleanSlug.toLowerCase()) ||
+            (p.id && p.id === cleanSlug),
+        ) || null
+    }
+    if (!record) return null
+    return {
+      id: record.id,
+      nome: record.nome,
+      slug: record.slug,
+      categoria: record.categoria,
+      papel: record.papel,
+      whatsapp: record.whatsapp,
+      logo: record.logo,
+      arquivo_logo: record.arquivo_logo || '',
+      capa: record.capa,
+      arquivo_capa: record.arquivo_capa || '',
+      descricao: record.descricao,
+      email: record.email,
+      site: record.site,
+      instagram: record.instagram,
+      cidade: record.cidade,
+      endereco: record.endereco,
+      destaque: !!record.destaque,
+      ativo: !!record.ativo,
+      ordem: record.ordem,
+      created: record.created,
+      updated: record.updated,
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function criarParceiro(
   data: Partial<SiteParceiro>,
-  arquivoLogo?: File,
+  arquivos?: { arquivoLogo?: File; arquivoCapa?: File },
 ): Promise<SiteParceiro> {
   if (isSelfHostedSupabase()) {
     const payload: any = { ...data }
-    if (arquivoLogo) {
-      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
-      const ext = arquivoLogo.name.split('.').pop() || 'jpg'
-      const path = `parceiros/logo_${Date.now()}.${ext}`
-      await supabaseUpload('public-media', path, arquivoLogo, {
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+    const ts = Date.now()
+
+    if (arquivos?.arquivoLogo) {
+      const ext = arquivos.arquivoLogo.name.split('.').pop() || 'jpg'
+      const path = `parceiros/logo_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivoLogo, {
         accessToken: token || undefined,
-        contentType: arquivoLogo.type,
+        contentType: arquivos.arquivoLogo.type,
         upsert: true,
       })
       payload.arquivo_logo = path
       payload.logo = supabaseGetPublicUrl('public-media', path)
     }
+
+    if (arquivos?.arquivoCapa) {
+      const ext = arquivos.arquivoCapa.name.split('.').pop() || 'jpg'
+      const path = `parceiros/capa_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivoCapa, {
+        accessToken: token || undefined,
+        contentType: arquivos.arquivoCapa.type,
+        upsert: true,
+      })
+      payload.arquivo_capa = path
+      payload.capa = supabaseGetPublicUrl('public-media', path)
+    }
+
     const record = await dataAdapter.create<any>('site_partners', payload)
     return {
       id: record.id,
       nome: record.nome,
+      slug: record.slug,
       categoria: record.categoria,
       papel: record.papel,
       whatsapp: record.whatsapp,
       logo: record.logo,
       arquivo_logo: record.arquivo_logo,
+      capa: record.capa,
+      arquivo_capa: record.arquivo_capa,
       descricao: record.descricao,
+      email: record.email,
+      site: record.site,
+      instagram: record.instagram,
+      cidade: record.cidade,
+      endereco: record.endereco,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
     }
   }
 
-  if (arquivoLogo) {
+  if (arquivos && (arquivos.arquivoLogo || arquivos.arquivoCapa)) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val !== undefined && val !== null) formData.append(key, String(val))
     })
-    formData.append('arquivo_logo', arquivoLogo)
+    if (arquivos.arquivoLogo) {
+      formData.append('arquivo_logo', arquivos.arquivoLogo)
+    }
+    if (arquivos.arquivoCapa) {
+      formData.append('arquivo_capa', arquivos.arquivoCapa)
+    }
     const record = await dataAdapter.upload<any>('site_partners', formData)
     return {
       id: record.id,
       nome: record.nome,
+      slug: record.slug,
       categoria: record.categoria,
       papel: record.papel,
       whatsapp: record.whatsapp,
       logo: record.logo,
       arquivo_logo: record.arquivo_logo,
+      capa: record.capa,
+      arquivo_capa: record.arquivo_capa,
       descricao: record.descricao,
+      email: record.email,
+      site: record.site,
+      instagram: record.instagram,
+      cidade: record.cidade,
+      endereco: record.endereco,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
@@ -1437,12 +1576,20 @@ export async function criarParceiro(
   return {
     id: record.id,
     nome: record.nome,
+    slug: record.slug,
     categoria: record.categoria,
     papel: record.papel,
     whatsapp: record.whatsapp,
     logo: record.logo,
     arquivo_logo: record.arquivo_logo,
+    capa: record.capa,
+    arquivo_capa: record.arquivo_capa,
     descricao: record.descricao,
+    email: record.email,
+    site: record.site,
+    instagram: record.instagram,
+    cidade: record.cidade,
+    endereco: record.endereco,
     destaque: !!record.destaque,
     ativo: !!record.ativo,
     ordem: record.ordem,
@@ -1452,54 +1599,90 @@ export async function criarParceiro(
 export async function atualizarParceiro(
   id: string,
   data: Partial<SiteParceiro>,
-  arquivoLogo?: File,
+  arquivos?: { arquivoLogo?: File; arquivoCapa?: File },
 ): Promise<SiteParceiro> {
   if (isSelfHostedSupabase()) {
     const payload: any = { ...data }
-    if (arquivoLogo) {
-      const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
-      const ext = arquivoLogo.name.split('.').pop() || 'jpg'
-      const path = `parceiros/logo_${id}_${Date.now()}.${ext}`
-      await supabaseUpload('public-media', path, arquivoLogo, {
+    const token = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+    const ts = Date.now()
+
+    if (arquivos?.arquivoLogo) {
+      const ext = arquivos.arquivoLogo.name.split('.').pop() || 'jpg'
+      const path = `parceiros/logo_${id}_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivoLogo, {
         accessToken: token || undefined,
-        contentType: arquivoLogo.type,
+        contentType: arquivos.arquivoLogo.type,
         upsert: true,
       })
       payload.arquivo_logo = path
       payload.logo = supabaseGetPublicUrl('public-media', path)
     }
+
+    if (arquivos?.arquivoCapa) {
+      const ext = arquivos.arquivoCapa.name.split('.').pop() || 'jpg'
+      const path = `parceiros/capa_${id}_${ts}.${ext}`
+      await supabaseUpload('public-media', path, arquivos.arquivoCapa, {
+        accessToken: token || undefined,
+        contentType: arquivos.arquivoCapa.type,
+        upsert: true,
+      })
+      payload.arquivo_capa = path
+      payload.capa = supabaseGetPublicUrl('public-media', path)
+    }
+
     const record = await dataAdapter.update<any>('site_partners', id, payload)
     return {
       id: record.id,
       nome: record.nome,
+      slug: record.slug,
       categoria: record.categoria,
       papel: record.papel,
       whatsapp: record.whatsapp,
       logo: record.logo,
       arquivo_logo: record.arquivo_logo,
+      capa: record.capa,
+      arquivo_capa: record.arquivo_capa,
       descricao: record.descricao,
+      email: record.email,
+      site: record.site,
+      instagram: record.instagram,
+      cidade: record.cidade,
+      endereco: record.endereco,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
     }
   }
 
-  if (arquivoLogo) {
+  if (arquivos && (arquivos.arquivoLogo || arquivos.arquivoCapa)) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val !== undefined && val !== null) formData.append(key, String(val))
     })
-    formData.append('arquivo_logo', arquivoLogo)
+    if (arquivos.arquivoLogo) {
+      formData.append('arquivo_logo', arquivos.arquivoLogo)
+    }
+    if (arquivos.arquivoCapa) {
+      formData.append('arquivo_capa', arquivos.arquivoCapa)
+    }
     const record = await dataAdapter.upload<any>('site_partners', formData, id)
     return {
       id: record.id,
       nome: record.nome,
+      slug: record.slug,
       categoria: record.categoria,
       papel: record.papel,
       whatsapp: record.whatsapp,
       logo: record.logo,
       arquivo_logo: record.arquivo_logo,
+      capa: record.capa,
+      arquivo_capa: record.arquivo_capa,
       descricao: record.descricao,
+      email: record.email,
+      site: record.site,
+      instagram: record.instagram,
+      cidade: record.cidade,
+      endereco: record.endereco,
       destaque: !!record.destaque,
       ativo: !!record.ativo,
       ordem: record.ordem,
@@ -1510,12 +1693,20 @@ export async function atualizarParceiro(
   return {
     id: record.id,
     nome: record.nome,
+    slug: record.slug,
     categoria: record.categoria,
     papel: record.papel,
     whatsapp: record.whatsapp,
     logo: record.logo,
     arquivo_logo: record.arquivo_logo,
+    capa: record.capa,
+    arquivo_capa: record.arquivo_capa,
     descricao: record.descricao,
+    email: record.email,
+    site: record.site,
+    instagram: record.instagram,
+    cidade: record.cidade,
+    endereco: record.endereco,
     destaque: !!record.destaque,
     ativo: !!record.ativo,
     ordem: record.ordem,

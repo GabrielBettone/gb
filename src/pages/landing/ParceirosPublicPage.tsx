@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import SEO from '@/components/landing/SEO'
 import LandingCTA from '@/components/landing/LandingCTA'
-import WatermarkedImage from '@/components/landing/WatermarkedImage'
-import { Handshake, MessageCircle, ExternalLink, Sparkles } from 'lucide-react'
+import {
+  Handshake,
+  MessageCircle,
+  ExternalLink,
+  Sparkles,
+  MapPin,
+  ArrowRight,
+  Globe,
+  Instagram,
+} from 'lucide-react'
 import {
   listarParceiros,
   listarCategoriasParceiros,
@@ -13,9 +22,22 @@ import {
   SiteSettings,
   registrarEventoAnalytics,
 } from '@/services/site'
+import { resolverUrlMidia } from '@/lib/watermark'
 import { buildAreaServedCities } from '@/lib/geoStructuredData'
 
+function gerarSlug(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 export const ParceirosPublicPage: React.FC = () => {
+  const [searchParams] = useSearchParams()
+  const catParam = searchParams.get('categoria')
+
   const [parceiros, setParceiros] = useState<SiteParceiro[]>([])
   const [categorias, setCategorias] = useState<CategoriaParceiro[]>([])
   const [filtroCategoria, setFiltroCategoria] = useState<string>('Todos')
@@ -35,6 +57,15 @@ export const ParceirosPublicPage: React.FC = () => {
         setParceiros(parts)
         setCategorias(cats)
         setSettings(cfg)
+
+        if (catParam) {
+          const matchCat = cats.find(
+            (c) => c.slug === catParam || c.nome.toLowerCase() === catParam.toLowerCase(),
+          )
+          if (matchCat) {
+            setFiltroCategoria(matchCat.nome)
+          }
+        }
       } catch (err) {
         console.error('Erro ao carregar parceiros:', err)
       } finally {
@@ -45,14 +76,15 @@ export const ParceirosPublicPage: React.FC = () => {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [catParam])
 
   const filtered = parceiros.filter((p) => {
     if (filtroCategoria === 'Todos') return true
     return p.categoria === filtroCategoria
   })
 
-  const handleWhatsAppClick = (p: SiteParceiro) => {
+  const handleWhatsAppClick = (p: SiteParceiro, e: React.MouseEvent) => {
+    e.stopPropagation()
     registrarCliqueParceiro(p.id, p.nome)
     registrarEventoAnalytics({
       tipo: 'click_whatsapp',
@@ -66,20 +98,22 @@ export const ParceirosPublicPage: React.FC = () => {
     window.open(`https://wa.me/${zap}?text=${msg}`, '_blank')
   }
 
+  const baseUrl = (settings?.site_url || 'https://gessobettone.com.br').replace(/\/+$/, '')
+
   return (
     <>
       <SEO
-        title="Parceiros de Arquitetura, Construção e Pintura em São Pedro e Região | Gesso Bettone"
-        description="Rede de parceiros homologados da Gesso Bettone: arquitetos, engenheiros, pintores e construtores de São Pedro, Piracicaba, Águas de São Pedro, Charqueada e região."
+        title="Parceiros de Arquitetura, Construção e Pintura | Gesso Bettone"
+        description="Conheça os parceiros homologados da Gesso Bettone: arquitetos, designers de interiores, engenheiros, construtores e especialistas em acabamentos em São Pedro, Piracicaba e região."
         canonical="/parceiros"
         keywords={[
-          'pintura são pedro',
-          'pintor em são pedro sp',
           'parceiros gesso bettone',
           'arquitetos são pedro sp',
-          'engenharia e reformas piracicaba',
-          'construção águas de são pedro',
-          'parceiros construção civil',
+          'engenheiros são pedro',
+          'construção piracicaba',
+          'design de interiores são pedro',
+          'pintores homologados',
+          'reformas águas de são pedro',
         ]}
         jsonLd={[
           {
@@ -90,35 +124,51 @@ export const ParceirosPublicPage: React.FC = () => {
                 '@type': 'ListItem',
                 position: 1,
                 name: 'Início',
-                item: 'https://gessobettone.com.br/',
+                item: `${baseUrl}/`,
               },
               {
                 '@type': 'ListItem',
                 position: 2,
                 name: 'Parceiros',
-                item: 'https://gessobettone.com.br/parceiros',
+                item: `${baseUrl}/parceiros`,
               },
             ],
           },
           {
             '@context': 'https://schema.org',
             '@type': 'ItemList',
-            name: 'Parceiros Homologados Gesso Bettone',
+            name: 'Rede de Parceiros Homologados Gesso Bettone',
             description:
-              'Rede de profissionais de pintura, construção civil, reformas e arquitetura em São Pedro, Piracicaba e região.',
+              'Arquitetos, designers de interiores, engenheiros e construtores recomendados pela Gesso Bettone.',
             numberOfItems: parceiros.length,
-            itemListElement: parceiros.map((p, idx) => ({
-              '@type': 'ListItem',
-              position: idx + 1,
-              item: {
-                '@type': 'ProfessionalService',
-                name: p.nome,
-                description: p.descricao || `${p.papel || 'Parceiro'} em São Pedro e região`,
-                telephone: p.whatsapp ? `+${p.whatsapp.replace(/\D/g, '')}` : undefined,
-                image: p.logo || undefined,
-                areaServed: buildAreaServedCities(settings?.cidades_atendidas),
-              },
-            })),
+            itemListElement: parceiros.map((p, idx) => {
+              const pSlug = p.slug || gerarSlug(p.nome)
+              const logoUrl = p.arquivo_logo
+                ? resolverUrlMidia('site_partners', p.id, p.arquivo_logo)
+                : p.logo
+              return {
+                '@type': 'ListItem',
+                position: idx + 1,
+                url: `${baseUrl}/parceiros/${pSlug}`,
+                item: {
+                  '@type': 'LocalBusiness',
+                  name: p.nome,
+                  url: `${baseUrl}/parceiros/${pSlug}`,
+                  description:
+                    p.descricao ||
+                    `${p.papel || 'Parceiro homologado'} em ${p.cidade || 'São Pedro e região'}`,
+                  telephone: p.whatsapp ? `+${p.whatsapp.replace(/\D/g, '')}` : undefined,
+                  image: logoUrl || undefined,
+                  address: {
+                    '@type': 'PostalAddress',
+                    addressLocality: p.cidade || 'São Pedro',
+                    addressRegion: 'SP',
+                    addressCountry: 'BR',
+                  },
+                  areaServed: buildAreaServedCities(settings?.cidades_atendidas),
+                },
+              }
+            }),
           },
         ]}
       />
@@ -132,7 +182,7 @@ export const ParceirosPublicPage: React.FC = () => {
             REDE DE CONFIANÇA BETTONE
           </div>
           <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-            Nossos Parceiros
+            Nossos Parceiros Homologados
           </h1>
           <p className="text-base sm:text-lg text-white/80 max-w-2xl mx-auto leading-relaxed">
             Arquitetos, designers de interiores, engenheiros e construtores de alta reputação que
@@ -144,7 +194,7 @@ export const ParceirosPublicPage: React.FC = () => {
       {/* Lista e Filtros */}
       <section className="py-16 bg-[#f4f4f4] min-h-[50vh]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          {/* Barra de Filtros */}
+          {/* Barra de Filtros por Categoria */}
           <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
             <button
               onClick={() => setFiltroCategoria('Todos')}
@@ -187,12 +237,12 @@ export const ParceirosPublicPage: React.FC = () => {
               </h3>
               <p className="text-xs sm:text-sm text-[#616F7D] mt-2 leading-relaxed">
                 Estamos selecionando e atualizando a lista de arquitetos, engenheiros, construtores
-                e especialistas em pintura e reformas da nossa região (São Pedro, Piracicaba e
-                cidades vizinhas).
+                e especialistas em acabamento da nossa região (São Pedro, Piracicaba e cidades
+                vizinhas).
               </p>
               <div className="pt-6">
                 <a
-                  href={`https://wa.me/5519981093379?text=${encodeURIComponent('Olá! Sou profissional da construção/arquitetura/pintura e gostaria de me conectar à rede de parceiros da Gesso Bettone.')}`}
+                  href={`https://wa.me/5519981093379?text=${encodeURIComponent('Olá! Sou profissional da construção/arquitetura e gostaria de me conectar à rede de parceiros da Gesso Bettone.')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#B89425] text-[#2C3E50] font-bold text-xs shadow-sm transition-all"
@@ -209,68 +259,117 @@ export const ParceirosPublicPage: React.FC = () => {
                 Nenhum parceiro nesta categoria
               </h3>
               <p className="text-xs text-[#616F7D] mt-1">
-                Selecione outra categoria para visualizar parceiros recomendados.
+                Selecione outra categoria ou clique em &quot;Todos&quot; para visualizar os demais
+                parceiros recomendados.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((p) => (
-                <article
-                  key={p.id}
-                  className="bg-white rounded-2xl border border-[#DEE4EA] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#2C3E50]/30 transition-all group relative"
-                >
-                  {p.destaque && (
-                    <div className="absolute top-4 right-4 inline-flex items-center gap-1 text-[10px] font-bold bg-[#D4AF37]/15 text-[#2C3E50] px-2.5 py-0.5 rounded-full border border-[#D4AF37]/40">
-                      <Sparkles className="w-3 h-3 text-[#D4AF37]" />
-                      Destaque
-                    </div>
-                  )}
+              {filtered.map((p) => {
+                const pSlug = p.slug || gerarSlug(p.nome)
+                const logoUrl = p.arquivo_logo
+                  ? resolverUrlMidia('site_partners', p.id, p.arquivo_logo)
+                  : p.logo
+                const catObj = categorias.find((c) => c.nome === p.categoria)
 
-                  <div>
-                    <div className="w-24 h-24 rounded-2xl bg-[#f4f4f4] border border-[#DEE4EA] p-3 flex items-center justify-center mb-5 overflow-hidden group-hover:scale-105 transition-transform">
-                      {p.logo ? (
-                        <WatermarkedImage
-                          src={p.logo}
-                          alt={`Logo ${p.nome}`}
-                          className="max-h-full max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all"
-                        />
-                      ) : (
-                        <Handshake className="w-10 h-10 text-[#2C3E50]/40" />
-                      )}
-                    </div>
-
-                    <h2 className="font-heading font-bold text-lg text-[#2C3E50] mb-1">{p.nome}</h2>
-
-                    {p.papel && (
-                      <span className="inline-block text-xs font-semibold text-[#D4AF37] mb-2">
-                        {p.papel}
-                      </span>
-                    )}
-
-                    {p.categoria && (
-                      <div className="text-[11px] text-[#616F7D] mb-3 font-medium">
-                        Área: {p.categoria}
+                return (
+                  <article
+                    key={p.id}
+                    className="bg-white rounded-2xl border border-[#DEE4EA] p-6 flex flex-col justify-between hover:shadow-md hover:border-[#2C3E50]/40 transition-all group relative"
+                  >
+                    {p.destaque && (
+                      <div className="absolute top-4 right-4 inline-flex items-center gap-1 text-[10px] font-bold bg-[#D4AF37]/15 text-[#2C3E50] px-2.5 py-0.5 rounded-full border border-[#D4AF37]/40">
+                        <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+                        Destaque
                       </div>
                     )}
 
-                    {p.descricao && (
-                      <p className="text-xs text-[#616F7D] leading-relaxed mb-4">{p.descricao}</p>
-                    )}
-                  </div>
+                    <div>
+                      {/* Logo ou Iniciais Elegantes */}
+                      <Link
+                        to={`/parceiros/${pSlug}`}
+                        className="w-24 h-24 rounded-2xl bg-[#f4f4f4] border border-[#DEE4EA] p-3 flex items-center justify-center mb-5 overflow-hidden group-hover:scale-105 transition-transform block"
+                      >
+                        {logoUrl ? (
+                          <img
+                            src={logoUrl}
+                            alt={`Logo ${p.nome}`}
+                            className="max-h-full max-w-full object-contain filter grayscale group-hover:grayscale-0 transition-all"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-[#2C3E50] text-[#D4AF37] rounded-xl flex items-center justify-center font-heading font-bold text-2xl tracking-wider shadow-xs">
+                            {p.nome.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </Link>
 
-                  <div className="pt-4 border-t border-[#DEE4EA]">
-                    <button
-                      type="button"
-                      onClick={() => handleWhatsAppClick(p)}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs shadow-sm transition-all"
-                    >
-                      <MessageCircle className="w-4 h-4 fill-current" />
-                      <span>Falar no WhatsApp</span>
-                      <ExternalLink className="w-3.5 h-3.5 opacity-80" />
-                    </button>
-                  </div>
-                </article>
-              ))}
+                      <h2 className="font-heading font-bold text-xl text-[#2C3E50] mb-1 group-hover:text-[#D4AF37] transition-colors">
+                        <Link to={`/parceiros/${pSlug}`}>{p.nome}</Link>
+                      </h2>
+
+                      {p.papel && (
+                        <span className="inline-block text-xs font-semibold text-[#D4AF37] mb-2">
+                          {p.papel}
+                        </span>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#616F7D] mb-3">
+                        {p.categoria && (
+                          <span className="bg-[#f4f4f4] px-2 py-0.5 rounded-md font-medium">
+                            {p.categoria}
+                          </span>
+                        )}
+                        {p.cidade && (
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-[#D4AF37]" />
+                            {p.cidade}
+                          </span>
+                        )}
+                      </div>
+
+                      {p.descricao && (
+                        <p className="text-xs text-[#616F7D] leading-relaxed mb-4 line-clamp-3">
+                          {p.descricao}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-4 border-t border-[#DEE4EA] space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Link
+                          to={`/parceiros/${pSlug}`}
+                          className="text-xs font-semibold text-[#2C3E50] hover:text-[#D4AF37] inline-flex items-center gap-1 transition-colors"
+                        >
+                          <span>Ver perfil completo</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+
+                        {catObj && (
+                          <Link
+                            to={`/parceiros/categoria/${catObj.slug}`}
+                            className="text-[11px] text-[#616F7D] hover:underline"
+                          >
+                            Ver categoria
+                          </Link>
+                        )}
+                      </div>
+
+                      {p.whatsapp && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleWhatsAppClick(p, e)}
+                          className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs shadow-xs transition-all"
+                        >
+                          <MessageCircle className="w-4 h-4 fill-current" />
+                          <span>Falar no WhatsApp</span>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           )}
         </div>
