@@ -216,19 +216,7 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
           ? JSON.parse(orcamentoParaEditar.itens_por_local)
           : []
 
-      setItens(
-        parsedItens.length > 0
-          ? parsedItens
-          : [
-              {
-                descricao: 'Forros de gesso drywall',
-                quantidade: 10,
-                unidade: 'm²',
-                valor_unitario: 120,
-                valor_total: 1200,
-              },
-            ],
-      )
+      setItens(parsedItens)
       setItensPorLocal(parsedLocais)
     } else {
       gerarProximoNumeroOrcamento().then((num) => setNumeroPrevisto(num))
@@ -255,24 +243,10 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
       const metodoPadrao = metodosList.find((m) => m.padrao) || metodosList[0]
       if (metodoPadrao) setMetodoPagamentoId(metodoPadrao.id)
 
-      setItens([
-        {
-          descricao: 'Forros de gesso',
-          quantidade: 1,
-          unidade: 'm²',
-          valor_unitario: 120,
-          valor_total: 120,
-        },
-      ])
-      setItensPorLocal([
-        {
-          local: 'Sala',
-          servico: 'Forro de gesso',
-          metragem: 20,
-          valor: 120,
-          total: 2400,
-        },
-      ])
+      // Preferência do usuário: orçamento novo começa com a grade de itens
+      // totalmente vazia — o usuário adiciona as linhas manualmente.
+      setItens([])
+      setItensPorLocal([])
     }
   }, [open, orcamentoParaEditar?.id])
 
@@ -1272,6 +1246,13 @@ export const OrcamentoModal: React.FC<OrcamentoModalProps> = ({
                   <div className="p-4 rounded-xl border border-dashed border-[#DEE4EA] text-center text-xs text-[#8A94A0]">
                     Nenhum ambiente adicionado. Clique em &quot;+ Adicionar linha&quot; para
                     discriminar por cômodo (Sala, Banheiro, etc.).
+                  </div>
+                )}
+
+                {itens.length === 0 && (
+                  <div className="p-4 rounded-xl border border-dashed border-[#DEE4EA] text-center text-xs text-[#8A94A0]">
+                    Nenhum item geral adicionado. Clique em &quot;+ Adicionar Serviço&quot; para
+                    incluir itens gerais e adicionais.
                   </div>
                 )}
               </div>

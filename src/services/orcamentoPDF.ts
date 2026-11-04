@@ -243,14 +243,32 @@ export async function imprimirOrcamentoPDF(
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=Petit+Formal+Script&family=Tenor+Sans&display=swap" rel="stylesheet">
   <style>
+    /*
+      Margens da página zeradas: é isso que faz o Chrome/Edge ocultar os
+      cabeçalhos e rodapés nativos de impressão (título da aba, URL, data,
+      paginação). O respiro visual antes dado pelas margens da @page passa a
+      vir do padding interno do documento (.doc-page), que continua sendo
+      respeitado pelo navegador na impressão.
+    */
     @page {
       size: A4;
-      margin: 14mm 16mm;
+      margin: 0;
+    }
+    @media print {
+      html,
+      body {
+        width: 210mm;
+        min-height: 100vh;
+      }
     }
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+    html,
+    body {
+      background: #ffffff;
     }
     body {
       font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -508,6 +526,20 @@ export async function imprimirOrcamentoPDF(
       color: #616F7D;
     }
 
+    /*
+      Página A4 com margens @page zeradas: todo o respiro visual do documento
+      passa a vir deste contêiner (16mm no papel, 32px na tela), para que o
+      cabeçalho/rodapé nativos do navegador não sejam impressos.
+    */
+    .doc-page {
+      padding: 32px;
+      background: #ffffff;
+    }
+    @media print {
+      .doc-page {
+        padding: 16mm;
+      }
+    }
     .no-print-bar {
       background: #2C3E50;
       color: #ffffff;
@@ -547,7 +579,7 @@ export async function imprimirOrcamentoPDF(
     </button>
   </div>
 
-  <div style="padding: 16px 20px;">
+  <div class="doc-page">
     <!-- HEADER -->
     <div class="header">
       <div class="logo-container">
