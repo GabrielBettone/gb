@@ -1,1 +1,6 @@
+# SPA fallback: tudo cai no index.html (rotas do React)
 /*    /index.html   200
+
+# Sitemap e robots servidos como arquivos estáticos reais
+/sitemap.xml  /sitemap.xml  200
+/robots.txt   /robots.txt   200

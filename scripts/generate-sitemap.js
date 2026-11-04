@@ -1,326 +1,300 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+/**
+ * Gerador de sitemap.xml (roda no "prebuild", antes do vite build).
+ *
+ * Fontes de dados suportadas (a mesma lógica do dataAdapter do app):
+ *  (a) Supabase self-hosted — VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY (REST /rest/v1)
+ *  (b) PocketBase / Skip Cloud — VITE_POCKETBASE_URL (REST /api/collections)
+ *
+ * Regra crítica: se a geração falhar, o build FALHA (process.exit(1)).
+ * Nunca mascarar erro como sucesso — o sitemap antigo não pode ir para o ar em silêncio.
+ */
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const projectRoot = path.resolve(__dirname, '..')
-const publicDir = path.resolve(projectRoot, 'public')
-const sitemapPath = path.resolve(publicDir, 'sitemap.xml')
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT = path.resolve(__dirname, '..')
 
-// Fallback de rotas estáticas públicas da aplicação Bettone
-const STATIC_ROUTES = [
-  { path: '/', changefreq: 'weekly', priority: '1.0' },
-  { path: '/servicos', changefreq: 'weekly', priority: '0.9' },
-  { path: '/portfolio', changefreq: 'weekly', priority: '0.9' },
-  { path: '/parceiros', changefreq: 'weekly', priority: '0.8' },
-  { path: '/sobre', changefreq: 'monthly', priority: '0.7' },
-  { path: '/contato', changefreq: 'monthly', priority: '0.8' },
-  { path: '/simulador', changefreq: 'weekly', priority: '0.85' },
-]
+// Carrega variáveis do .env local (scripts Node não carregam .env automaticamente)
+function carregarEnvLocal() {
+  try {
+    const envPath = path.join(ROOT, '.env')
+    if (!fs.existsSync(envPath)) return
+    const conteudo = fs.readFileSync(envPath, 'utf8')
+    for (const linha of conteudo.split('\n')) {
+      const m = linha.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+      if (!m) continue
+      const chave = m[1]
+      let valor = m[2].trim()
+      if (
+        (valor.startsWith('"') && valor.endsWith('"')) ||
+        (valor.startsWith("'") && valor.endsWith("'"))
+      ) {
+        valor = valor.slice(1, -1)
+      }
+      if (process.env[chave] === undefined && valor) {
+        process.env[chave] = valor
+      }
+    }
+  } catch (errEnv) {
+    console.warn('[sitemap] Aviso: não foi possível ler o .env local:', errEnv.message)
+  }
+}
 
-// Fallback das URLs estáticas do catálogo padrão de serviços (caso a API remota esteja inacessível na build)
-const FALLBACK_SERVICOS = [
-  'forros-de-gesso',
-  'parede-drywall',
-  'molduras-e-boiseries',
-  'molduras-de-gesso',
-  'rebaixo-de-teto',
-  'cortineiros-de-gesso',
-  'sancas-e-cortineiros',
-  'moveis',
-  'revestimento-em-placa-3d',
-  'molduras-externas-em-cimento-celular',
-  'colunas-de-gesso',
-  'vitrais',
-  'forro-de-madeira',
-  'pintura',
-  'impermeabilizacao-de-telhados',
-]
+carregarEnvLocal()
 
-function getHoje() {
+const SUPABASE_URL = (process.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '')
+const SUPABASE_KEY =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
+const POCKETBASE_URL = (process.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
+
+function fonteAtiva() {
+  if (SUPABASE_URL && SUPABASE_KEY) return 'supabase'
+  if (POCKETBASE_URL) return 'pocketbase'
+  return 'nenhuma'
+}
+
+/** Fallback de slug derivado do nome, igual ao hook do PocketBase */
+function slugify(texto) {
+  return (texto || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function campo(registro, ...nomes) {
+  for (const n of nomes) {
+    const v = registro && registro[n]
+    if (v !== undefined && v !== null && v !== '') return v
+  }
+  return undefined
+}
+
+function dataMod(registro) {
+  const iso = campo(registro, 'updated', 'updated_at', 'created', 'created_at')
+  const d = iso ? new Date(iso) : null
+  if (d && !isNaN(d.getTime())) return d.toISOString().substring(0, 10)
   return new Date().toISOString().substring(0, 10)
 }
 
-function normalizeDate(d) {
-  if (!d) return getHoje()
+async function fetchJson(url, options) {
+  const res = await fetch(url, options)
+  if (!res.ok) {
+    const corpo = await res.text().catch(() => '')
+    throw new Error(`HTTP ${res.status} em ${url}${corpo ? ' — ' + corpo.slice(0, 300) : ''}`)
+  }
+  return res.json()
+}
+
+/**
+ * Busca registros de uma coleção na fonte de dados ativa.
+ * Lança erro (que falha o build) se a consulta não funcionar.
+ */
+async function fetchRows(colecao, campoAtivo) {
+  if (fonteAtiva() === 'supabase') {
+    const url = `${SUPABASE_URL}/rest/v1/${colecao}?select=*&${campoAtivo}=eq.true&limit=1000`
+    const dados = await fetchJson(url, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        Accept: 'application/json',
+      },
+    })
+    if (!Array.isArray(dados)) {
+      throw new Error(`Resposta inesperada do Supabase em ${colecao}`)
+    }
+    return dados
+  }
+
+  // PocketBase (Skip Cloud)
+  const filtro = encodeURIComponent(`${campoAtivo}=true`)
+  const url = `${POCKETBASE_URL}/api/collections/${colecao}/records?perPage=1000&filter=${filtro}`
+  const dados = await fetchJson(url, { headers: { Accept: 'application/json' } })
+  if (!dados || !Array.isArray(dados.items)) {
+    throw new Error(`Resposta inesperada do PocketBase em ${colecao}`)
+  }
+  return dados.items
+}
+
+/** URL Base do Site — mesma fonte usada pelas demais URLs do sitemap */
+async function obterSiteUrl() {
   try {
-    return d.substring(0, 10)
-  } catch {
-    return getHoje()
+    if (fonteAtiva() === 'supabase') {
+      const url = `${SUPABASE_URL}/rest/v1/site_settings?select=site_url&chave=eq.geral&limit=1`
+      const linhas = await fetchJson(url, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Accept: 'application/json',
+        },
+      })
+      const u = linhas && linhas[0] && linhas[0].site_url
+      if (u) return String(u).trim().replace(/\/+$/, '')
+    } else if (fonteAtiva() === 'pocketbase') {
+      const filtro = encodeURIComponent(`chave="geral"`)
+      const url = `${POCKETBASE_URL}/api/collections/site_settings/records?perPage=1&filter=${filtro}`
+      const dados = await fetchJson(url, { headers: { Accept: 'application/json' } })
+      const u = dados && dados.items && dados.items[0] && dados.items[0].site_url
+      if (u) return String(u).trim().replace(/\/+$/, '')
+    }
+  } catch (errCfg) {
+    console.warn(
+      '[sitemap] Aviso: não foi possível ler site_url das Configurações:',
+      errCfg.message,
+    )
+  }
+  return 'https://gessobettone.com.br'
+}
+
+function montarUrlUrl(registro, siteUrl, prefixo, campoSlug) {
+  let slug = campo(registro, campoSlug)
+  if (!slug) {
+    slug = slugify(campo(registro, 'nome', 'titulo', 'title'))
+  }
+  if (!slug) return null
+  const isDestaque = campo(registro, 'destaque') === true
+  return {
+    loc: `${siteUrl}${prefixo}/${slug}`,
+    lastmod: dataMod(registro),
+    priority: isDestaque ? '0.85' : '0.8',
   }
 }
 
-async function fetchFromSupabase(baseUrl, anonKey) {
-  const headers = {
-    apikey: anonKey,
-    Authorization: `Bearer ${anonKey}`,
-    'Content-Type': 'application/json',
-  }
-
-  let siteUrl = 'https://gessobettone.com.br'
-
-  // 1. Tentar ler site_settings
-  try {
-    const resCfg = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/rest/v1/site_settings?chave=eq.geral&select=site_url,updated_at`,
-      { headers },
-    )
-    if (resCfg.ok) {
-      const dataCfg = await resCfg.json()
-      if (Array.isArray(dataCfg) && dataCfg.length > 0 && dataCfg[0].site_url) {
-        siteUrl = String(dataCfg[0].site_url).trim().replace(/\/+$/, '')
-      }
-    }
-  } catch (err) {
-    console.warn('[sitemap-generator] Aviso ao consultar site_settings no Supabase:', err.message)
-  }
-
-  // 2. Buscar serviços ativos
-  let servicos = []
-  try {
-    const resSrv = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/rest/v1/site_services?ativo=eq.true&select=slug,updated_at,created_at,destaque&order=destaque.desc,ordem.asc`,
-      { headers },
-    )
-    if (resSrv.ok) {
-      servicos = await resSrv.json()
-    }
-  } catch (err) {
-    console.warn('[sitemap-generator] Aviso ao consultar site_services no Supabase:', err.message)
-  }
-
-  // 3. Buscar portfolio ativo
-  let portfolio = []
-  try {
-    const resPort = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/rest/v1/site_portfolio?ativo=eq.true&select=slug,updated_at,created_at,destaque&order=destaque.desc,ordem.asc`,
-      { headers },
-    )
-    if (resPort.ok) {
-      portfolio = await resPort.json()
-    }
-  } catch (err) {
-    console.warn('[sitemap-generator] Aviso ao consultar site_portfolio no Supabase:', err.message)
-  }
-
-  return { siteUrl, servicos, portfolio }
-}
-
-async function fetchFromPocketBase(baseUrl) {
-  let siteUrl = 'https://gessobettone.com.br'
-
-  try {
-    const resCfg = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/api/collections/site_settings/records?filter=chave='geral'&perPage=1`,
-    )
-    if (resCfg.ok) {
-      const jsonCfg = await resCfg.json()
-      if (jsonCfg.items && jsonCfg.items[0] && jsonCfg.items[0].site_url) {
-        siteUrl = String(jsonCfg.items[0].site_url).trim().replace(/\/+$/, '')
-      }
-    }
-  } catch (_) {}
-
-  let servicos = []
-  try {
-    const resSrv = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/api/collections/site_services/records?filter=ativo=true&perPage=500&sort=-destaque,ordem`,
-    )
-    if (resSrv.ok) {
-      const jsonSrv = await resSrv.json()
-      servicos = jsonSrv.items || []
-    }
-  } catch (_) {}
-
-  let portfolio = []
-  try {
-    const resPort = await fetch(
-      `${baseUrl.replace(/\/+$/, '')}/api/collections/site_portfolio/records?filter=ativo=true&perPage=500&sort=-destaque,ordem`,
-    )
-    if (resPort.ok) {
-      const jsonPort = await resPort.json()
-      portfolio = jsonPort.items || []
-    }
-  } catch (_) {}
-
-  return { siteUrl, servicos, portfolio }
-}
-
-function buildXml(siteUrl, itens) {
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
-  xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-
-  for (const item of itens) {
-    xml += '  <url>\n'
-    xml += `    <loc>${item.loc}</loc>\n`
-    xml += `    <lastmod>${item.lastmod}</lastmod>\n`
-    xml += `    <changefreq>${item.changefreq}</changefreq>\n`
-    xml += `    <priority>${item.priority}</priority>\n`
-    xml += '  </url>\n'
-  }
-
-  xml += '</urlset>\n'
+function adicionarUrl(xml, u, changefreq) {
+  xml += '  <url>\n'
+  xml += `    <loc>${u.loc}</loc>\n`
+  xml += `    <lastmod>${u.lastmod}</lastmod>\n`
+  xml += `    <changefreq>${changefreq}</changefreq>\n`
+  xml += `    <priority>${u.priority}</priority>\n`
+  xml += '  </url>\n'
   return xml
 }
 
-async function main() {
-  console.log('[sitemap-generator] Iniciando geração do sitemap.xml para indexação Google...')
-
-  const supabaseUrl = process.env.VITE_SUPABASE_URL
-  const supabaseKey =
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY
-  const pbUrl = process.env.VITE_POCKETBASE_URL
-
-  let siteUrl = 'https://gessobettone.com.br'
-  let servicos = []
-  let portfolio = []
-  let dataFetched = false
-
+async function coletarSecao(nome, colecao, campoAtivo, siteUrl, prefixo, changefreq, campoSlug) {
   try {
-    if (supabaseUrl && supabaseKey) {
-      console.log('[sitemap-generator] Consultando serviços na API Supabase...')
-      const res = await fetchFromSupabase(supabaseUrl, supabaseKey)
-      siteUrl = res.siteUrl || siteUrl
-      servicos = res.servicos || []
-      portfolio = res.portfolio || []
-      dataFetched = true
-    } else if (pbUrl) {
-      console.log('[sitemap-generator] Consultando serviços no PocketBase...')
-      const res = await fetchFromPocketBase(pbUrl)
-      siteUrl = res.siteUrl || siteUrl
-      servicos = res.servicos || []
-      portfolio = res.portfolio || []
-      dataFetched = true
+    const registros = await fetchRows(colecao, campoAtivo)
+    const urls = []
+    for (const r of registros) {
+      const u = montarUrlUrl(r, siteUrl, prefixo, campoSlug)
+      if (u) urls.push(u)
     }
+    console.log(`[sitemap] ${nome}: ${urls.length} URL(s) ativa(s) encontradas.`)
+    return urls
   } catch (err) {
-    console.warn(
-      '[sitemap-generator] Aviso: não foi possível obter os dados da API remota durante a build:',
-      err.message,
+    // FALHA REAL: propaga — o build deve quebrar, nunca mascarar
+    throw new Error(
+      `[sitemap] Falha ao consultar "${colecao}" (fonte: ${fonteAtiva()}) para o sitemap: ${err.message}`,
+    )
+  }
+}
+
+async function main() {
+  console.log(`[sitemap] Fonte de dados: ${fonteAtiva()}`)
+  if (fonteAtiva() === 'nenhuma') {
+    throw new Error(
+      '[sitemap] Nenhuma fonte de dados configurada. Defina VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY (self-hosted) ou VITE_POCKETBASE_URL (Skip Cloud).',
     )
   }
 
-  const hoje = getHoje()
-  const itens = []
+  const siteUrl = await obterSiteUrl()
+  console.log(`[sitemap] URL base do site: ${siteUrl}`)
 
-  // 1. Adicionar rotas estáticas públicas (sem /painel, /login, etc.)
-  for (const r of STATIC_ROUTES) {
-    itens.push({
-      loc: `${siteUrl}${r.path}`,
-      lastmod: hoje,
-      changefreq: r.changefreq,
-      priority: r.priority,
-    })
-  }
+  const hoje = new Date().toISOString().substring(0, 10)
 
-  // 2. Adicionar cada serviço ativo
-  if (servicos.length > 0) {
-    console.log(`[sitemap-generator] Adicionando ${servicos.length} serviços dinâmicos ativos...`)
-    for (const s of servicos) {
-      const slug = s.slug
-      if (!slug) continue
-      const lastmod = normalizeDate(s.updated_at || s.updated || s.created_at || s.created)
-      const isDestaque = !!s.destaque
-      itens.push({
-        loc: `${siteUrl}/servicos/${slug}`,
-        lastmod,
-        changefreq: 'monthly',
-        priority: isDestaque ? '0.85' : '0.8',
-      })
-    }
-  } else {
-    console.log(
-      `[sitemap-generator] Usando catálogo padrão de serviços (${FALLBACK_SERVICOS.length} itens)...`,
-    )
-    for (const slug of FALLBACK_SERVICOS) {
-      itens.push({
-        loc: `${siteUrl}/servicos/${slug}`,
-        lastmod: hoje,
-        changefreq: 'monthly',
-        priority: '0.8',
-      })
-    }
-  }
+  const rotasEstaticas = [
+    { loc: `${siteUrl}/`, priority: '1.0', changefreq: 'weekly' },
+    { loc: `${siteUrl}/servicos`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${siteUrl}/portfolio`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${siteUrl}/parceiros`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${siteUrl}/sobre`, priority: '0.7', changefreq: 'monthly' },
+    { loc: `${siteUrl}/contato`, priority: '0.8', changefreq: 'monthly' },
+    { loc: `${siteUrl}/simulador`, priority: '0.85', changefreq: 'weekly' },
+  ]
 
-  // 3. Adicionar cada projeto de portfólio ativo
-  if (portfolio.length > 0) {
-    console.log(
-      `[sitemap-generator] Adicionando ${portfolio.length} projetos de portfólio ativos...`,
-    )
-    for (const p of portfolio) {
-      const slug = p.slug
-      if (!slug) continue
-      const lastmod = normalizeDate(p.updated_at || p.updated || p.created_at || p.created)
-      const isDestaque = !!p.destaque
-      itens.push({
-        loc: `${siteUrl}/portfolio/${slug}`,
-        lastmod,
-        changefreq: 'monthly',
-        priority: isDestaque ? '0.85' : '0.8',
-      })
-    }
-  }
-
-  // 3.4. Categorias de Parceiros (/parceiros/categoria/:slug)
-  const partCats = await fetchRows(
+  // 3.2 Serviços ativos
+  const urlsServicos = await coletarSecao(
+    'Serviços',
+    'site_services',
+    'ativo',
+    siteUrl,
+    '/servicos',
+    'monthly',
+    'slug',
+  )
+  // 3.3 Projetos de portfólio ativos
+  const urlsPortfolio = await coletarSecao(
+    'Portfólio',
+    'site_portfolio',
+    'ativo',
+    siteUrl,
+    '/portfolio',
+    'monthly',
+    'slug',
+  )
+  // 3.4 Categorias de parceiros ativas (/parceiros/categoria/:slug)
+  const urlsCategorias = await coletarSecao(
+    'Categorias de parceiros',
     'partner_categories',
-    { ativa: true },
-    'partner_categories?ativa=eq.true&select=slug,updated_at,created_at&order=ordem.asc',
+    'ativa',
+    siteUrl,
+    '/parceiros/categoria',
+    'weekly',
+    'slug',
   )
-  if (Array.isArray(partCats)) {
-    for (const c of partCats) {
-      const slug = c.slug
-      if (!slug) continue
-      const lastmod = normalizeDate(c.updated_at || c.updated || c.created_at || c.created)
-      itens.push({
-        loc: `${siteUrl}/parceiros/categoria/${slug}`,
-        lastmod,
-        changefreq: 'weekly',
-        priority: '0.8',
-      })
-    }
-  }
-
-  // 3.5. Parceiros Ativos (/parceiros/:slug) — Inativos ficam fora
-  const partners = await fetchRows(
+  // 3.5 Parceiros ativos (/parceiros/:slug)
+  const urlsParceiros = await coletarSecao(
+    'Parceiros',
     'site_partners',
-    { ativo: true },
-    'site_partners?ativo=eq.true&select=nome,slug,destaque,updated_at,created_at&order=ordem.asc',
+    'ativo',
+    siteUrl,
+    '/parceiros',
+    'weekly',
+    'slug',
   )
-  if (Array.isArray(partners)) {
-    for (const pa of partners) {
-      let slug = pa.slug
-      if (!slug && pa.nome) {
-        slug = pa.nome
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-      }
-      if (!slug) continue
-      const lastmod = normalizeDate(pa.updated_at || pa.updated || pa.created_at || pa.created)
-      const isDestaque = !!pa.destaque
-      itens.push({
-        loc: `${siteUrl}/parceiros/${slug}`,
-        lastmod,
-        changefreq: 'weekly',
-        priority: isDestaque ? '0.85' : '0.8',
-      })
-    }
+
+  if (urlsCategorias.length === 0) {
+    console.warn(
+      '[sitemap] ATENÇÃO: nenhuma categoria de parceiro ativa retornada (consulta OK, base vazia ou todas inativas).',
+    )
+  }
+  if (urlsParceiros.length === 0) {
+    console.warn(
+      '[sitemap] ATENÇÃO: nenhum parceiro ativo retornado (consulta OK, base vazia ou todos inativos).',
+    )
   }
 
-  // 4. Gravar public/sitemap.xml de forma resiliente
-  const xml = buildXml(siteUrl, itens)
-  if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true })
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+  xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+  for (const r of rotasEstaticas) {
+    xml = adicionarUrl(xml, { loc: r.loc, lastmod: hoje, priority: r.priority }, r.changefreq)
   }
-  fs.writeFileSync(sitemapPath, xml, 'utf8')
+  for (const u of urlsServicos) xml = adicionarUrl(xml, u, 'monthly')
+  for (const u of urlsPortfolio) xml = adicionarUrl(xml, u, 'monthly')
+  for (const u of urlsCategorias) xml = adicionarUrl(xml, u, 'weekly')
+  for (const u of urlsParceiros) xml = adicionarUrl(xml, u, 'weekly')
+  xml += '</urlset>'
+
+  const destino = path.join(ROOT, 'public', 'sitemap.xml')
+  fs.writeFileSync(destino, xml, 'utf8')
+
+  const total =
+    rotasEstaticas.length +
+    urlsServicos.length +
+    urlsPortfolio.length +
+    urlsCategorias.length +
+    urlsParceiros.length
   console.log(
-    `[sitemap-generator] Sucesso! ${itens.length} URLs gravadas em public/sitemap.xml (Domínio: ${siteUrl})`,
+    `[sitemap] OK: ${destino} gerado com ${total} URL(s) (parceiros: ${urlsParceiros.length}, categorias: ${urlsCategorias.length}).`,
   )
 }
 
 main().catch((err) => {
-  // Garantir que a build NUNCA quebre mesmo se algo der errado
-  console.error('[sitemap-generator] Erro não fatal durante geração do sitemap:', err)
-  process.exit(0)
+  // SEM máscara: erro na geração do sitemap precisa FALHAR o build.
+  console.error('\n========================================')
+  console.error('[sitemap] FALHA NA GERAÇÃO DO SITEMAP:')
+  console.error(err && err.message ? err.message : err)
+  console.error('========================================\n')
+  process.exit(1)
 })

@@ -2,6 +2,19 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './main.css'
+import { aplicarSeoInicialParceiros } from '@/lib/initialPartnerSeo'
+
+/**
+ * SEO inicial sincrônico (parceiro individual / categoria de parceiros):
+ * aplica título, description e JSON-LD ANTES da primeira renderização do React,
+ * para que o crawler encontre os dados no HTML inicial. O SEO component assíncrono
+ * sobrescreve depois com os dados reais do banco.
+ */
+try {
+  aplicarSeoInicialParceiros()
+} catch (errSeoInicial) {
+  console.warn('Falha ao aplicar SEO inicial de parceiros:', errSeoInicial)
+}
 
 // @skip-protected: Do not remove. Required for React rendering.
 createRoot(document.getElementById('root')!).render(<App />)
