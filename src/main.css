@@ -1,5 +1,8 @@
 /* Global styles - Theme, font, utilities, animations and global components */
 
+/* Fontes Oficiais do Brand Guide Gesso Bettone: Tenor Sans, Inter Tight, Petit Formal Script */
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Petit+Formal+Script&family=Tenor+Sans&display=swap');
+
 /* Ocultar selos/badges ou banners injetados por plataformas externas ou preview (ex: "Criado com o Skip", skip.png) */
 [class*='skip-badge'],
 [id*='skip-badge'],
@@ -29,9 +32,6 @@ body > a:has(img[src*='skip.png']) {
   left: -9999px !important;
   top: -9999px !important;
 }
-
-/* Fontes Oficiais do Brand Guide Gesso Bettone: Tenor Sans, Inter Tight, Petit Formal Script */
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Petit+Formal+Script&family=Tenor+Sans&display=swap');
 
 @tailwind base;
 @tailwind components;

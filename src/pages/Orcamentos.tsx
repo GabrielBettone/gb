@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { dataAdapter } from '@/lib/dataAdapter'
 import type { Orcamento, Produto, StatusOrcamento, ClienteGrupo, MetodoPagamento } from '@/types'
 import {
@@ -87,6 +88,7 @@ type AbaModulo =
 
 export const Orcamentos: React.FC = () => {
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   // Aba principal selecionada (Padrão das 6 abas do sistema antigo + Funil + Contas a Receber)
   const [abaAtiva, setAbaAtiva] = useState<AbaModulo>('funil')
@@ -1141,6 +1143,10 @@ export const Orcamentos: React.FC = () => {
         }}
         onFinanceiroGerado={() => {
           carregarDados()
+        }}
+        onEmitirNfse={(orc) => {
+          setOrcamentoDetalhes(null)
+          navigate(`/painel/nfse/nova?orcamento=${orc.id}&numero=${encodeURIComponent(orc.numero)}`)
         }}
       />
 

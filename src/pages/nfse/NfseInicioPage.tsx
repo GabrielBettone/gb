@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FileText, Plus, ReceiptText, Settings, Certificate, AlertTriangle } from 'lucide-react'
+import { FileText, Plus, ReceiptText, Settings, Award, AlertTriangle } from 'lucide-react'
 import { nfseApi, type NFSeNota } from '@/services/nfseApi'
 import { formatMoedaNFSe } from '@/services/nfse'
 
@@ -157,7 +157,7 @@ export const NfseInicioPage: React.FC = () => {
             to: '/painel/nfse/certificado',
             label: 'Certificado e sistema nacional',
             desc: 'Certificado A1 (.pfx), município e ambiente',
-            icon: Certificate,
+            icon: Award,
           },
         ].map((a) => (
           <Link key={a.to} to={a.to}>

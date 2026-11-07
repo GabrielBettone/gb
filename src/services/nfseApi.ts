@@ -73,6 +73,7 @@ export interface NFSeConfig {
   municipio_incidencia: string
   municipio_incidencia_ibge: string
   uf_municipio_incidencia: string
+  municipio_iss: string
   aliquota_iss_padrao: number
   reter_federais_padrao: boolean
   observacoes: string
@@ -93,13 +94,23 @@ export interface NFSeEmitente {
   telefone: string
   email: string
   inscricao_municipal: string
+  endereco_logradouro: string
+  endereco_numero: string
+  endereco_complemento: string
+  endereco_bairro: string
+  endereco_cep: string
 }
 
 export interface NFSeCertStatus {
-  existe: boolean
+  existe?: boolean
+  instalado?: boolean
   nome_arquivo?: string
   valido_ate?: string
+  vencido?: boolean
+  titular?: string
   cnpj_certificado?: string
+  ok?: boolean
+  erro?: string
   created_at?: string
 }
 
@@ -229,6 +240,26 @@ export const nfseApi = {
     await supabaseUpdate('nfse_config', [{ column: 'id', operator: 'eq', value: id }], dados)
   },
 
+  /** Atualiza a config única (linha 1) sem exigir o id na chamada. */
+  async atualizarConfig(dados: Partial<NFSeConfig>): Promise<NFSeConfig> {
+    const atual = await this.obterConfig()
+    if (!atual) throw new Error('Configurações do NFS-e não encontradas — rode o SQL de schema.')
+    await supabaseUpdate('nfse_config', [{ column: 'id', operator: 'eq', value: atual.id }], dados)
+    return { ...atual, ...dados } as NFSeConfig
+  },
+
+  /** Atualiza o emitente único (linha 1) sem exigir o id na chamada. */
+  async atualizarEmitente(dados: Partial<NFSeEmitente>): Promise<NFSeEmitente> {
+    const atual = await this.obterEmitente()
+    if (!atual) throw new Error('Emitente não encontrado — rode o SQL de seed.')
+    await supabaseUpdate(
+      'nfse_emitente',
+      [{ column: 'id', operator: 'eq', value: atual.id }],
+      dados,
+    )
+    return { ...atual, ...dados } as NFSeEmitente
+  },
+
   // ---------- Certificado (Edge Function — senha só no servidor) ----------
   async statusCertificado(): Promise<NFSeCertStatus> {
     try {
@@ -238,7 +269,16 @@ export const nfseApi = {
     }
   },
 
-  async enviarCertificado(arquivo: File, senha: string): Promise<{ valido_ate?: string }> {
+  async enviarCertificado(
+    arquivo: File,
+    senha: string,
+  ): Promise<{
+    ok: boolean
+    erro?: string
+    valido_ate?: string
+    vencido?: boolean
+    titular?: string
+  }> {
     const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -249,7 +289,13 @@ export const nfseApi = {
       reader.onerror = () => reject(new Error('Falha ao ler o arquivo do certificado.'))
       reader.readAsDataURL(arquivo)
     })
-    return edgeJson<{ valido_ate?: string }>('/certificado', {
+    return edgeJson<{
+      ok: boolean
+      erro?: string
+      valido_ate?: string
+      vencido?: boolean
+      titular?: string
+    }>('/certificado', {
       method: 'POST',
       body: JSON.stringify({ pfx_base64: base64, nome_arquivo: arquivo.name, senha }),
     })

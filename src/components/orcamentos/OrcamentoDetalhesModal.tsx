@@ -19,6 +19,7 @@ import {
   Printer,
   CreditCard,
   CalendarCheck,
+  FilePlus2,
 } from 'lucide-react'
 import {
   ETAPAS_CONFIG,
@@ -51,6 +52,7 @@ interface OrcamentoDetalhesModalProps {
   onExcluir: (orcamento: Orcamento) => void
   onReajustarParcelas?: (orcamento: Orcamento) => void
   onFinanceiroGerado?: () => void
+  onEmitirNfse?: (orcamento: Orcamento) => void
 }
 
 export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
@@ -62,6 +64,7 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
   onExcluir,
   onReajustarParcelas,
   onFinanceiroGerado,
+  onEmitirNfse,
 }) => {
   const { toast } = useToast()
   const [configGeral, setConfigGeral] = useState<OrcamentoConfiguracao | null>(null)
@@ -543,6 +546,20 @@ export const OrcamentoDetalhesModal: React.FC<OrcamentoDetalhesModalProps> = ({
               >
                 <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
                 Marcar como Concluído
+              </Button>
+            )}
+
+            {onEmitirNfse && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onEmitirNfse(orcamento)}
+                className="text-xs h-9 border-[#2C3E50]/30 text-[#2C3E50] hover:bg-[#E8EDF2] flex-1 sm:flex-none justify-center"
+                title="Emitir NFS-e para este orçamento"
+              >
+                <FilePlus2 className="w-3.5 h-3.5 mr-1.5 text-[#D4AF37]" />
+                Emitir NFS-e
               </Button>
             )}
 

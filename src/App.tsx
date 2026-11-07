@@ -40,13 +40,13 @@ import SiteConfiguracoesPage from '@/pages/site/SiteConfiguracoesPage'
 import SiteSimuladorAdminPage from '@/pages/site/SiteSimuladorAdminPage'
 
 // Módulo NFS-e (padrão nacional da Receita)
-import NfseInicioPage from '@/pages/nfse/NfseInicioPage'
-import NfseServicosPage from '@/pages/nfse/NfseServicosPage'
-import NfseNovaPage from '@/pages/nfse/NfseNovaPage'
-import NfseNotasPage from '@/pages/nfse/NfseNotasPage'
-import NfseDetalhePage from '@/pages/nfse/NfseDetalhePage'
-import NfseConfiguracoesPage from '@/pages/nfse/NfseConfiguracoesPage'
-import NfseCertificadoPage from '@/pages/nfse/NfseCertificadoPage'
+import { NfseInicioPage } from '@/pages/nfse/NfseInicioPage'
+import { NfseServicosPage } from '@/pages/nfse/NfseServicosPage'
+import { NfseNovaPage } from '@/pages/nfse/NfseNovaPage'
+import { NfseNotasPage } from '@/pages/nfse/NfseNotasPage'
+import { NfseDetalhePage } from '@/pages/nfse/NfseDetalhePage'
+import { NfseConfiguracoesPage } from '@/pages/nfse/NfseConfiguracoesPage'
+import { NfseCertificadoPage } from '@/pages/nfse/NfseCertificadoPage'
 
 // Páginas de Autenticação
 import Login from '@/pages/Login'

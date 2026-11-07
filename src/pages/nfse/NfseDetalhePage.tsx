@@ -47,7 +47,9 @@ export const NfseDetalhePage: React.FC = () => {
         .finally(() => setCarregando(false))
   }
 
-  useEffect(carregar, [id])
+  useEffect(() => {
+    carregar()
+  }, [id])
 
   const baixarXml = (xml: string, nome: string) => {
     if (!xml) return

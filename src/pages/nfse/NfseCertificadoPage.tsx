@@ -17,7 +17,9 @@ export const NfseCertificadoPage: React.FC = () => {
   const { toast } = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [config, setConfig] = useState<NFSeConfig | null>(null)
-  const [cert, setCert] = useState<NFSeCertStatus | null>(null)
+  const [cert, setCert] = useState<
+    (NFSeCertStatus & { instalado?: boolean; vencido?: boolean; titular?: string }) | null
+  >(null)
   const [carregando, setCarregando] = useState(true)
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [senha, setSenha] = useState('')
@@ -27,7 +29,7 @@ export const NfseCertificadoPage: React.FC = () => {
     Promise.all([nfseApi.obterConfig(), nfseApi.statusCertificado()])
       .then(([c, s]) => {
         setConfig(c)
-        setCert(s)
+        setCert({ ...s, instalado: (s as any).instalado ?? (s as any).existe ?? false })
       })
       .catch((e) =>
         toast({
@@ -83,7 +85,7 @@ export const NfseCertificadoPage: React.FC = () => {
         setArquivo(null)
         if (inputRef.current) inputRef.current.value = ''
         const s = await nfseApi.statusCertificado()
-        setCert(s)
+        setCert({ ...s, instalado: (s as any).instalado ?? (s as any).existe ?? true })
       } else {
         toast({
           variant: 'destructive',
@@ -122,7 +124,7 @@ export const NfseCertificadoPage: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {cert && cert.instalado && (
+          {cert?.instalado && (
             <div
               className={`text-xs rounded-md px-3 py-2 ${
                 cert.vencido ? 'bg-[#FBEFEE] text-[#8C2F28]' : 'bg-[#EFF7EF] text-[#2F6B33]'
