@@ -41,16 +41,19 @@ export const NfseConfiguracoesPage: React.FC = () => {
     try {
       const atualizado = await nfseApi.atualizarEmitente({
         razao_social: emitente.razao_social,
-        nome_fantasia: emitente.nome_fantasia,
+        nome_fantasia: emitente.nome_fantasia || '',
         cnpj: emitente.cnpj,
-        inscricao_municipal: emitente.inscricao_municipal,
-        email: emitente.email,
-        telefone: emitente.telefone,
-        endereco_logradouro: emitente.endereco_logradouro,
-        endereco_numero: emitente.endereco_numero,
-        endereco_complemento: emitente.endereco_complemento,
-        endereco_bairro: emitente.endereco_bairro,
-        endereco_cep: emitente.endereco_cep,
+        inscricao_municipal: emitente.inscricao_municipal || '',
+        email: emitente.email || '',
+        telefone: emitente.telefone || '',
+        logradouro: emitente.logradouro || '',
+        numero: emitente.numero || '',
+        complemento: emitente.complemento || '',
+        bairro: emitente.bairro || '',
+        cep: emitente.cep || '',
+        municipio: emitente.municipio || 'São Pedro',
+        uf: emitente.uf || 'SP',
+        codigo_municipio_ibge: emitente.codigo_municipio_ibge || '3550407',
       })
       setEmitente(atualizado)
       toast({ title: 'Dados da empresa atualizados.' })
@@ -119,29 +122,33 @@ export const NfseConfiguracoesPage: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Campo
               label="Logradouro"
-              value={emitente.endereco_logradouro || ''}
-              onChange={(v) => set('endereco_logradouro', v)}
+              value={emitente.logradouro || ''}
+              onChange={(v) => set('logradouro', v)}
             />
             <Campo
               label="Número"
-              value={emitente.endereco_numero || ''}
-              onChange={(v) => set('endereco_numero', v)}
+              value={emitente.numero || ''}
+              onChange={(v) => set('numero', v)}
             />
             <Campo
               label="Complemento"
-              value={emitente.endereco_complemento || ''}
-              onChange={(v) => set('endereco_complemento', v)}
+              value={emitente.complemento || ''}
+              onChange={(v) => set('complemento', v)}
             />
             <Campo
               label="Bairro"
-              value={emitente.endereco_bairro || ''}
-              onChange={(v) => set('endereco_bairro', v)}
+              value={emitente.bairro || ''}
+              onChange={(v) => set('bairro', v)}
             />
+            <Campo label="CEP" value={emitente.cep || ''} onChange={(v) => set('cep', v)} mono />
             <Campo
-              label="CEP"
-              value={emitente.endereco_cep || ''}
-              onChange={(v) => set('endereco_cep', v)}
-              mono
+              label="Município / UF"
+              value={`${emitente.municipio || 'São Pedro'} / ${emitente.uf || 'SP'}`}
+              onChange={(v) => {
+                const [m, u] = v.split('/')
+                if (m) set('municipio', m.trim())
+                if (u) set('uf', u.trim())
+              }}
             />
           </div>
           <p className="text-[10px] text-[#616F7D]">

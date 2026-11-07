@@ -29,22 +29,22 @@ export interface NFSeImpostos {
  * tabela oficial da lei (Anexo da LC 116) — editáveis na tela Serviços. */
 export const SERVICOS_PRE_CADASTRADOS = [
   {
-    nome: 'Marcenaria (móveis e artigos de carpintaria sob medida)',
+    nome: 'Marcenaria (confecção e montagem sob medida)',
     codigo_lc116: '14.13',
     descricao:
-      'Fabricação e instalação de móveis e artigos de carpintaria sob medida (bancadas, armários, closets, painéis) — CNAE 16.22-6-99 / 31.01-2-00.',
-    aliquota_iss_padrao: 3,
+      'Serviços de marcenaria e carpintaria sob medida: fabricação, confecção e montagem de móveis de madeira, armários embutidos, bancadas e painéis.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
     reter_pis: true,
   },
   {
-    nome: 'Serralheria (esquadrias e artigos de metal)',
+    nome: 'Serralheria (esquadrias, portões e estruturas metálicas)',
     codigo_lc116: '14.13',
     descricao:
-      'Execução de serviços de serralheria: esquadrias de metal, portas, janelas, grades e estruturas metálicas — CNAE 25.12-8-00 / 25.42-0-00.',
-    aliquota_iss_padrao: 3,
+      'Execução de serviços de serralheria: portas, janelas, grades, corrimãos, esquadrias e estruturas metálicas sob encomenda.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
@@ -52,32 +52,32 @@ export const SERVICOS_PRE_CADASTRADOS = [
   },
   {
     nome: 'Montagem de móveis de qualquer material',
-    codigo_lc116: '7.16',
+    codigo_lc116: '14.06',
     descricao:
-      'Serviços de montagem e instalação de móveis de qualquer material no local do cliente — CNAE 33.29-5-01.',
-    aliquota_iss_padrao: 3,
+      'Instalação e montagem de móveis e peças de qualquer material (madeira, metal, plástico ou vidro) no local do consumidor final.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
     reter_pis: true,
   },
   {
-    nome: 'Obras de acabamento em gesso e estuque (forros, sancas, molduras)',
-    codigo_lc116: '14.01',
+    nome: 'Gesso e drywall (forro e paredes)',
+    codigo_lc116: '7.02',
     descricao:
-      'Aplicação de forro de gesso, sancas, molduras e trabalhos em estuque em obras de acabamento — CNAE 43.30-4-03.',
-    aliquota_iss_padrao: 3,
+      'Execução por empreitada de forros de gesso, sancas, molduras, paredes e divisórias em drywall/gesso acartonado em obras e reformas.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
     reter_pis: true,
   },
   {
-    nome: 'Instalação de drywall — portas, janelas, tetos, divisórias e armários embutidos (forro e paredes)',
-    codigo_lc116: '14.01',
+    nome: 'Forros e paredes (revestimentos e divisórias)',
+    codigo_lc116: '7.06',
     descricao:
-      'Instalação de drywall (forro e paredes), divisórias, tetos, portas, janelas e armários embutidos de qualquer material — CNAE 43.30-4-02.',
-    aliquota_iss_padrao: 3,
+      'Instalação e colocação de forros, divisórias, placas de gesso, revestimentos de parede e acabamentos com material fornecido.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
@@ -85,21 +85,21 @@ export const SERVICOS_PRE_CADASTRADOS = [
   },
   {
     nome: 'Obras de alvenaria',
-    codigo_lc116: '14.01',
+    codigo_lc116: '7.02',
     descricao:
-      'Execução de obras de alvenaria e acabamento em construções novas, reformas e ampliações — CNAE 43.99-1-03.',
-    aliquota_iss_padrao: 3,
+      'Execução de serviços de alvenaria, levantamento de paredes, reboco, reformas e obras de construção civil por empreitada ou subempreitada.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
     reter_pis: true,
   },
   {
-    nome: 'Instalações hidráulicas, sanitárias e de gás',
-    codigo_lc116: '14.01',
+    nome: 'Instalações hidráulicas',
+    codigo_lc116: '7.02',
     descricao:
-      'Instalações hidráulicas, sanitárias e de gás em obras de construção civil — CNAE 43.22-3-01.',
-    aliquota_iss_padrao: 3,
+      'Execução de obras e instalações hidráulicas, sanitárias, de água fria, esgoto e drenagem em edificações.',
+    aliquota_iss_padrao: 2,
     reter_irrf: true,
     reter_csll: true,
     reter_cofins: true,
@@ -112,8 +112,10 @@ export const EMITENTE_PRE_CADASTRADO = {
   razao_social: 'GB SOLUCOES LTDA',
   nome_fantasia: 'GGB INFOTECH LTDA',
   cnpj: '53.242.055/0001-74',
+  inscricao_municipal: '',
   logradouro: 'R Heitor Mariotti',
   numero: '185',
+  complemento: '',
   bairro: 'Mariluz',
   codigo_municipio_ibge: '3550407',
   municipio: 'São Pedro',
@@ -121,7 +123,6 @@ export const EMITENTE_PRE_CADASTRADO = {
   cep: '13.522-340',
   telefone: '(19) 8109-3379',
   email: 'JAFASSESSORIACONTABIL@HOTMAIL.COM',
-  inscricao_municipal: '',
 }
 
 export const MUNICIPIO_ISS_PADRAO = 'São Pedro/SP'
@@ -163,6 +164,10 @@ export function calcularImpostos(
     aliquotaCsll?: number
     aliquotaCofins?: number
     aliquotaPis?: number
+    reterIrrf?: boolean
+    reterCsll?: boolean
+    reterCofins?: boolean
+    reterPis?: boolean
     tomadorPessoaJuridica?: boolean
   } = {},
 ): NFSeImpostos {
@@ -172,10 +177,17 @@ export function calcularImpostos(
   const aliquotaIss = opts.aliquotaIss ?? 3
   const valorIss = Math.round(base * (aliquotaIss / 100) * 100) / 100
 
-  const aliquotaIrrf = pj ? (opts.aliquotaIrrf ?? ALIQUOTAS_FEDERAIS_PADRAO.irrf) : 0
-  const aliquotaCsll = pj ? (opts.aliquotaCsll ?? ALIQUOTAS_FEDERAIS_PADRAO.csll) : 0
-  const aliquotaCofins = pj ? (opts.aliquotaCofins ?? ALIQUOTAS_FEDERAIS_PADRAO.cofins) : 0
-  const aliquotaPis = pj ? (opts.aliquotaPis ?? ALIQUOTAS_FEDERAIS_PADRAO.pis) : 0
+  const aplicarIrrf = pj && opts.reterIrrf !== false
+  const aplicarCsll = pj && opts.reterCsll !== false
+  const aplicarCofins = pj && opts.reterCofins !== false
+  const aplicarPis = pj && opts.reterPis !== false
+
+  const aliquotaIrrf = aplicarIrrf ? (opts.aliquotaIrrf ?? ALIQUOTAS_FEDERAIS_PADRAO.irrf) : 0
+  const aliquotaCsll = aplicarCsll ? (opts.aliquotaCsll ?? ALIQUOTAS_FEDERAIS_PADRAO.csll) : 0
+  const aliquotaCofins = aplicarCofins
+    ? (opts.aliquotaCofins ?? ALIQUOTAS_FEDERAIS_PADRAO.cofins)
+    : 0
+  const aliquotaPis = aplicarPis ? (opts.aliquotaPis ?? ALIQUOTAS_FEDERAIS_PADRAO.pis) : 0
 
   // Retenção bruta antes dos limites de dispensa
   const brutoIrrf = Math.round(base * (aliquotaIrrf / 100) * 100) / 100

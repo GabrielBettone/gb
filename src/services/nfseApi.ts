@@ -82,23 +82,19 @@ export interface NFSeConfig {
 export interface NFSeEmitente {
   id: string
   razao_social: string
-  nome_fantasia: string
+  nome_fantasia?: string
   cnpj: string
-  logradouro: string
-  numero: string
-  bairro: string
-  codigo_municipio_ibge: string
-  municipio: string
-  uf: string
-  cep: string
-  telefone: string
-  email: string
-  inscricao_municipal: string
-  endereco_logradouro: string
-  endereco_numero: string
-  endereco_complemento: string
-  endereco_bairro: string
-  endereco_cep: string
+  inscricao_municipal?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  codigo_municipio_ibge?: string
+  municipio?: string
+  uf?: string
+  cep?: string
+  telefone?: string
+  email?: string
 }
 
 export interface NFSeCertStatus {

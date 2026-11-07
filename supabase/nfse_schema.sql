@@ -1,327 +1,311 @@
 -- ============================================================================
--- GESSO BETTONE • MÓDULO NFS-e NACIONAL (Supabase)
--- ============================================================================
--- Arquivo para rodar manualmente no SQL Editor do Supabase do usuário
--- (projeto phjthpjdbhqhcfnyjjzc — o mesmo do site na Hostinger).
---
--- Idempotente: pode ser executado várias vezes sem erro — os seeds usam
--- INSERT ... WHERE NOT EXISTS + UPDATE por CNPJ/nome, então a reexecução
--- atualiza emitente/serviços/impostos SEM duplicar registros e SEM tocar
--- em notas existentes (nfse_notas nunca é apagada nem regravada aqui).
--- Rodar DEPOIS de self-hosted/supabase/schema.sql (referencia public.orcamentos).
---
--- Cria: nfse_emitente, nfse_servicos, nfse_config, nfse_certificado, nfse_notas
--- RLS liberada para usuários autenticados no padrão já usado no projeto
--- (GRANT + policies "admin_all").
--- Seed: emitente GB SOLUCOES LTDA (dados do Cartão CNPJ) + 7 serviços reais
--- (marcenaria, serralheria, montagem de móveis, gesso, drywall, alvenaria,
--- hidráulica) com códigos LC 116 e impostos configurados para emissão.
--- Alíquota ISS padrão de São Pedro/SP: 3% (usual; editável em Configurações).
--- Retenções federais (tomador PJ): IRRF 1,5%, CSLL 1%, COFINS 3%, PIS 0,65% —
--- PIS/COFINS/CSLL retidos somente quando o serviço individual > R$ 215,00.
+-- Módulo NFS-e • Sistema Nacional (Receita Federal) — Gesso Bettone / GB Soluções
+-- Schema manual do Supabase (projeto do usuário: phjthpjdbhqhcfnyjjzc)
+-- Aplicação: pelo painel do Supabase (SQL Editor) do usuário.
+-- Idempotente (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+-- Regras legais vigentes: Lei Complementar 116/2003 (com LC 157/2016 e LC 175/2020),
+-- Sistema Nacional NFS-e / Padrão Nacional DPS v1.0.
+-- Alíquota ISS: 2% (município de São Pedro/SP - IBGE 3550407).
+-- Retenções federais para tomador PJ: IRRF 1,5%, CSLL 1%, COFINS 3%, PIS 0,65%.
+-- IMPORTANTE: NFS-e NUNCA gera financeiro automaticamente — recebimentos só pelo
+-- botão manual do orçamento (regra permanente da empresa Gesso Bettone).
 -- ============================================================================
 
--- ----------------------------------------------------------------------------
--- 1. EMITENTE (dados da empresa emitente)
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.nfse_emitente (
-  id TEXT PRIMARY KEY DEFAULT ('nfse_emit_' || substr(md5(random()::text || clock_timestamp()::text), 1, 12)),
-  razao_social TEXT NOT NULL,
-  nome_fantasia TEXT,
-  cnpj TEXT NOT NULL,
-  inscricao_municipal TEXT,
-  logradouro TEXT,
-  numero TEXT,
-  bairro TEXT,
-  codigo_municipio_ibge TEXT,
-  municipio TEXT,
-  uf TEXT,
-  cep TEXT,
-  telefone TEXT,
-  email TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-
-DROP TRIGGER IF EXISTS trigger_nfse_emitente_updated_at ON public.nfse_emitente;
-CREATE TRIGGER trigger_nfse_emitente_updated_at
-  BEFORE UPDATE ON public.nfse_emitente
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-
--- ----------------------------------------------------------------------------
--- 2. SERVIÇOS (itens da LC 116/2003 praticados pela empresa)
--- ----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.nfse_servicos (
-  id TEXT PRIMARY KEY DEFAULT ('nfse_serv_' || substr(md5(random()::text || clock_timestamp()::text), 1, 12)),
-  nome TEXT NOT NULL,
-  codigo_lc116 TEXT NOT NULL,
-  descricao TEXT,
-  aliquota_iss NUMERIC NOT NULL DEFAULT 3,
-  reter_irrf BOOLEAN NOT NULL DEFAULT true,
-  reter_csll BOOLEAN NOT NULL DEFAULT true,
-  reter_cofins BOOLEAN NOT NULL DEFAULT true,
-  reter_pis BOOLEAN NOT NULL DEFAULT true,
-  ativo BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);
-
-CREATE INDEX IF NOT EXISTS idx_nfse_servicos_nome ON public.nfse_servicos(nome);
-CREATE INDEX IF NOT EXISTS idx_nfse_servicos_lc ON public.nfse_servicos(codigo_lc116);
-
-DROP TRIGGER IF EXISTS trigger_nfse_servicos_updated_at ON public.nfse_servicos;
-CREATE TRIGGER trigger_nfse_servicos_updated_at
-  BEFORE UPDATE ON public.nfse_servicos
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-
--- ----------------------------------------------------------------------------
--- 3. CONFIGURAÇÕES DO MÓDULO (município de incidência, alíquota, ambiente)
--- ----------------------------------------------------------------------------
+-- 1. Tabela: nfse_config (parâmetros gerais de emissão)
 CREATE TABLE IF NOT EXISTS public.nfse_config (
-  id TEXT PRIMARY KEY DEFAULT ('nfse_cfg_' || substr(md5(random()::text || clock_timestamp()::text), 1, 12)),
-  ambiente TEXT NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('homologacao', 'producao')),
-  municipio_incidencia TEXT NOT NULL DEFAULT 'São Pedro',
-  municipio_incidencia_ibge TEXT NOT NULL DEFAULT '3550407',
-  uf_municipio_incidencia TEXT NOT NULL DEFAULT 'SP',
-  aliquota_iss_padrao NUMERIC NOT NULL DEFAULT 2,
-  reter_federais_padrao BOOLEAN NOT NULL DEFAULT false,
-  observacoes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+  id text PRIMARY KEY DEFAULT 'default',
+  ambiente text NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('producao', 'homologacao')),
+  serie_rps text NOT NULL DEFAULT '1',
+  proximo_numero_rps integer NOT NULL DEFAULT 1,
+  regime_tributario text NOT NULL DEFAULT 'simples_nacional' CHECK (regime_tributario IN ('simples_nacional', 'lucro_presumido', 'lucro_real', 'mei')),
+  aliquota_iss_padrao numeric(5,2) NOT NULL DEFAULT 2.00,
+  codigo_municipio_padrao text NOT NULL DEFAULT '3550407', -- São Pedro / SP
+  incentivo_fiscal boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-DROP TRIGGER IF EXISTS trigger_nfse_config_updated_at ON public.nfse_config;
-CREATE TRIGGER trigger_nfse_config_updated_at
-  BEFORE UPDATE ON public.nfse_config
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+-- 2. Tabela: nfse_emitente (dados cadastrais da empresa prestadora)
+CREATE TABLE IF NOT EXISTS public.nfse_emitente (
+  id text PRIMARY KEY DEFAULT 'default',
+  razao_social text NOT NULL,
+  nome_fantasia text,
+  cnpj text NOT NULL,
+  inscricao_municipal text,
+  logradouro text,
+  numero text,
+  complemento text,
+  bairro text,
+  codigo_municipio_ibge text NOT NULL DEFAULT '3550407',
+  municipio text NOT NULL DEFAULT 'São Pedro',
+  uf text NOT NULL DEFAULT 'SP',
+  cep text,
+  telefone text,
+  email text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
 
--- ----------------------------------------------------------------------------
--- 4. CERTIFICADO A1 (binário .pfx + senha CIFRADA — nunca em texto plano)
--- ----------------------------------------------------------------------------
--- A senha é cifrada no SERVIDOR (Edge Function) com AES-256-GCM usando a
--- variável de segredo NFSE_CERT_PASSWORD_KEY; a chave nunca sai do servidor.
--- O arquivo .pfx fica em Storage privado (bucket nfse_certificados), nunca público.
--- ----------------------------------------------------------------------------
+-- Migrações de coluna para compatibilidade com versões prévias do schema
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS complemento text;
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS logradouro text;
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS numero text;
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS bairro text;
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS cep text;
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS municipio text DEFAULT 'São Pedro';
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS uf text DEFAULT 'SP';
+ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS codigo_municipio_ibge text DEFAULT '3550407';
+
+-- 3. Tabela: nfse_servicos (catálogo de serviços com código LC 116 e retenções)
+CREATE TABLE IF NOT EXISTS public.nfse_servicos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome text NOT NULL,
+  codigo_lc116 text NOT NULL,
+  descricao text,
+  aliquota_iss numeric(5,2) NOT NULL DEFAULT 2.00,
+  reter_irrf boolean NOT NULL DEFAULT true,
+  reter_csll boolean NOT NULL DEFAULT true,
+  reter_cofins boolean NOT NULL DEFAULT true,
+  reter_pis boolean NOT NULL DEFAULT true,
+  ativo boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Migração de colunas para nfse_servicos
+ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_irrf boolean NOT NULL DEFAULT true;
+ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_csll boolean NOT NULL DEFAULT true;
+ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_cofins boolean NOT NULL DEFAULT true;
+ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_pis boolean NOT NULL DEFAULT true;
+
+-- 4. Tabela: nfse_certificado (armazenamento seguro do certificado digital A1)
 CREATE TABLE IF NOT EXISTS public.nfse_certificado (
-  id TEXT PRIMARY KEY DEFAULT ('nfse_cert_' || substr(md5(random()::text || clock_timestamp()::text), 1, 12)),
-  arquivo_path TEXT NOT NULL,
-  nome_arquivo TEXT,
-  senha_cifrada TEXT,
-  senha_iv TEXT,
-  senha_tag TEXT,
-  valido_ate DATE,
-  cnpj_certificado TEXT,
-  ativo BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+  id text PRIMARY KEY DEFAULT 'default',
+  storage_path text NOT NULL,
+  senha_cifrada text NOT NULL,
+  validade_fim timestamptz,
+  emissor text,
+  titular text,
+  cnpj_certificado text,
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-DROP TRIGGER IF EXISTS trigger_nfse_certificado_updated_at ON public.nfse_certificado;
-CREATE TRIGGER trigger_nfse_certificado_updated_at
-  BEFORE UPDATE ON public.nfse_certificado
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-
--- ----------------------------------------------------------------------------
--- 5. NOTAS (DPS + NFS-e)
--- ----------------------------------------------------------------------------
+-- 5. Tabela: nfse_notas (RPS e Notas Fiscais emitidas ou em processamento)
 CREATE TABLE IF NOT EXISTS public.nfse_notas (
-  id TEXT PRIMARY KEY DEFAULT ('nfse_nota_' || substr(md5(random()::text || clock_timestamp()::text), 1, 12)),
-  status TEXT NOT NULL DEFAULT 'rps' CHECK (status IN (
-    'rps', 'enviando', 'autorizada', 'rejeitada', 'cancelada', 'erro'
-  )),
-  ambiente TEXT NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('homologacao', 'producao')),
-  orcamento TEXT REFERENCES public.orcamentos(id) ON DELETE SET NULL,
-  orcamento_numero TEXT,
-  servico TEXT REFERENCES public.nfse_servicos(id) ON DELETE SET NULL,
-  numero_rps INTEGER,
-  serie_rps TEXT DEFAULT '1',
-  protocolo TEXT,
-  numero_nfse TEXT,
-  data_autorizacao TIMESTAMPTZ,
-  data_competencia DATE,
-  data_emissao_dps TEXT,
-  codigo_lc116 TEXT,
-  codigo_tributario_municipio TEXT,
-  exigibilidade_iss INTEGER DEFAULT 1,
-  valor_servicos NUMERIC NOT NULL DEFAULT 0,
-  aliquota_iss NUMERIC NOT NULL DEFAULT 2,
-  valor_iss NUMERIC NOT NULL DEFAULT 0,
-  iss_retido BOOLEAN NOT NULL DEFAULT false,
-  valor_irrf NUMERIC DEFAULT 0,
-  valor_csll NUMERIC DEFAULT 0,
-  valor_cofins NUMERIC DEFAULT 0,
-  valor_pis NUMERIC DEFAULT 0,
-  tomador_nome TEXT,
-  tomador_documento TEXT,
-  tomador_email TEXT,
-  tomador_endereco TEXT,
-  tomador_municipio TEXT,
-  tomador_uf TEXT,
-  descricao_servico TEXT,
-  observacoes TEXT,
-  xml_dps TEXT,
-  xml_nfse TEXT,
-  mensagem_erro TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  status text NOT NULL DEFAULT 'rps' CHECK (status IN ('rps', 'transmitida', 'autorizada', 'rejeitada', 'cancelada')),
+  ambiente text NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('producao', 'homologacao')),
+  orcamento uuid REFERENCES public.orcamentos(id) ON DELETE SET NULL,
+  orcamento_numero integer,
+  numero_rps integer NOT NULL,
+  serie_rps text NOT NULL DEFAULT '1',
+  tipo_rps text NOT NULL DEFAULT '1',
+  data_emissao timestamptz NOT NULL DEFAULT now(),
+  numero_nfse text,
+  codigo_verificacao text,
+  chave_acesso text,
+  data_autorizacao timestamptz,
+  link_danfse text,
+  xml_distribuicao text,
+  tomador_tipo text NOT NULL CHECK (tomador_tipo IN ('PF', 'PJ', 'ESTRANGEIRO')),
+  tomador_documento text NOT NULL,
+  tomador_nome text NOT NULL,
+  tomador_email text,
+  tomador_telefone text,
+  tomador_endereco_logradouro text,
+  tomador_endereco_numero text,
+  tomador_endereco_complemento text,
+  tomador_endereco_bairro text,
+  tomador_endereco_cep text,
+  tomador_codigo_municipio text,
+  tomador_municipio text,
+  tomador_uf text,
+  servico uuid REFERENCES public.nfse_servicos(id) ON DELETE SET NULL,
+  servico_codigo_lc116 text NOT NULL,
+  discriminacao_servicos text NOT NULL,
+  codigo_municipio_prestacao text NOT NULL DEFAULT '3550407',
+  valor_servicos numeric(12,2) NOT NULL,
+  valor_deducoes numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_desconto_incondicionado numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_desconto_condicionado numeric(12,2) NOT NULL DEFAULT 0.00,
+  base_calculo_iss numeric(12,2) NOT NULL,
+  aliquota_iss numeric(5,2) NOT NULL DEFAULT 2.00,
+  valor_iss numeric(12,2) NOT NULL DEFAULT 0.00,
+  iss_retido boolean NOT NULL DEFAULT false,
+  valor_iss_retido numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_pis numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_cofins numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_inss numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_ir numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_csll numeric(12,2) NOT NULL DEFAULT 0.00,
+  outras_retencoes numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_liquido numeric(12,2) NOT NULL,
+  motivo_cancelamento text,
+  data_cancelamento timestamptz,
+  mensagem_retorno text,
+  codigo_retorno text,
+  payload_envio jsonb,
+  payload_retorno jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_nfse_notas_status ON public.nfse_notas(status);
+-- Índices úteis
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_orcamento ON public.nfse_notas(orcamento);
-CREATE INDEX IF NOT EXISTS idx_nfse_notas_numero ON public.nfse_notas(numero_nfse);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_status ON public.nfse_notas(status);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_numero_rps ON public.nfse_notas(numero_rps);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_numero_nfse ON public.nfse_notas(numero_nfse);
 
-DROP TRIGGER IF EXISTS trigger_nfse_notas_updated_at ON public.nfse_notas;
-CREATE TRIGGER trigger_nfse_notas_updated_at
-  BEFORE UPDATE ON public.nfse_notas
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+-- 6. Tabela: nfse_eventos (auditoria e rastreamento de tentativas de envio)
+CREATE TABLE IF NOT EXISTS public.nfse_eventos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nota uuid NOT NULL REFERENCES public.nfse_notas(id) ON DELETE CASCADE,
+  tipo text NOT NULL,
+  mensagem text NOT NULL,
+  detalhes jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON public.nfse_eventos(nota);
 
 -- ----------------------------------------------------------------------------
--- 6. ROW LEVEL SECURITY (padrão do projeto: tudo liberado para autenticados)
+-- RLS (Row Level Security) e Permissões
 -- ----------------------------------------------------------------------------
+ALTER TABLE public.nfse_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_emitente ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_servicos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.nfse_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.nfse_certificado ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_notas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.nfse_eventos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.nfse_certificado ENABLE ROW LEVEL SECURITY;
 
-DO $$
-DECLARE
-  t TEXT;
-  nfse_tables TEXT[] := ARRAY[
-    'nfse_emitente', 'nfse_servicos', 'nfse_config',
-    'nfse_certificado', 'nfse_notas'
-  ];
-BEGIN
-  FOREACH t IN ARRAY nfse_tables LOOP
-    EXECUTE format('DROP POLICY IF EXISTS "%I_admin_all" ON public.%I;', t, t);
-    EXECUTE format('CREATE POLICY "%I_admin_all" ON public.%I FOR ALL TO authenticated USING (true) WITH CHECK (true);', t, t);
-  END LOOP;
-END;
-$$;
+DO $$ BEGIN
+  -- Leitura e escrita públicas para o painel autenticado / chave anônima da Hostinger
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_config' AND policyname = 'nfse_config_all') THEN
+    CREATE POLICY nfse_config_all ON public.nfse_config FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_emitente' AND policyname = 'nfse_emitente_all') THEN
+    CREATE POLICY nfse_emitente_all ON public.nfse_emitente FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_servicos' AND policyname = 'nfse_servicos_all') THEN
+    CREATE POLICY nfse_servicos_all ON public.nfse_servicos FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_notas' AND policyname = 'nfse_notas_all') THEN
+    CREATE POLICY nfse_notas_all ON public.nfse_notas FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_eventos' AND policyname = 'nfse_eventos_all') THEN
+    CREATE POLICY nfse_eventos_all ON public.nfse_eventos FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  -- nfse_certificado: apenas leitura de metadados se necessário; gravação direta pelo painel
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_certificado' AND policyname = 'nfse_certificado_all') THEN
+    CREATE POLICY nfse_certificado_all ON public.nfse_certificado FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
+GRANT ALL ON public.nfse_config TO anon, authenticated, service_role;
 GRANT ALL ON public.nfse_emitente TO anon, authenticated, service_role;
 GRANT ALL ON public.nfse_servicos TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_config TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_certificado TO anon, authenticated, service_role;
 GRANT ALL ON public.nfse_notas TO anon, authenticated, service_role;
+GRANT ALL ON public.nfse_eventos TO anon, authenticated, service_role;
+GRANT ALL ON public.nfse_certificado TO anon, authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
--- 7. SEED: EMITENTE PADRÃO (regra do dono — GB SOLUCOES LTDA)
--- Dados do Cartão CNPJ (comprovante de inscrição e de situação cadastral).
--- INSERT inicial + UPDATE por CNPJ em cada reexecução (idempotente: corrige
--- dados desatualizados sem duplicar nem apagar nada).
+-- SEEDS IDEMPOTENTES (Dados reais da empresa do usuário)
 -- ----------------------------------------------------------------------------
-INSERT INTO public.nfse_emitente (razao_social, nome_fantasia, cnpj, inscricao_municipal, logradouro, numero, bairro, codigo_municipio_ibge, municipio, uf, cep, telefone, email)
-SELECT 'GB SOLUCOES LTDA', 'GGB INFOTECH LTDA', '53.242.055/0001-74', '', 'R Heitor Mariotti', '185', 'Mariluz', '3550407', 'São Pedro', 'SP', '13.522-340', '(19) 8109-3379', 'JAFASSESSORIACONTABIL@HOTMAIL.COM'
-WHERE NOT EXISTS (SELECT 1 FROM public.nfse_emitente WHERE cnpj = '53.242.055/0001-74');
 
-UPDATE public.nfse_emitente SET
-  razao_social = 'GB SOLUCOES LTDA',
-  nome_fantasia = 'GGB INFOTECH LTDA',
-  logradouro = 'R Heitor Mariotti',
-  numero = '185',
-  bairro = 'Mariluz',
-  codigo_municipio_ibge = '3550407',
-  municipio = 'São Pedro',
-  uf = 'SP',
-  cep = '13.522-340',
-  telefone = '(19) 8109-3379',
-  email = 'JAFASSESSORIACONTABIL@HOTMAIL.COM',
-  updated_at = timezone('utc'::text, now())
-WHERE cnpj = '53.242.055/0001-74';
+-- A. Configuração padrão
+INSERT INTO public.nfse_config (
+  id, ambiente, serie_rps, proximo_numero_rps, regime_tributario, aliquota_iss_padrao, codigo_municipio_padrao
+) VALUES (
+  'default', 'homologacao', '1', 1, 'simples_nacional', 2.00, '3550407'
+)
+ON CONFLICT (id) DO UPDATE SET
+  aliquota_iss_padrao = EXCLUDED.aliquota_iss_padrao,
+  codigo_municipio_padrao = EXCLUDED.codigo_municipio_padrao;
 
--- ----------------------------------------------------------------------------
--- 8. SEED: CONFIG PADRÃO (São Pedro/SP, ISS 3%, homologação)
--- ----------------------------------------------------------------------------
-INSERT INTO public.nfse_config (ambiente, municipio_incidencia, municipio_incidencia_ibge, uf_municipio_incidencia, aliquota_iss_padrao, reter_federais_padrao)
-SELECT 'homologacao', 'São Pedro', '3550407', 'SP', 3, true
-WHERE NOT EXISTS (SELECT 1 FROM public.nfse_config);
+-- B. Emitente real: GB SOLUCOES LTDA (Cartão CNPJ oficial)
+INSERT INTO public.nfse_emitente (
+  id, razao_social, nome_fantasia, cnpj, inscricao_municipal,
+  logradouro, numero, complemento, bairro, codigo_municipio_ibge, municipio, uf, cep, telefone, email
+) VALUES (
+  'default',
+  'GB SOLUCOES LTDA',
+  'GGB INFOTECH LTDA',
+  '53.242.055/0001-74',
+  '',
+  'R Heitor Mariotti',
+  '185',
+  '',
+  'Mariluz',
+  '3550407',
+  'São Pedro',
+  'SP',
+  '13.522-340',
+  '(19) 8109-3379',
+  'JAFASSESSORIACONTABIL@HOTMAIL.COM'
+)
+ON CONFLICT (id) DO UPDATE SET
+  razao_social = EXCLUDED.razao_social,
+  nome_fantasia = EXCLUDED.nome_fantasia,
+  cnpj = EXCLUDED.cnpj,
+  logradouro = EXCLUDED.logradouro,
+  numero = EXCLUDED.numero,
+  complemento = EXCLUDED.complemento,
+  bairro = EXCLUDED.bairro,
+  codigo_municipio_ibge = EXCLUDED.codigo_municipio_ibge,
+  municipio = EXCLUDED.municipio,
+  uf = EXCLUDED.uf,
+  cep = EXCLUDED.cep,
+  telefone = EXCLUDED.telefone,
+  email = EXCLUDED.email,
+  updated_at = now();
 
-UPDATE public.nfse_config SET
-  municipio_incidencia = 'São Pedro',
-  municipio_incidencia_ibge = '3550407',
-  uf_municipio_incidencia = 'SP',
-  updated_at = timezone('utc'::text, now())
-WHERE municipio_incidencia_ibge = '3550407';
--- (aliquota_iss_padrao e reter_federais_padrao existentes NÃO são sobrescritos
---  pelo re-run — o usuário pode ter ajustado; novos bancos já nascem com 3%.)
-
--- ----------------------------------------------------------------------------
--- 9. SEED: SERVIÇOS REAIS LC 116 (7 itens do dia a dia da empresa)
--- Códigos da tabela da LC 116/2003 (Lei Complementar 116/2003, Anexo):
---   14.01 = execução, por empreitada, de obras de construção civil,
---           hidráulica ou elétrica (gesso/drywall/alvenaria/hidráulica)
---   14.13 = execução de laje, carpintaria e serralheria (marcenaria/serralheria)
---   7.16  = execução por empreitada de instalação/montagem não especificada
---           nos itens anteriores (montagem de móveis de qualquer material)
--- Retenções federais (tomador PJ): IRRF 1,5%, CSLL 1%, COFINS 3%, PIS 0,65%.
--- PIS/COFINS/CSLL só retidos quando o serviço individual > R$ 215,00 e
--- IRRF >= R$ 10,00 (limites legais de dispensa) — a tela Nova NFS-e aplica
--- esses limites em tempo real; as flags abaixo são o padrão de cada serviço.
--- Alíquota ISS: 3% (padrão usual São Pedro/SP) — editável na tela Serviços.
--- ----------------------------------------------------------------------------
-INSERT INTO public.nfse_servicos (nome, codigo_lc116, descricao, aliquota_iss, reter_irrf, reter_csll, reter_cofins, reter_pis)
-SELECT v.nome, v.codigo_lc116, v.descricao, 3, true, true, true, true
-FROM (VALUES
-  ('Marcenaria (móveis e artigos de carpintaria sob medida)', '14.13',
-   'Fabricação e instalação de móveis e artigos de carpintaria sob medida (bancadas, armários, closets, painéis) — CNAE 16.22-6-99 / 31.01-2-00.'),
-  ('Serralheria (esquadrias e artigos de metal)', '14.13',
-   'Execução de serviços de serralheria: esquadrias de metal, portas, janelas, grades e estruturas metálicas — CNAE 25.12-8-00 / 25.42-0-00.'),
-  ('Montagem de móveis de qualquer material', '7.16',
-   'Serviços de montagem e instalação de móveis de qualquer material no local do cliente — CNAE 33.29-5-01.'),
-  ('Obras de acabamento em gesso e estuque (forros, sancas, molduras)', '14.01',
-   'Aplicação de forro de gesso, sancas, molduras e trabalhos em estuque em obras de acabamento — CNAE 43.30-4-03.'),
-  ('Instalação de drywall — portas, janelas, tetos, divisórias e armários embutidos (forro e paredes)', '14.01',
-   'Instalação de drywall (forro e paredes), divisórias, tetos, portas, janelas e armários embutidos de qualquer material — CNAE 43.30-4-02.'),
-  ('Obras de alvenaria', '14.01',
-   'Execução de obras de alvenaria e acabamento em construções novas, reformas e ampliações — CNAE 43.99-1-03.'),
-  ('Instalações hidráulicas, sanitárias e de gás', '14.01',
-   'Instalações hidráulicas, sanitárias e de gás em obras de construção civil — CNAE 43.22-3-01.')
-) AS v(nome, codigo_lc116, descricao)
-WHERE NOT EXISTS (SELECT 1 FROM public.nfse_servicos s WHERE s.nome = v.nome);
-
--- Idempotência por NOME + Código LC 116: se o serviço existir com nome igual,
--- atualiza o código/descrição; se existir com mesmo código mas nome antigo
--- (ex.: seeds anteriores), insere a versão nova sem duplicar códigos.
-UPDATE public.nfse_servicos s SET
-  codigo_lc116 = v.codigo_lc116,
-  descricao = v.descricao,
-  updated_at = timezone('utc'::text, now())
-FROM (VALUES
-  ('Marcenaria (móveis e artigos de carpintaria sob medida)', '14.13',
-   'Fabricação e instalação de móveis e artigos de carpintaria sob medida (bancadas, armários, closets, painéis) — CNAE 16.22-6-99 / 31.01-2-00.'),
-  ('Serralheria (esquadrias e artigos de metal)', '14.13',
-   'Execução de serviços de serralheria: esquadrias de metal, portas, janelas, grades e estruturas metálicas — CNAE 25.12-8-00 / 25.42-0-00.'),
-  ('Montagem de móveis de qualquer material', '7.16',
-   'Serviços de montagem e instalação de móveis de qualquer material no local do cliente — CNAE 33.29-5-01.'),
-  ('Obras de acabamento em gesso e estuque (forros, sancas, molduras)', '14.01',
-   'Aplicação de forro de gesso, sancas, molduras e trabalhos em estuque em obras de acabamento — CNAE 43.30-4-03.'),
-  ('Instalação de drywall — portas, janelas, tetos, divisórias e armários embutidos (forro e paredes)', '14.01',
-   'Instalação de drywall (forro e paredes), divisórias, tetos, portas, janelas e armários embutidos de qualquer material — CNAE 43.30-4-02.'),
-  ('Obras de alvenaria', '14.01',
-   'Execução de obras de alvenaria e acabamento em construções novas, reformas e ampliações — CNAE 43.99-1-03.'),
-  ('Instalações hidráulicas, sanitárias e de gás', '14.01',
-   'Instalações hidráulicas, sanitárias e de gás em obras de construção civil — CNAE 43.22-3-01.')
-) AS v(nome, codigo_lc116, descricao)
-WHERE s.nome = v.nome;
-
--- Serviços de seeds ANTIGOS (lista provisória anterior) ficam INATIVOS —
--- não aparecem mais na Nova NFS-e, mas continuam no banco para as notas
--- históricas que os referenciam (FK ON DELETE SET NULL preservada).
-UPDATE public.nfse_servicos SET ativo = false, updated_at = timezone('utc'::text, now())
-WHERE nome IN (
-  'Aplicação de forro de gesso',
-  'Instalação e montagem de drywall / paredes de gesso acartonado',
-  'Execução de alvenaria e revestimento de paredes',
-  'Obras de concreto e acabamento em edificações',
-  'Instalação e montagem de estruturas metálicas / drywall industrial',
-  'Reformas e acabamentos em interiores (gesso, pintura e molduras)'
-) AND nome NOT IN (SELECT nome FROM (VALUES
-  ('Marcenaria (móveis e artigos de carpintaria sob medida)'),
-  ('Serralheria (esquadrias e artigos de metal)'),
-  ('Montagem de móveis de qualquer material'),
-  ('Obras de acabamento em gesso e estuque (forros, sancas, molduras)'),
-  ('Instalação de drywall — portas, janelas, tetos, divisórias e armários embutidos (forro e paredes)'),
-  ('Obras de alvenaria'),
-  ('Instalações hidráulicas, sanitárias e de gás')
-) AS novos(nome));
+-- C. Catálogo de Serviços Reais do usuário com códigos da LC 116/2003 e impostos
+-- Limpa serviços com nomes antigos e insere os 7 serviços oficiais configurados
+INSERT INTO public.nfse_servicos (
+  nome, codigo_lc116, descricao, aliquota_iss, reter_irrf, reter_csll, reter_cofins, reter_pis, ativo
+)
+SELECT * FROM (VALUES
+  (
+    'Marcenaria (confecção e montagem sob medida)',
+    '14.13',
+    'Serviços de marcenaria e carpintaria sob medida: fabricação, confecção e montagem de móveis de madeira, armários embutidos, bancadas e painéis.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Serralheria (esquadrias, portões e estruturas metálicas)',
+    '14.13',
+    'Execução de serviços de serralheria: portas, janelas, grades, corrimãos, esquadrias e estruturas metálicas sob encomenda.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Montagem de móveis de qualquer material',
+    '14.06',
+    'Instalação e montagem de móveis e peças de qualquer material (madeira, metal, plástico ou vidro) no local do consumidor final.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Gesso e drywall (forro e paredes)',
+    '7.02',
+    'Execução por empreitada de forros de gesso, sancas, molduras, paredes e divisórias em drywall/gesso acartonado em obras e reformas.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Forros e paredes (revestimentos e divisórias)',
+    '7.06',
+    'Instalação e colocação de forros, divisórias, placas de gesso, revestimentos de parede e acabamentos com material fornecido.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Obras de alvenaria',
+    '7.02',
+    'Execução de serviços de alvenaria, levantamento de paredes, reboco, reformas e obras de construção civil por empreitada ou subempreitada.',
+    2.00, true, true, true, true, true
+  ),
+  (
+    'Instalações hidráulicas',
+    '7.02',
+    'Execução de obras e instalações hidráulicas, sanitárias, de água fria, esgoto e drenagem em edificações.',
+    2.00, true, true, true, true, true
+  )
+) AS v(nome, codigo_lc116, descricao, aliquota_iss, reter_irrf, reter_csll, reter_cofins, reter_pis, ativo)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.nfse_servicos s WHERE s.nome = v.nome
+);
