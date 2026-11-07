@@ -4,6 +4,10 @@
  */
 
 export interface NFSeImpostos {
+  /** Retenções federais dispensadas por limite legal (valor < R$ 215,00). */
+  retencoesDispensadas?: boolean
+  /** Retenção de IRRF dispensada (retenção < R$ 10,00). */
+  irrfDispensado?: boolean
   baseCalculo: number
   aliquotaIss: number
   valorIss: number
@@ -20,88 +24,103 @@ export interface NFSeImpostos {
   valorLiquido: number
 }
 
-/** Serviços pré-cadastrados: atividades econômicas do CNPJ (gesso/drywall/obras) mapeadas à LC 116. */
+/** Serviços pré-cadastrados: atividades reais do usuário (Cartão CNPJ + lista
+ * ditada pelo dono) mapeadas à tabela da LC 116/2003. Códigos confirmados na
+ * tabela oficial da lei (Anexo da LC 116) — editáveis na tela Serviços. */
 export const SERVICOS_PRE_CADASTRADOS = [
   {
-    nome: 'Aplicação de forro de gesso',
-    codigo_lc116: '7.04',
+    nome: 'Marcenaria (móveis e artigos de carpintaria sob medida)',
+    codigo_lc116: '14.13',
     descricao:
-      'Serviços de instalação e montagem de forros de gesso (placas e gesso liso), inclusive sancas e iluminação embutida.',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_cofins: false,
-    reter_pis: false,
+      'Fabricação e instalação de móveis e artigos de carpintaria sob medida (bancadas, armários, closets, painéis) — CNAE 16.22-6-99 / 31.01-2-00.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
   {
-    nome: 'Instalação e montagem de drywall / paredes de gesso acartonado',
-    codigo_lc116: '7.04',
+    nome: 'Serralheria (esquadrias e artigos de metal)',
+    codigo_lc116: '14.13',
     descricao:
-      'Montagem de paredes e divisórias em drywall (gesso acartonado), plumas, steel frame e acabamentos.',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_cofins: false,
-    reter_pis: false,
+      'Execução de serviços de serralheria: esquadrias de metal, portas, janelas, grades e estruturas metálicas — CNAE 25.12-8-00 / 25.42-0-00.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
   {
-    nome: 'Execução de alvenaria e revestimento de paredes',
-    codigo_lc116: '7.01',
+    nome: 'Montagem de móveis de qualquer material',
+    codigo_lc116: '7.16',
     descricao:
-      'Execução de alvenaria, emboço, reboco e revestimento de paredes em obras de construção civil.',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_cofins: false,
-    reter_pis: false,
+      'Serviços de montagem e instalação de móveis de qualquer material no local do cliente — CNAE 33.29-5-01.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
   {
-    nome: 'Obras de concreto e acabamento em edificações',
-    codigo_lc116: '7.02',
+    nome: 'Obras de acabamento em gesso e estuque (forros, sancas, molduras)',
+    codigo_lc116: '14.01',
     descricao:
-      'Serviços e obras de concreto em geral e acabamentos em edificações (novo, reforma ou ampliação).',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_cofins: false,
-    reter_pis: false,
+      'Aplicação de forro de gesso, sancas, molduras e trabalhos em estuque em obras de acabamento — CNAE 43.30-4-03.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
   {
-    nome: 'Instalação e montagem de estruturas metálicas / drywall industrial',
-    codigo_lc116: '7.05',
-    descricao: 'Instalação e montagem de estruturas metálicas e divisórias industriais.',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_cofins: false,
-    reter_pis: false,
+    nome: 'Instalação de drywall — portas, janelas, tetos, divisórias e armários embutidos (forro e paredes)',
+    codigo_lc116: '14.01',
+    descricao:
+      'Instalação de drywall (forro e paredes), divisórias, tetos, portas, janelas e armários embutidos de qualquer material — CNAE 43.30-4-02.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
   {
-    nome: 'Reformas e acabamentos em interiores (gesso, pintura e molduras)',
-    codigo_lc116: '7.07',
-    descricao: 'Reformas em geral: gesso, pintura, molduras, sancas e acabamentos internos.',
-    aliquota_iss_padrao: 2,
-    reter_irrf: false,
-    reter_csll: false,
-    reter_pis: false,
-    reter_cofins: false,
+    nome: 'Obras de alvenaria',
+    codigo_lc116: '14.01',
+    descricao:
+      'Execução de obras de alvenaria e acabamento em construções novas, reformas e ampliações — CNAE 43.99-1-03.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
+  },
+  {
+    nome: 'Instalações hidráulicas, sanitárias e de gás',
+    codigo_lc116: '14.01',
+    descricao:
+      'Instalações hidráulicas, sanitárias e de gás em obras de construção civil — CNAE 43.22-3-01.',
+    aliquota_iss_padrao: 3,
+    reter_irrf: true,
+    reter_csll: true,
+    reter_cofins: true,
+    reter_pis: true,
   },
 ]
 
-/** Empresa emitente pré-cadastrada (regra do dono). */
+/** Empresa emitente pré-cadastrada (dados do Cartão CNPJ — regra do dono). */
 export const EMITENTE_PRE_CADASTRADO = {
   razao_social: 'GB SOLUCOES LTDA',
-  nome_fantasia: 'Gesso Bettone',
+  nome_fantasia: 'GGB INFOTECH LTDA',
   cnpj: '53.242.055/0001-74',
-  logradouro: '',
-  numero: 'S/N',
-  bairro: 'Centro',
+  logradouro: 'R Heitor Mariotti',
+  numero: '185',
+  bairro: 'Mariluz',
   codigo_municipio_ibge: '3550407',
   municipio: 'São Pedro',
   uf: 'SP',
-  cep: '',
-  telefone: '',
-  email: '',
+  cep: '13.522-340',
+  telefone: '(19) 8109-3379',
+  email: 'JAFASSESSORIACONTABIL@HOTMAIL.COM',
   inscricao_municipal: '',
 }
 
@@ -114,6 +133,16 @@ export const ALIQUOTAS_FEDERAIS_PADRAO = {
   csll: 1.0,
   cofins: 3.0,
   pis: 0.65,
+}
+
+/** Limites legais de dispensa de retenção federal (Lei 10.833/2003 e RIR/99):
+ * - PIS/COFINS/CSLL só são retidos quando o serviço individual (por nota)
+ *   ultrapassa R$ 215,00 (pagamento a PJ);
+ * - IRRF só é retido quando o valor da retenção atinge R$ 10,00 (dispensa
+ *   abaixo disso — art. 724 RIR/99). */
+export const LIMITES_RETENCAO_FEDERAL = {
+  valorMinimoPisCofinsCsll: 215.0,
+  valorMinimoIrrf: 10.0,
 }
 
 export function formatMoedaNFSe(val: number | null | undefined): string {
@@ -140,7 +169,7 @@ export function calcularImpostos(
   const base = Math.max(0, valorServicos || 0)
   const pj = opts.tomadorPessoaJuridica !== false
 
-  const aliquotaIss = opts.aliquotaIss ?? 2
+  const aliquotaIss = opts.aliquotaIss ?? 3
   const valorIss = Math.round(base * (aliquotaIss / 100) * 100) / 100
 
   const aliquotaIrrf = pj ? (opts.aliquotaIrrf ?? ALIQUOTAS_FEDERAIS_PADRAO.irrf) : 0
@@ -148,10 +177,22 @@ export function calcularImpostos(
   const aliquotaCofins = pj ? (opts.aliquotaCofins ?? ALIQUOTAS_FEDERAIS_PADRAO.cofins) : 0
   const aliquotaPis = pj ? (opts.aliquotaPis ?? ALIQUOTAS_FEDERAIS_PADRAO.pis) : 0
 
-  const valorIrrf = Math.round(base * (aliquotaIrrf / 100) * 100) / 100
-  const valorCsll = Math.round(base * (aliquotaCsll / 100) * 100) / 100
-  const valorCofins = Math.round(base * (aliquotaCofins / 100) * 100) / 100
-  const valorPis = Math.round(base * (aliquotaPis / 100) * 100) / 100
+  // Retenção bruta antes dos limites de dispensa
+  const brutoIrrf = Math.round(base * (aliquotaIrrf / 100) * 100) / 100
+  const brutoCsll = Math.round(base * (aliquotaCsll / 100) * 100) / 100
+  const brutoCofins = Math.round(base * (aliquotaCofins / 100) * 100) / 100
+  const brutoPis = Math.round(base * (aliquotaPis / 100) * 100) / 100
+
+  // Limites legais de dispensa: PIS/COFINS/CSLL só retidos acima de R$ 215,00
+  // por serviço (Lei 10.833/2003); IRRF só quando a retenção atinge R$ 10,00
+  // (art. 724 do RIR/99). Abaixo disso, desconta (não retém) e informa.
+  const dispensaPisCofinsCsll = !pj || base < LIMITES_RETENCAO_FEDERAL.valorMinimoPisCofinsCsll
+  const dispensaIrrf = !pj || brutoIrrf < LIMITES_RETENCAO_FEDERAL.valorMinimoIrrf
+
+  const valorIrrf = dispensaIrrf ? 0 : brutoIrrf
+  const valorCsll = dispensaPisCofinsCsll ? 0 : brutoCsll
+  const valorCofins = dispensaPisCofinsCsll ? 0 : brutoCofins
+  const valorPis = dispensaPisCofinsCsll ? 0 : brutoPis
 
   const totalRetencoesFederais = valorIrrf + valorCsll + valorCofins + valorPis
 
@@ -160,6 +201,8 @@ export function calcularImpostos(
     aliquotaIss,
     valorIss,
     issRetido: Boolean(opts.issRetido),
+    retencoesDispensadas: dispensaPisCofinsCsll,
+    irrfDispensado: dispensaIrrf,
     aliquotaIrrf,
     valorIrrf,
     aliquotaCsll,

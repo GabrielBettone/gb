@@ -25,11 +25,11 @@ const vazio: Partial<NFSeServico> = {
   nome: '',
   codigo_lc116: '',
   descricao: '',
-  aliquota_iss: 2,
-  reter_irrf: false,
-  reter_csll: false,
-  reter_cofins: false,
-  reter_pis: false,
+  aliquota_iss: 3,
+  reter_irrf: true,
+  reter_csll: true,
+  reter_cofins: true,
+  reter_pis: true,
   ativo: true,
 }
 
@@ -73,7 +73,7 @@ export const NfseServicosPage: React.FC = () => {
       toast({
         variant: 'destructive',
         title: 'Preencha nome e código LC 116',
-        description: 'Ex.: código "7.04" para instalação de forros e drywall.',
+        description: 'Ex.: código "14.01" para obras de gesso, drywall e alvenaria.',
       })
       return
     }
@@ -121,8 +121,7 @@ export const NfseServicosPage: React.FC = () => {
         <Card className="border-[#E3E6EA] bg-[#F4F6F8]">
           <CardContent className="p-4 space-y-2">
             <p className="text-xs font-semibold text-[#2C3E50] flex items-center gap-2">
-              <ReceiptText className="w-4 h-4 text-[#D4AF37]" /> Sugestões para gesso/drywall (LC
-              116)
+              <ReceiptText className="w-4 h-4 text-[#D4AF37]" /> Serviços da empresa (LC 116)
             </p>
             <div className="flex flex-wrap gap-2">
               {SERVICOS_PRE_CADASTRADOS.map((s) => (
@@ -241,7 +240,7 @@ export const NfseServicosPage: React.FC = () => {
                 <Input
                   value={form.codigo_lc116 || ''}
                   onChange={(e) => setForm({ ...form, codigo_lc116: e.target.value })}
-                  placeholder="7.04"
+                  placeholder="14.01"
                   className="text-xs font-mono"
                 />
               </div>
@@ -250,7 +249,7 @@ export const NfseServicosPage: React.FC = () => {
                 <Input
                   type="number"
                   step="0.01"
-                  value={form.aliquota_iss ?? 2}
+                  value={form.aliquota_iss ?? 3}
                   onChange={(e) => setForm({ ...form, aliquota_iss: Number(e.target.value) })}
                   className="text-xs"
                 />

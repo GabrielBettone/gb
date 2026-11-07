@@ -204,7 +204,11 @@ export const nfseApi = {
   async criarServico(dados: Partial<NFSeServico>): Promise<NFSeServico> {
     const rows = await supabaseInsert<NFSeServico>('nfse_servicos', {
       ativo: true,
-      aliquota_iss: 2,
+      aliquota_iss: 3,
+      reter_irrf: true,
+      reter_csll: true,
+      reter_cofins: true,
+      reter_pis: true,
       ...dados,
     })
     return rows[0]
@@ -339,9 +343,13 @@ export const nfseApi = {
       )
 
     const impostos = calcularImpostos(orcamento.valor_total || 0, {
-      aliquotaIss: servico ? Number(servico.aliquota_iss) : config.aliquota_iss_padrao || 2,
+      aliquotaIss: servico ? Number(servico.aliquota_iss) : config.aliquota_iss_padrao || 3,
       issRetido: false,
       tomadorPessoaJuridica: docDigitos.length === 14,
+      reterIrrf: servico ? servico.reter_irrf : true,
+      reterCsll: servico ? servico.reter_csll : true,
+      reterCofins: servico ? servico.reter_cofins : true,
+      reterPis: servico ? servico.reter_pis : true,
     })
 
     const agora = new Date()
@@ -381,9 +389,13 @@ export const nfseApi = {
     const config = await this.obterConfig()
     const valor = Number(payload.valor_servicos || 0)
     const impostos = calcularImpostos(valor, {
-      aliquotaIss: Number(payload.aliquota_iss || (config ? config.aliquota_iss_padrao : 2) || 2),
+      aliquotaIss: Number(payload.aliquota_iss || (config ? config.aliquota_iss_padrao : 3) || 3),
       issRetido: Boolean(payload.iss_retido),
       tomadorPessoaJuridica: doc.length === 14,
+      reterIrrf: payload.reter_irrf !== false,
+      reterCsll: payload.reter_csll !== false,
+      reterCofins: payload.reter_cofins !== false,
+      reterPis: payload.reter_pis !== false,
     })
     const agora = new Date()
     const proximoRps = await this.proximoNumeroRps()

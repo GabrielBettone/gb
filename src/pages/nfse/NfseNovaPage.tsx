@@ -114,7 +114,7 @@ export const NfseNovaPage: React.FC = () => {
   const valorNumero = Number(valor.replace(/\./g, '').replace(',', '.')) || 0
 
   const impostos = useMemo(() => {
-    const aliquotaIss = servicoSelecionado?.aliquota_iss ?? config?.aliquota_iss_padrao ?? 2
+    const aliquotaIss = servicoSelecionado?.aliquota_iss ?? config?.aliquota_iss_padrao ?? 3
     const retencaoServico = servicoSelecionado
       ? {
           reterIrrf: servicoSelecionado.reter_irrf,
@@ -460,19 +460,19 @@ export const NfseNovaPage: React.FC = () => {
               />
               <div className="border-t border-[#E3E6EA] pt-2 mt-2 space-y-2">
                 <Linha
-                  rotulo={`IRRF (${impostos.aliquotaIrrf}%)`}
+                  rotulo={`IRRF (${impostos.aliquotaIrrf}%)${impostos.irrfDispensado ? ' • dispensado' : ''}`}
                   valor={formatMoedaNFSe(impostos.valorIrrf)}
                 />
                 <Linha
-                  rotulo={`CSLL (${impostos.aliquotaCsll}%)`}
+                  rotulo={`CSLL (${impostos.aliquotaCsll}%)${impostos.retencoesDispensadas ? ' • dispensada' : ''}`}
                   valor={formatMoedaNFSe(impostos.valorCsll)}
                 />
                 <Linha
-                  rotulo={`COFINS (${impostos.aliquotaCofins}%)`}
+                  rotulo={`COFINS (${impostos.aliquotaCofins}%)${impostos.retencoesDispensadas ? ' • dispensada' : ''}`}
                   valor={formatMoedaNFSe(impostos.valorCofins)}
                 />
                 <Linha
-                  rotulo={`PIS (${impostos.aliquotaPis}%)`}
+                  rotulo={`PIS (${impostos.aliquotaPis}%)${impostos.retencoesDispensadas ? ' • dispensado' : ''}`}
                   valor={formatMoedaNFSe(impostos.valorPis)}
                 />
               </div>
@@ -490,8 +490,10 @@ export const NfseNovaPage: React.FC = () => {
                 />
               </div>
               <p className="text-[10px] text-[#616F7D] pt-1">
-                Retenções federais aplicadas apenas para tomador PJ. A NFS-e nunca gera financeiro —
-                recebimentos continuam sendo lançados manualmente no orçamento.
+                Retenções federais aplicadas apenas para tomador PJ. PIS/COFINS/CSLL só retidos
+                quando o serviço individual ultrapassa R$ 215,00; IRRF, quando a retenção atinge R$
+                10,00 (limites legais de dispensa). A NFS-e nunca gera financeiro — recebimentos
+                continuam sendo lançados manualmente no orçamento.
               </p>
             </CardContent>
           </Card>
