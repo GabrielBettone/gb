@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Globe,
   Handshake,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -30,6 +31,7 @@ const navItems = [
   { path: '/painel/orcamentos', label: 'Orçamentos & Contas', icon: Calculator },
   { path: '/painel/produtos', label: 'Produtos', icon: Boxes },
   { path: '/painel/alertas', label: 'Alertas', icon: Bell },
+  { path: '/painel/nfse', label: 'NFS-e', icon: FileText },
   { path: '/painel/site/parceiros', label: 'Parceiros', icon: Handshake },
   { path: '/painel/site', label: 'Site (Gerenciador)', icon: Globe },
 ]
@@ -89,6 +91,18 @@ export const Layout: React.FC = () => {
       case '/painel/alertas':
       case '/alertas':
         return 'Regras e Alertas'
+      case '/painel/nfse':
+        return 'NFS-e • Início'
+      case '/painel/nfse/servicos':
+        return 'NFS-e • Serviços (LC 116)'
+      case '/painel/nfse/nova':
+        return 'NFS-e • Nova nota'
+      case '/painel/nfse/notas':
+        return 'NFS-e • Notas emitidas'
+      case '/painel/nfse/configuracoes':
+        return 'NFS-e • Configurações'
+      case '/painel/nfse/certificado':
+        return 'NFS-e • Certificado e sistema nacional'
       case '/painel/site':
         return 'Site • Dashboard & Analytics'
       case '/painel/site/servicos':

@@ -26,7 +26,7 @@ export const SERVICOS_PRE_CADASTRADOS = [
     nome: 'Aplicação de forro de gesso',
     codigo_lc116: '7.04',
     descricao:
-      'Serviços de instalação e montagem de forros de gesso (placas e gesso liso), inclusive sancas e ilumina embutidas.',
+      'Serviços de instalação e montagem de forros de gesso (placas e gesso liso), inclusive sancas e iluminação embutida.',
     aliquota_iss_padrao: 2,
     reter_irrf: false,
     reter_csll: false,
@@ -83,8 +83,8 @@ export const SERVICOS_PRE_CADASTRADOS = [
     aliquota_iss_padrao: 2,
     reter_irrf: false,
     reter_csll: false,
-    reter_cofins: false,
     reter_pis: false,
+    reter_cofins: false,
   },
 ]
 
@@ -93,7 +93,7 @@ export const EMITENTE_PRE_CADASTRADO = {
   razao_social: 'GB SOLUCOES LTDA',
   nome_fantasia: 'Gesso Bettone',
   cnpj: '53.242.055/0001-74',
-  logradouro: 'Endereço a preencher',
+  logradouro: '',
   numero: 'S/N',
   bairro: 'Centro',
   codigo_municipio_ibge: '3550407',
@@ -108,7 +108,7 @@ export const EMITENTE_PRE_CADASTRADO = {
 export const MUNICIPIO_ISS_PADRAO = 'São Pedro/SP'
 export const CODIGO_IBGE_SAO_PEDRO_SP = '3550407'
 
-/** Alíquotas federais padrão (Lucro Presumido, retenção sobre serviços). */
+/** Alíquotas federais padrão (Lucro Presumido, retenção sobre serviços para tomador PJ). */
 export const ALIQUOTAS_FEDERAIS_PADRAO = {
   irrf: 1.5,
   csll: 1.0,
@@ -158,7 +158,7 @@ export function calcularImpostos(
   return {
     baseCalculo: base,
     aliquotaIss,
-    valorIss: opts.issRetido ? valorIss : valorIss,
+    valorIss,
     issRetido: Boolean(opts.issRetido),
     aliquotaIrrf,
     valorIrrf,

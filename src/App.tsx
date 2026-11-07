@@ -39,6 +39,15 @@ import SiteParceirosPage from '@/pages/site/SiteParceirosPage'
 import SiteConfiguracoesPage from '@/pages/site/SiteConfiguracoesPage'
 import SiteSimuladorAdminPage from '@/pages/site/SiteSimuladorAdminPage'
 
+// Módulo NFS-e (padrão nacional da Receita)
+import NfseInicioPage from '@/pages/nfse/NfseInicioPage'
+import NfseServicosPage from '@/pages/nfse/NfseServicosPage'
+import NfseNovaPage from '@/pages/nfse/NfseNovaPage'
+import NfseNotasPage from '@/pages/nfse/NfseNotasPage'
+import NfseDetalhePage from '@/pages/nfse/NfseDetalhePage'
+import NfseConfiguracoesPage from '@/pages/nfse/NfseConfiguracoesPage'
+import NfseCertificadoPage from '@/pages/nfse/NfseCertificadoPage'
+
 // Páginas de Autenticação
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
@@ -135,6 +144,15 @@ const AppRoutes = () => {
         <Route path="/painel/orcamentos" element={<Orcamentos />} />
         <Route path="/painel/produtos" element={<Produtos />} />
         <Route path="/painel/alertas" element={<Alertas />} />
+
+        {/* Módulo NFS-e */}
+        <Route path="/painel/nfse" element={<NfseInicioPage />} />
+        <Route path="/painel/nfse/servicos" element={<NfseServicosPage />} />
+        <Route path="/painel/nfse/nova" element={<NfseNovaPage />} />
+        <Route path="/painel/nfse/notas" element={<NfseNotasPage />} />
+        <Route path="/painel/nfse/notas/:id" element={<NfseDetalhePage />} />
+        <Route path="/painel/nfse/configuracoes" element={<NfseConfiguracoesPage />} />
+        <Route path="/painel/nfse/certificado" element={<NfseCertificadoPage />} />
 
         {/* Rotas do Grupo Site (Gerenciador do Site Público) */}
         <Route path="/painel/site" element={<SiteDashboardPage />} />
