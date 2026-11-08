@@ -14,6 +14,28 @@ import {
 import { c14nExclusive, EXC_C14N_ALGORITHM } from './nfseC14n'
 import { validateDpsXmlAgainstXsd } from './nfseXsdValidate'
 
+// Helpers criptográficos independentes para verificação no teste:
+async function digestSha256Base64(str: string): Promise<string> {
+  const md = forge.md.sha256.create()
+  md.update(str, 'utf8')
+  return forge.util.encode64(md.digest().getBytes())
+}
+
+function verifyRsaSha256(
+  data: string,
+  signatureBase64: string,
+  publicKey: forge.pki.rsa.PublicKey,
+): boolean {
+  try {
+    const md = forge.md.sha256.create()
+    md.update(data, 'utf8')
+    const signatureBytes = forge.util.decode64(signatureBase64)
+    return publicKey.verify(md.digest().getBytes(), signatureBytes)
+  } catch {
+    return false
+  }
+}
+
 // Helper para gerar um par de chaves e certificado PKCS#12 SINTÉTICO (A1 de teste em memória)
 function gerarCertificadoA1Sintetico(senha: string) {
   const keys = forge.pki.rsa.generateKeyPair(2048)
@@ -351,5 +373,86 @@ describe('Módulo NFS-e Nacional - Testes Técnicos Isolados', () => {
     if (!resultado.valido) {
       console.error('Erros de validação XSD (assinado):', resultado.erros)
     }
+  })
+
+  it('9. Validador XSD v1.01 detecta e REJEITA violações do schema (casos negativos)', () => {
+    const dps = montarDpsXmlPadraoNacional(dpsInputBase())
+
+    // Caso Negativo A: Violação de ordem de elementos em infDPS (<serie> antes de <tpAmb>)
+    const xmlOrdemErrada = dps.xml.replace(
+      '<tpAmb>2</tpAmb><dhEmi>2026-11-08T10:00:00-03:00</dhEmi><verAplic>1.0.0</verAplic><serie>1</serie>',
+      '<serie>1</serie><tpAmb>2</tpAmb><dhEmi>2026-11-08T10:00:00-03:00</dhEmi><verAplic>1.0.0</verAplic>',
+    )
+    const resOrdem = validateDpsXmlAgainstXsd(xmlOrdemErrada)
+    expect(resOrdem.valido).toBe(false)
+    expect(resOrdem.erros.some((e) => e.code === 'SEQUENCE_ORDER_VIOLATION')).toBe(true)
+
+    // Caso Negativo B: Campo obrigatório ausente (<dCompet> removido)
+    const xmlSemDCompet = dps.xml.replace(/<dCompet>[^<]+<\/dCompet>/, '')
+    const resSemDCompet = validateDpsXmlAgainstXsd(xmlSemDCompet)
+    expect(resSemDCompet.valido).toBe(false)
+    expect(
+      resSemDCompet.erros.some(
+        (e) => e.code === 'MISSING_MANDATORY_ELEMENT' && e.path.includes('dCompet'),
+      ),
+    ).toBe(true)
+
+    // Caso Negativo C: Atributo Id da DPS com tamanho inválido (< 45 caracteres)
+    const xmlIdInvalido = dps.xml.replace(`Id="${dps.idDps}"`, 'Id="DPS123CURTO"')
+    const resId = validateDpsXmlAgainstXsd(xmlIdInvalido)
+    expect(resId.valido).toBe(false)
+    expect(resId.erros.some((e) => e.code === 'INVALID_ID_FORMAT')).toBe(true)
+
+    // Caso Negativo D: Código IBGE cLocEmi inválido (não tem 7 dígitos)
+    const xmlIbgeErrado = dps.xml.replace('<cLocEmi>3550407</cLocEmi>', '<cLocEmi>123</cLocEmi>')
+    const resIbge = validateDpsXmlAgainstXsd(xmlIbgeErrado)
+    expect(resIbge.valido).toBe(false)
+    expect(resIbge.erros.some((e) => e.code === 'INVALID_IBGE_CODE')).toBe(true)
+
+    // Caso Negativo E: Signature colocada antes de infDPS (violação da sequência do TCDPS)
+    const xmlSigAntes = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"></Signature><infDPS Id="${dps.idDps}"><tpAmb>2</tpAmb></infDPS></DPS>`
+    const resSigAntes = validateDpsXmlAgainstXsd(xmlSigAntes)
+    expect(resSigAntes.valido).toBe(false)
+    expect(
+      resSigAntes.erros.some(
+        (e) => e.code === 'SEQUENCE_ORDER_VIOLATION' || e.code === 'SIGNATURE_BEFORE_INFDPS',
+      ),
+    ).toBe(true)
+  })
+
+  it('10. Verificação criptográfica independente: falha se o XML for adulterado após a assinatura', async () => {
+    const senhaTeste = 'teste-tamper'
+    const { p12Der } = gerarCertificadoA1Sintetico(senhaTeste)
+    const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senhaTeste)
+
+    const dps = montarDpsXmlPadraoNacional(dpsInputBase({ cnpjPrestador: '12345678000195' }))
+    const assinado = assinarXmlString(dps.xml, 'infDPS', certPem, keyPem, parseDomBrowser)
+
+    // Altera o valor de serviço de 1500.00 para 9999.00 no XML assinado (tentativa de fraude/adulteração)
+    const xmlAdulterado = assinado.replace('<vServ>1500.00</vServ>', '<vServ>9999.00</vServ>')
+    const docAdulterado = parseDomBrowser(xmlAdulterado)
+
+    const infDpsAdulterado = docAdulterado.getElementsByTagName('infDPS')[0]
+    const digestRecalculado = await digestSha256Base64(c14nExclusive(infDpsAdulterado))
+    const digestNoXml = docAdulterado.getElementsByTagName('DigestValue')[0].textContent || ''
+
+    // O DigestValue recalculado pelo verificador DEVE DIVERGIR do DigestValue assinado no XML
+    expect(digestRecalculado).not.toBe(digestNoXml)
+
+    // E a validação da assinatura sobre o SignedInfo adulterado falha
+    const sigEl = docAdulterado.getElementsByTagName('Signature')[0]
+    const signedInfoEl = sigEl.getElementsByTagName('SignedInfo')[0]
+    // Se adulterar o DigestValue para bater com o corpo adulterado, a assinatura digital RSA quebra:
+    signedInfoEl.getElementsByTagName('DigestValue')[0].textContent = digestRecalculado
+    const signedInfoC14nAdulterado = c14nExclusive(signedInfoEl)
+    const signatureValueB64 = sigEl.getElementsByTagName('SignatureValue')[0].textContent || ''
+    const cert = forge.pki.certificateFromPem(certPem)
+
+    const assinaturaValidaAposFraude = verifyRsaSha256(
+      signedInfoC14nAdulterado,
+      signatureValueB64,
+      cert.publicKey,
+    )
+    expect(assinaturaValidaAposFraude).toBe(false)
   })
 })

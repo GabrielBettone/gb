@@ -255,35 +255,114 @@ async function extrairPemDoPfx(pfxBase64: string, senha: string) {
 // </xs:complexType>
 // O elemento <Signature> deve vir IMEDIATAMENTE APÓS </infDPS> e ANTES de </DPS>.
 // ---------------------------------------------------------------------------
-function c14nXml(node: Node): string {
+// Canonicalização Exclusive XML Canonicalization (exc-c14n#) real
+// No subdocumento assinado (infDPS), o namespace xmlns="http://www.sped.fazenda.gov.br/nfse"
+// herdado do elemento pai <DPS> DEVE ser emitido no elemento raiz do fragmento
+// para que o digest calculado seja idêntico ao do verificador da SEFIN Nacional.
+function c14nExclusiveNode(
+  node: Node,
+  renderedNamespaces: Map<string, string>,
+  isRootOfFragment: boolean = false,
+): string {
   if (node.nodeType === 3) {
+    // Text node
     return (node.nodeValue || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/\r/g, '&#xD;')
   }
+
   if (node.nodeType === 1) {
+    // Element node
     const el = node as Element
+    const currentScopeNamespaces = new Map(renderedNamespaces)
+    const nsToRender: Array<{ prefix: string; uri: string }> = []
+    const normalAttrs: Array<{ name: string; value: string }> = []
+
+    // Coleta atributos definidos diretamente no elemento
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name === 'xmlns') {
+        const prefix = ''
+        const uri = attr.value
+        if (currentScopeNamespaces.get(prefix) !== uri) {
+          nsToRender.push({ prefix, uri })
+          currentScopeNamespaces.set(prefix, uri)
+        }
+      } else if (attr.name.startsWith('xmlns:')) {
+        const prefix = attr.name.slice(6)
+        const uri = attr.value
+        if (currentScopeNamespaces.get(prefix) !== uri) {
+          nsToRender.push({ prefix, uri })
+          currentScopeNamespaces.set(prefix, uri)
+        }
+      } else {
+        normalAttrs.push({ name: attr.name, value: attr.value })
+      }
+    }
+
+    // Se for o nó raiz do fragmento canônico e não declarou seu próprio default namespace,
+    // herda o namespace ativo do elemento pai mais próximo na árvore DOM original
+    if (isRootOfFragment && !currentScopeNamespaces.has('')) {
+      let cur = el.parentElement
+      while (cur) {
+        const parentDefaultNs = cur.getAttribute('xmlns')
+        if (parentDefaultNs) {
+          nsToRender.push({ prefix: '', uri: parentDefaultNs })
+          currentScopeNamespaces.set('', parentDefaultNs)
+          break
+        }
+        cur = cur.parentElement
+      }
+    }
+
+    // Ordenação canônica conforme W3C exc-c14n:
+    // 1) Namespaces: default xmlns primeiro, depois prefixados por prefix
+    nsToRender.sort((a, b) => {
+      if (a.prefix === '' && b.prefix !== '') return -1
+      if (a.prefix !== '' && b.prefix === '') return 1
+      return a.prefix.localeCompare(b.prefix)
+    })
+
+    // 2) Atributos normais ordenados lexicograficamente por nome
+    normalAttrs.sort((a, b) => a.name.localeCompare(b.name))
+
     let out = '<' + el.nodeName
-    const attrs = Array.from(el.attributes).sort((a, b) => a.name.localeCompare(b.name))
-    for (const attr of attrs) {
-      out += ` ${attr.name}="${attr.value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/"/g, '&quot;')
-        .replace(/\t/g, '&#x9;')
-        .replace(/\n/g, '&#xA;')
-        .replace(/\r/g, '&#xD;')}"`
+
+    for (const ns of nsToRender) {
+      const attrName = ns.prefix ? `xmlns:${ns.prefix}` : 'xmlns'
+      out += ` ${attrName}="${escapeAttr(ns.uri)}"`
     }
+
+    for (const attr of normalAttrs) {
+      out += ` ${attr.name}="${escapeAttr(attr.value)}"`
+    }
+
     out += '>'
+
     for (const child of Array.from(el.childNodes)) {
-      out += c14nXml(child)
+      out += c14nExclusiveNode(child, currentScopeNamespaces, false)
     }
+
     out += `</${el.nodeName}>`
     return out
   }
+
   return ''
+}
+
+function escapeAttr(val: string): string {
+  return (val || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\t/g, '&#x9;')
+    .replace(/\n/g, '&#xA;')
+    .replace(/\r/g, '&#xD;')
+}
+
+function c14nXml(node: Node): string {
+  return c14nExclusiveNode(node, new Map(), true)
 }
 
 function xmlEsc(s: string | undefined): string {
@@ -510,7 +589,8 @@ function montarDpsXml(i: DpsInput): { xml: string; idDps: string } {
   const cMunEmi = onlyDigits(i.enderecoPrestador.codigoMunicipio) || '3550407'
   const cMunPadded = cMunEmi.padStart(7, '0')
   const cnpjPadded = onlyDigits(i.cnpjPrestador).padStart(14, '0')
-  const seriePadded = (i.serieRps || '1').padEnd(5, '0')
+  // Regra oficial TSIdDPS (45 caracteres): DPS + cMun(7) + tpInsc(1=CNPJ) + CNPJ(14) + serie(5 com zeros à esquerda) + nDPS(15 com zeros à esquerda)
+  const seriePadded = (i.serieRps || '1').padStart(5, '0')
   const nDpsPadded = String(i.numeroRps).padStart(15, '0')
 
   // Identificador da DPS oficial (45 caracteres): DPS + cMun(7) + tpInsc(1=CNPJ) + CNPJ(14) + serie(5) + nDPS(15)
