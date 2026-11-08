@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sped.fazenda.gov.br/nfse"
+           xmlns="http://www.sped.fazenda.gov.br/nfse"
+           xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+  <xs:include schemaLocation="tiposSimples_v1.01.xsd"/>
+
+  <!-- Complex Type: TCDPS (Declaração de Prestação de Serviços) -->
+  <xs:complexType name="TCDPS">
+    <xs:annotation>
+      <xs:documentation>Tipo da Declaração de Prestação de Serviços</xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="infDPS" type="TCInfDPS"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="versao" type="TVerNFSe" use="required"/>
+  </xs:complexType>
+
+  <!-- Complex Type: TCInfDPS -->
+  <xs:complexType name="TCInfDPS">
+    <xs:sequence>
+      <xs:element name="tpAmb" type="TAmb"/>
+      <xs:element name="dhEmi" type="TSDateTimeUTC"/>
+      <xs:element name="verAplic" type="TSVerAplic"/>
+      <xs:element name="serie" type="TSSerieDPS"/>
+      <xs:element name="nDPS" type="TSNDPS"/>
+      <xs:element name="dCompet" type="TSData"/>
+      <xs:element name="tpEmit" type="TSTpEmit"/>
+      <xs:element name="cLocEmi" type="TSCodMunIBGE"/>
+      <xs:element name="prest" type="TCEmitenteDPS"/>
+      <xs:element name="toma" type="TCTomadorDPS" minOccurs="0"/>
+      <xs:element name="interm" type="TCIntermediarioDPS" minOccurs="0"/>
+      <xs:element name="serv" type="TCServicoDPS"/>
+      <xs:element name="valores" type="TCValoresDPS"/>
+      <xs:element name="infAdic" type="TCInfAdicDPS" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="Id" type="TSIdDPS" use="required"/>
+  </xs:complexType>
+
+  <!-- Complex Type: TCEmitenteDPS (Prestador) -->
+  <xs:complexType name="TCEmitenteDPS">
+    <xs:sequence>
+      <xs:choice>
+        <xs:element name="CNPJ" type="TSCNPJ"/>
+        <xs:element name="CPF" type="TSCPF"/>
+      </xs:choice>
+      <xs:element name="inscMun" type="TSInscMun" minOccurs="0"/>
+      <xs:element name="xNome" type="TSNome" minOccurs="0"/>
+      <xs:element name="xFant" type="TSNome" minOccurs="0"/>
+      <xs:element name="end" type="TCEnderecoDPS" minOccurs="0"/>
+      <xs:element name="fone" type="xs:string" minOccurs="0"/>
+      <xs:element name="email" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCTomadorDPS -->
+  <xs:complexType name="TCTomadorDPS">
+    <xs:sequence>
+      <xs:choice minOccurs="0">
+        <xs:element name="CNPJ" type="TSCNPJ"/>
+        <xs:element name="CPF" type="TSCPF"/>
+        <xs:element name="NIF" type="xs:string"/>
+        <xs:element name="cNaoNIF" type="xs:string"/>
+      </xs:choice>
+      <xs:element name="xNome" type="TSNome" minOccurs="0"/>
+      <xs:element name="end" type="TCEnderecoDPS" minOccurs="0"/>
+      <xs:element name="fone" type="xs:string" minOccurs="0"/>
+      <xs:element name="email" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCIntermediarioDPS -->
+  <xs:complexType name="TCIntermediarioDPS">
+    <xs:sequence>
+      <xs:choice>
+        <xs:element name="CNPJ" type="TSCNPJ"/>
+        <xs:element name="CPF" type="TSCPF"/>
+      </xs:choice>
+      <xs:element name="xNome" type="TSNome" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCEnderecoDPS -->
+  <xs:complexType name="TCEnderecoDPS">
+    <xs:sequence>
+      <xs:element name="endNac" minOccurs="0">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="cMun" type="TSCodMunIBGE"/>
+            <xs:element name="CEP" type="TSCEP"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="xLgr" type="TSDesc1a255" minOccurs="0"/>
+      <xs:element name="nro" type="TSDesc1a60" minOccurs="0"/>
+      <xs:element name="xCpl" type="TSDesc1a60" minOccurs="0"/>
+      <xs:element name="xBairro" type="TSDesc1a60" minOccurs="0"/>
+      <xs:element name="UF" type="TSUF" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCServicoDPS -->
+  <xs:complexType name="TCServicoDPS">
+    <xs:sequence>
+      <xs:element name="locPrest" type="TCLocPrest"/>
+      <xs:element name="cServ" type="TCCServ"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCLocPrest -->
+  <xs:complexType name="TCLocPrest">
+    <xs:sequence>
+      <xs:element name="cLocPrestacao" type="TSCodMunIBGE"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCCServ -->
+  <xs:complexType name="TCCServ">
+    <xs:sequence>
+      <xs:element name="cTribNac" type="TSCodigoTributacaoNacional"/>
+      <xs:element name="cTribMun" type="xs:string" minOccurs="0"/>
+      <xs:element name="xDescServ" type="TSDesc1a2000"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCValoresDPS -->
+  <xs:complexType name="TCValoresDPS">
+    <xs:sequence>
+      <xs:element name="vServPrest" type="TCVServPrest"/>
+      <xs:element name="trib" type="TCTribValores"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCVServPrest -->
+  <xs:complexType name="TCVServPrest">
+    <xs:sequence>
+      <xs:element name="vServ" type="TSDec_1502"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCTribValores -->
+  <xs:complexType name="TCTribValores">
+    <xs:sequence>
+      <xs:element name="tribMun" type="TCTribMunValores"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCTribMunValores -->
+  <xs:complexType name="TCTribMunValores">
+    <xs:sequence>
+      <xs:element name="tribISSQN" type="TSTribMun"/>
+      <xs:element name="pAliq" type="TSDec_0202v" minOccurs="0"/>
+      <xs:element name="tpRetISSQN" type="TSTpRetISSQN"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Complex Type: TCInfAdicDPS -->
+  <xs:complexType name="TCInfAdicDPS">
+    <xs:sequence>
+      <xs:element name="infAdic" type="TSDesc1a2000" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+</xs:schema>

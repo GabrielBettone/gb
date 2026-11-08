@@ -1,10 +1,15 @@
 /**
- * Validador de conformidade XSD NFS-e Nacional v1.01 (DPS / TCDPS / TCInfDPS).
+ * Validador de conformidade estrutural e regras de esquema NFS-e Nacional v1.01 (DPS / TCDPS / TCInfDPS).
  *
- * Baseado estritamente nas especificações e esquemas XSD oficiais da SEFIN Nacional:
- * - DPS_v1.01.xsd
- * - tiposComplexos_v1.01.xsd (TCDPS, TCInfDPS, TCEmitenteDPS, etc.)
- * - tiposSimples_v1.01.xsd (TSIdDPS, TSData, TSDateTimeUTC, TSSerieDPS, etc.)
+ * ATENÇÃO: Este validador aplica programaticamente no ambiente JavaScript/TypeScript (DOMParser)
+ * as restrições definidas nos esquemas oficiais XSD da SEFIN Nacional v1.01:
+ * - schemas/nfse/v1.01/DPS_v1.01.xsd
+ * - schemas/nfse/v1.01/tiposComplexos_v1.01.xsd (TCDPS, TCInfDPS, TCEmitenteDPS, etc.)
+ * - schemas/nfse/v1.01/tiposSimples_v1.01.xsd (TSIdDPS, TSData, TSDateTimeUTC, TSSerieDPS, etc.)
+ * - schemas/nfse/v1.01/xmldsig-core-schema.xsd
+ *
+ * Os arquivos XSD oficiais estão versionados (vendored) no repositório em schemas/nfse/v1.01/
+ * e src/schemas/nfse/v1.01/.
  *
  * Valida:
  * 1. Well-formedness XML e namespace padrão da NFS-e Nacional (http://www.sped.fazenda.gov.br/nfse)

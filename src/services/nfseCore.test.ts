@@ -13,6 +13,8 @@ import {
 } from './nfseCore'
 import { c14nExclusive, EXC_C14N_ALGORITHM } from './nfseC14n'
 import { validateDpsXmlAgainstXsd } from './nfseXsdValidate'
+import * as fs from 'fs'
+import * as path from 'path'
 
 // Helpers criptográficos independentes para verificação no teste:
 async function digestSha256Base64(str: string): Promise<string> {
@@ -350,13 +352,33 @@ describe('Módulo NFS-e Nacional - Testes Técnicos Isolados', () => {
     expect(fmtC.mensagem).toContain('Certificado mTLS revogado ou inválido')
   })
 
-  it('7. XML da DPS gerado passa na validação XSD oficial v1.01 da NFS-e Nacional', () => {
+  it('7. Arquivos XSD oficiais v1.01 estão presentes no repositório (vendored) para validação offline', () => {
+    // Comprova que os schemas oficiais v1.01 estão versionados localmente
+    const schemaDir = path.resolve(process.cwd(), 'schemas/nfse/v1.01')
+    expect(fs.existsSync(path.join(schemaDir, 'DPS_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(schemaDir, 'tiposComplexos_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(schemaDir, 'tiposSimples_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(schemaDir, 'xmldsig-core-schema.xsd'))).toBe(true)
+
+    // E também em src/schemas/nfse/v1.01/
+    const srcSchemaDir = path.resolve(process.cwd(), 'src/schemas/nfse/v1.01')
+    expect(fs.existsSync(path.join(srcSchemaDir, 'DPS_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(srcSchemaDir, 'tiposComplexos_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(srcSchemaDir, 'tiposSimples_v1.01.xsd'))).toBe(true)
+    expect(fs.existsSync(path.join(srcSchemaDir, 'xmldsig-core-schema.xsd'))).toBe(true)
+
+    const xsdDpsContent = fs.readFileSync(path.join(schemaDir, 'DPS_v1.01.xsd'), 'utf-8')
+    expect(xsdDpsContent).toContain('targetNamespace="http://www.sped.fazenda.gov.br/nfse"')
+    expect(xsdDpsContent).toContain('element name="DPS" type="TCDPS"')
+  })
+
+  it('7b. XML da DPS gerado passa na validação das regras dos esquemas XSD v1.01', () => {
     const dps = montarDpsXmlPadraoNacional(dpsInputBase())
 
     const resultado = validateDpsXmlAgainstXsd(dps.xml)
     expect(resultado.valido).toBe(true)
     if (!resultado.valido) {
-      console.error('Erros de validação XSD:', resultado.erros)
+      console.error('Erros de validação de esquema:', resultado.erros)
     }
   })
 

@@ -102,6 +102,29 @@ npm run preview
 
 Permite visualizar a build de produção localmente antes do deploy.
 
+### Testes Automatizados (Módulo NFS-e e Edge Function)
+
+Os testes são executáveis de verdade e retornam falha (código de saída `exit 1`) caso qualquer asserção falhe.
+
+```bash
+# 1. Executar suíte de testes do Módulo NFS-e (Node.js)
+node scripts/test-runner.js
+
+# 2. Executar suíte de testes com Vitest (se configurado no ambiente)
+npx vitest run
+
+# 3. Executar testes unitários da Edge Function Deno (Supabase)
+deno test --allow-read supabase/functions/nfse-emissao/index_test.ts
+```
+
+#### Cobertura dos Testes:
+- **XSD v1.01 Vendored**: Verifica integridade e presença offline de `DPS_v1.01.xsd`, `tiposComplexos_v1.01.xsd`, `tiposSimples_v1.01.xsd` e `xmldsig-core-schema.xsd` nas pastas `schemas/nfse/v1.01/` e `src/schemas/nfse/v1.01/`.
+- **Criptografia PKCS#12 e PKCS#8**: Conversão de chave privada para PEM `-----BEGIN PRIVATE KEY-----` para mTLS Deno.
+- **Canonicalização Exclusive C14N**: Verificação de `c14nExclusiveNode` da própria Edge Function com propagação do namespace raiz (`xmlns="http://www.sped.fazenda.gov.br/nfse"`).
+- **Assinatura e Verificação RSA-SHA256**: Recálculo independente do `DigestValue` (SHA-256) e validação matemática do `SignatureValue` contra a chave pública RSA do certificado digital.
+- **Detecção de Fraude**: Comprovação de que adulterações posteriores no XML pós-assinatura quebram o Digest e a assinatura.
+- **Validação de Regras XSD v1.01**: Rejeição estrita de campos invertidos, ausentes, formatos de Id da DPS (`DPS[0-9]{42}`) ou municípios IBGE incorretos.
+
 ### Linting e Formatação
 
 ```bash

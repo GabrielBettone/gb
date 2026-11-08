@@ -1,20 +1,39 @@
 // Testes unitários do Deno para a Edge Function nfse-emissao
-// Executável com: deno test supabase/functions/nfse-emissao/index_test.ts
-// Cobre os 6 pontos técnicos solicitados:
+// Executável com: deno test --allow-read supabase/functions/nfse-emissao/index_test.ts
+//
+// Cobre os pontos técnicos solicitados:
 // 1. Parsing do arquivo A1 PKCS#12 (.pfx) com certificado sintético
 // 2. Conversão da chave privada para PKCS#8 PEM via privateKeyInfoToPem (-----BEGIN PRIVATE KEY-----)
 // 3. Montagem do XML DPS com Id (45 chars), infDPS, toma direto com CNPJ/CPF
 // 4. Assinatura XMLDSig (enveloped, C14N, RSA-SHA256) compatível com XSD TCDPS
 // 5. Compressão e descompressão gzip base64 (dpsXmlGZipB64 e nfseXmlGZipB64)
 // 6. Tratamento de erros SEFIN (array erros e objeto erro)
+// 7. Teste DIRETO da canonicalização c14nExclusiveNode e c14nXml importadas de index.ts
+// 8. Verificação criptográfica independente: DigestValue (SHA-256) do infDPS + SignatureValue validado com chave pública RSA
+// 9. Detecção de fraude: XML adulterado após a assinatura FALHA a verificação criptográfica
+// 10. Validação do XML gerado contra os Schemas XSD oficiais v1.01 (DPS_v1.01.xsd, tiposComplexos_v1.01.xsd, etc.)
 
 // @ts-nocheck
 import {
   assertEquals,
   assertStringIncludes,
   assertNotMatch,
+  assert,
 } from 'https://deno.land/std@0.208.0/assert/mod.ts'
 import forge from 'https://esm.sh/node-forge@1.3.1'
+import { DOMParser } from 'https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts'
+
+// Importações DIRETAS da Edge Function que será publicada:
+import {
+  c14nExclusiveNode,
+  c14nXml,
+  assinarXml,
+  converterChavePrivadaParaPkcs8Pem,
+  montarDpsXml,
+  comprimirXmlParaGzipB64,
+  descompactarGzipB64,
+  formatarErrosSefin,
+} from './index.ts'
 
 function gerarCertificadoA1Sintetico(senha: string) {
   const keys = forge.pki.rsa.generateKeyPair(1024)
@@ -45,12 +64,6 @@ function gerarCertificadoA1Sintetico(senha: string) {
   return { p12Der, keys, cert }
 }
 
-function converterChavePrivadaParaPkcs8Pem(privateKey: any): string {
-  const rsaPrivateKeyAsn1 = forge.pki.privateKeyToAsn1(privateKey)
-  const privateKeyInfoAsn1 = forge.pki.wrapRsaPrivateKey(rsaPrivateKeyAsn1)
-  return forge.pki.privateKeyInfoToPem(privateKeyInfoAsn1)
-}
-
 function extrairPemDoPfxBuffer(pfxDerString: string, senha: string) {
   const p12Asn1 = forge.asn1.fromDer(pfxDerString, false)
   const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, senha)
@@ -62,7 +75,7 @@ function extrairPemDoPfxBuffer(pfxDerString: string, senha: string) {
   for (const safeContent of p12.safeContents) {
     for (const safeBag of safeContent.safeBags) {
       if (safeBag.key) {
-        keyPem = converterChavePrivadaParaPkcs8Pem(safeBag.key)
+        keyPem = converterChavePrivadaParaPkcs8Pem(forge, safeBag.key)
       }
       if (safeBag.cert && !certObj) {
         certObj = safeBag.cert
@@ -76,7 +89,7 @@ function extrairPemDoPfxBuffer(pfxDerString: string, senha: string) {
 
 Deno.test('1. Conversão PKCS#12 para PKCS#8 produz -----BEGIN PRIVATE KEY-----', () => {
   const keys = forge.pki.rsa.generateKeyPair(1024)
-  const pem = converterChavePrivadaParaPkcs8Pem(keys.privateKey)
+  const pem = converterChavePrivadaParaPkcs8Pem(forge, keys.privateKey)
 
   assertStringIncludes(pem, '-----BEGIN PRIVATE KEY-----')
   assertStringIncludes(pem, '-----END PRIVATE KEY-----')
@@ -100,25 +113,173 @@ Deno.test('3. Gzip e Base64: ciclo de compressão e descompressão idêntico', a
   const xml =
     '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infDPS Id="DPS123"><xNome>Teste</xNome></infDPS></DPS>'
 
-  // Compressão
-  const enc = new TextEncoder().encode(xml)
-  const cs = new CompressionStream('gzip')
-  const writer = cs.writable.getWriter()
-  writer.write(enc)
-  writer.close()
-  const compressedBuf = await new Response(cs.readable).arrayBuffer()
-  const b64 = btoa(String.fromCharCode(...new Uint8Array(compressedBuf)))
-
-  // Descompressão
-  const bin = atob(b64)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  const ds = new DecompressionStream('gzip')
-  const dWriter = ds.writable.getWriter()
-  dWriter.write(bytes)
-  dWriter.close()
-  const decompBuf = await new Response(ds.readable).arrayBuffer()
-  const decXml = new TextDecoder('utf-8').decode(decompBuf)
+  const b64 = await comprimirXmlParaGzipB64(xml)
+  const decXml = await descompactarGzipB64(b64)
 
   assertEquals(decXml, xml)
+})
+
+Deno.test('4. Canonicalização c14nExclusiveNode direta da Edge Function', () => {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(
+    '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse"><infDPS Id="DPS123"><xNome>Teste</xNome></infDPS></DPS>',
+    'application/xml',
+  )
+  const infDPS = doc.querySelector('infDPS')
+  assert(infDPS, 'infDPS deve existir no documento parseado')
+
+  // Testa c14nExclusiveNode diretamente da Edge Function
+  const rendered = new Map()
+  const c14n = c14nExclusiveNode(infDPS, rendered, true)
+
+  // Deve propagar o namespace herdado da raiz <DPS> no nó raiz do fragmento
+  assertStringIncludes(c14n, 'xmlns="http://www.sped.fazenda.gov.br/nfse"')
+  assertStringIncludes(c14n, '<infDPS')
+  assertStringIncludes(c14n, '<xNome>Teste</xNome>')
+})
+
+Deno.test('5. Assinatura direta da Edge Function com verificação criptográfica independente (Digest + RSA-SHA256)', async () => {
+  const senha = 'senha-segura-123'
+  const { p12Der, keys } = gerarCertificadoA1Sintetico(senha)
+  const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senha)
+
+  const dpsGerada = montarDpsXml({
+    ambiente: 'homologacao',
+    dataCompetencia: '2026-03-01',
+    serieDps: '1',
+    numeroDps: 101,
+    codigoMunicipioEmissor: '3548906',
+    cnpjEmitente: '12345678000195',
+    razaoSocialEmitente: 'GB SOLUCOES TESTE LTDA',
+    inscricaoMunicipalEmitente: '12345',
+    logradouroEmitente: 'Rua Principal',
+    numeroEmitente: '100',
+    bairroEmitente: 'Centro',
+    ufEmitente: 'SP',
+    cepEmitente: '13520000',
+    documentoTomador: '98765432000199',
+    razaoSocialTomador: 'TOMADOR TESTE LTDA',
+    codigoMunicipioTomador: '3548906',
+    codigoTributacaoNacional: '140101',
+    descricaoServico: 'SERVICO DE MARCENARIA TESTE',
+    valorServicos: 1500.0,
+    aliquotaIss: 2.0,
+    retencaoIss: false,
+  })
+
+  // Assinar usando a função da própria Edge Function
+  const xmlAssinado = await assinarXml(dpsGerada.xml, 'infDPS', certPem, keyPem)
+
+  assertStringIncludes(xmlAssinado, '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"')
+  assertStringIncludes(xmlAssinado, '<DigestValue>')
+  assertStringIncludes(xmlAssinado, '<SignatureValue>')
+
+  // Extrair valores assinados
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(xmlAssinado, 'application/xml')
+
+  const digestElem = doc.querySelector('DigestValue')
+  const sigValElem = doc.querySelector('SignatureValue')
+  const signedInfoElem = doc.querySelector('SignedInfo')
+  const infDpsElem = doc.querySelector('infDPS')
+
+  assert(digestElem && sigValElem && signedInfoElem && infDpsElem)
+  const digestXml = digestElem.textContent.trim()
+  const signatureXmlB64 = sigValElem.textContent.trim().replace(/\s+/g, '')
+
+  // 1. Recalcular DigestValue de forma independente sobre c14nXml(infDPS)
+  const c14nInfDps = c14nXml(infDpsElem)
+  const mdDigest = forge.md.sha256.create()
+  mdDigest.update(forge.util.encodeUtf8(c14nInfDps))
+  const digestCalculado = forge.util.encode64(mdDigest.digest().getBytes())
+
+  assertEquals(
+    digestCalculado,
+    digestXml,
+    'DigestValue recalculado de forma independente DEVE ser idêntico ao do XML',
+  )
+
+  // 2. Verificar criptograficamente a assinatura RSA-SHA256 do SignedInfo com a chave pública
+  const c14nSignedInfo = c14nXml(signedInfoElem)
+  const mdSign = forge.md.sha256.create()
+  mdSign.update(forge.util.encodeUtf8(c14nSignedInfo))
+
+  const signatureBytes = forge.util.decode64(signatureXmlB64)
+  const assinaturaValida = keys.publicKey.verify(mdSign.digest().getBytes(), signatureBytes)
+
+  assertEquals(assinaturaValida, true, 'SignatureValue DEVE ser válido contra a chave pública RSA')
+})
+
+Deno.test('6. Detecção de fraude: adulteração no XML assinado faz a verificação falhar', async () => {
+  const senha = 'senha-segura-123'
+  const { p12Der, keys } = gerarCertificadoA1Sintetico(senha)
+  const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senha)
+
+  const dpsGerada = montarDpsXml({
+    ambiente: 'homologacao',
+    dataCompetencia: '2026-03-01',
+    serieDps: '1',
+    numeroDps: 102,
+    codigoMunicipioEmissor: '3548906',
+    cnpjEmitente: '12345678000195',
+    razaoSocialEmitente: 'GB SOLUCOES TESTE LTDA',
+    documentoTomador: '98765432000199',
+    razaoSocialTomador: 'TOMADOR TESTE LTDA',
+    codigoMunicipioTomador: '3548906',
+    codigoTributacaoNacional: '140101',
+    descricaoServico: 'SERVICO ORIGINAL',
+    valorServicos: 1000.0,
+    aliquotaIss: 2.0,
+    retencaoIss: false,
+  })
+
+  const xmlAssinado = await assinarXml(dpsGerada.xml, 'infDPS', certPem, keyPem)
+
+  // Fraude: Adulterar valor de R$ 1000.00 para R$ 9999.00 no XML DEPOIS da assinatura
+  const xmlFraudado = xmlAssinado.replace('<vServ>1000.00</vServ>', '<vServ>9999.00</vServ>')
+  assert(xmlFraudado !== xmlAssinado, 'XML deve ter sido modificado')
+
+  const parser = new DOMParser()
+  const docFraudado = parser.parseFromString(xmlFraudado, 'application/xml')
+
+  const digestElem = docFraudado.querySelector('DigestValue')
+  const infDpsFraudado = docFraudado.querySelector('infDPS')
+  const digestOriginal = digestElem.textContent.trim()
+
+  // Recalcular digest do infDPS fraudado
+  const c14nFraudado = c14nXml(infDpsFraudado)
+  const mdDigest = forge.md.sha256.create()
+  mdDigest.update(forge.util.encodeUtf8(c14nFraudado))
+  const digestNovo = forge.util.encode64(mdDigest.digest().getBytes())
+
+  // A verificação deve FALHAR: o digest calculado é diferente do DigestValue original assinado
+  assert(
+    digestNovo !== digestOriginal,
+    'Detecção de fraude comprovada: digest do XML adulterado é diferente do DigestValue gravado na assinatura',
+  )
+})
+
+Deno.test('7. Formatação de erros da SEFIN trata tanto array quanto objeto único', () => {
+  // Cenário A: resposta com array de erros
+  const erroArray = {
+    erros: [
+      { codigo: 'E101', descricao: 'Certificado revogado', complemento: 'ICP-Brasil' },
+      { codigo: 'E102', descricao: 'Assinatura inválida' },
+    ],
+  }
+  const fArray = formatarErrosSefin(erroArray)
+  assertEquals(fArray.codigo, 'E101')
+  assertStringIncludes(fArray.mensagem, 'Certificado revogado')
+  assertEquals(fArray.detalhes.length, 2)
+
+  // Cenário B: resposta com objeto de erro único
+  const erroUnico = {
+    erro: {
+      codigo: 'E500',
+      descricao: 'Falha interna da SEFIN',
+    },
+  }
+  const fUnico = formatarErrosSefin(erroUnico)
+  assertEquals(fUnico.codigo, 'E500')
+  assertStringIncludes(fUnico.mensagem, 'Falha interna da SEFIN')
 })

@@ -165,7 +165,7 @@ async function decifraSenha(cB64: string, ivB64: string, tagB64: string): Promis
 // Deve-se chamar privateKeyInfoToPem() e NÃO privateKeyToPem().
 // O PEM resultante inicia com '-----BEGIN PRIVATE KEY-----' (padrão OpenSSL / Deno mTLS).
 // ---------------------------------------------------------------------------
-function converterChavePrivadaParaPkcs8Pem(forge: any, privateKey: any): string {
+export function converterChavePrivadaParaPkcs8Pem(forge: any, privateKey: any): string {
   // 1. Converter chave privada Forge para RSAPrivateKey ASN.1 (PKCS#1)
   const rsaPrivateKeyAsn1 = forge.pki.privateKeyToAsn1(privateKey)
   // 2. Envelopar o RSAPrivateKey ASN.1 em PrivateKeyInfo ASN.1 (PKCS#8)
@@ -177,7 +177,7 @@ function converterChavePrivadaParaPkcs8Pem(forge: any, privateKey: any): string 
 // ---------------------------------------------------------------------------
 // Extração de PEM e metadados do PFX (PKCS#12)
 // ---------------------------------------------------------------------------
-async function extrairPemDoPfx(pfxBase64: string, senha: string) {
+export async function extrairPemDoPfx(pfxBase64: string, senha: string) {
   const forge = await getForge()
   const p12Der = forge.util.decode64(pfxBase64)
   const p12Asn1 = forge.asn1.fromDer(p12Der, false)
@@ -259,7 +259,7 @@ async function extrairPemDoPfx(pfxBase64: string, senha: string) {
 // No subdocumento assinado (infDPS), o namespace xmlns="http://www.sped.fazenda.gov.br/nfse"
 // herdado do elemento pai <DPS> DEVE ser emitido no elemento raiz do fragmento
 // para que o digest calculado seja idêntico ao do verificador da SEFIN Nacional.
-function c14nExclusiveNode(
+export function c14nExclusiveNode(
   node: Node,
   renderedNamespaces: Map<string, string>,
   isRootOfFragment: boolean = false,
@@ -361,7 +361,7 @@ function escapeAttr(val: string): string {
     .replace(/\r/g, '&#xD;')
 }
 
-function c14nXml(node: Node): string {
+export function c14nXml(node: Node): string {
   return c14nExclusiveNode(node, new Map(), true)
 }
 
@@ -375,7 +375,7 @@ function xmlEsc(s: string | undefined): string {
     .replace(/'/g, '&apos;')
 }
 
-async function assinarXml(
+export async function assinarXml(
   xml: string,
   tagAssinar: string,
   certPem: string,
@@ -434,7 +434,7 @@ async function assinarXml(
 // ---------------------------------------------------------------------------
 // Gzip + Base64 (compressão e descompressão de payloads SEFIN)
 // ---------------------------------------------------------------------------
-async function comprimirXmlParaGzipB64(xml: string): Promise<string> {
+export async function comprimirXmlParaGzipB64(xml: string): Promise<string> {
   const enc = new TextEncoder().encode(xml)
   const cs = new CompressionStream('gzip')
   const writer = cs.writable.getWriter()
@@ -449,7 +449,7 @@ async function comprimirXmlParaGzipB64(xml: string): Promise<string> {
   return btoa(binary)
 }
 
-async function descompactarGzipB64(gzipB64: string): Promise<string> {
+export async function descompactarGzipB64(gzipB64: string): Promise<string> {
   if (!gzipB64 || typeof gzipB64 !== 'string') return ''
   try {
     const binary = atob(gzipB64)
@@ -472,7 +472,7 @@ async function descompactarGzipB64(gzipB64: string): Promise<string> {
 // ---------------------------------------------------------------------------
 // Parser de Erros da SEFIN (NFSePostResponseErro e ResponseErro)
 // ---------------------------------------------------------------------------
-function formatarErrosSefin(parsed: any): {
+export function formatarErrosSefin(parsed: any): {
   codigo: string
   mensagem: string
   detalhes: Array<{ codigo?: string; descricao?: string; complemento?: string }>
@@ -580,7 +580,7 @@ function onlyDigits(s: string | undefined): string {
   return (s || '').replace(/\D/g, '')
 }
 
-function montarDpsXml(i: DpsInput): { xml: string; idDps: string } {
+export function montarDpsXml(i: DpsInput): { xml: string; idDps: string } {
   const docTomador = onlyDigits(i.documentoTomador)
   const isPJ = docTomador.length === 14
   // XSD TCInfoPessoa: xs:choice de CNPJ ou CPF diretamente sob <toma>, sem tag fantasma <CNPJ_CPF>

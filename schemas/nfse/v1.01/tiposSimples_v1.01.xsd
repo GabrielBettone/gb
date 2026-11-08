@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://www.sped.fazenda.gov.br/nfse"
+           xmlns="http://www.sped.fazenda.gov.br/nfse"
+           elementFormDefault="qualified"
+           attributeFormDefault="unqualified">
+
+  <xs:simpleType name="TSIdDPS">
+    <xs:annotation>
+      <xs:documentation>Identificador da DPS (DPS + Chave de Acesso da DPS com 42 dígitos, total 45 caracteres)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="DPS[0-9]{42}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TVerNFSe">
+    <xs:annotation>
+      <xs:documentation>Versão do leiaute da NFS-e (1.00)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="1\.00"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TAmb">
+    <xs:annotation>
+      <xs:documentation>Identificação do Ambiente: 1-Produção, 2-Homologação</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDateTimeUTC">
+    <xs:annotation>
+      <xs:documentation>Data e hora no formato UTC ou com timezone (AAAA-MM-DDThh:mm:ssTZD)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[\+\-][0-9]{2}:[0-9]{2})"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSData">
+    <xs:annotation>
+      <xs:documentation>Data no formato AAAA-MM-DD</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:date">
+      <xs:pattern value="[0-9]{4}-[0-9]{2}-[0-9]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSSerieDPS">
+    <xs:annotation>
+      <xs:documentation>Série da DPS (1 a 5 caracteres alfanuméricos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="5"/>
+      <xs:pattern value="[0-9]{1,5}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSNDPS">
+    <xs:annotation>
+      <xs:documentation>Número da DPS (1 a 15 dígitos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:integer">
+      <xs:totalDigits value="15"/>
+      <xs:minInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSTpEmit">
+    <xs:annotation>
+      <xs:documentation>Tipo de Emitente da DPS: 1-Prestador, 2-Tomador, 3-Intermediário</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSCodMunIBGE">
+    <xs:annotation>
+      <xs:documentation>Código do município IBGE (7 dígitos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{7}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSCNPJ">
+    <xs:annotation>
+      <xs:documentation>Número do CNPJ (14 dígitos numéricos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{14}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSCPF">
+    <xs:annotation>
+      <xs:documentation>Número do CPF (11 dígitos numéricos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{11}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSInscMun">
+    <xs:annotation>
+      <xs:documentation>Inscrição Municipal do prestador/tomador (1 a 15 caracteres)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="15"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSNome">
+    <xs:annotation>
+      <xs:documentation>Razão Social ou Nome do prestador/tomador (1 a 300 caracteres)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="300"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSUF">
+    <xs:annotation>
+      <xs:documentation>Sigla da UF</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:enumeration value="AC"/>
+      <xs:enumeration value="AL"/>
+      <xs:enumeration value="AM"/>
+      <xs:enumeration value="AP"/>
+      <xs:enumeration value="BA"/>
+      <xs:enumeration value="CE"/>
+      <xs:enumeration value="DF"/>
+      <xs:enumeration value="ES"/>
+      <xs:enumeration value="GO"/>
+      <xs:enumeration value="MA"/>
+      <xs:enumeration value="MG"/>
+      <xs:enumeration value="MS"/>
+      <xs:enumeration value="MT"/>
+      <xs:enumeration value="PA"/>
+      <xs:enumeration value="PB"/>
+      <xs:enumeration value="PE"/>
+      <xs:enumeration value="PI"/>
+      <xs:enumeration value="PR"/>
+      <xs:enumeration value="RJ"/>
+      <xs:enumeration value="RN"/>
+      <xs:enumeration value="RO"/>
+      <xs:enumeration value="RR"/>
+      <xs:enumeration value="RS"/>
+      <xs:enumeration value="SC"/>
+      <xs:enumeration value="SE"/>
+      <xs:enumeration value="SP"/>
+      <xs:enumeration value="TO"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSCEP">
+    <xs:annotation>
+      <xs:documentation>CEP (8 dígitos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{8}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDesc1a255">
+    <xs:annotation>
+      <xs:documentation>Texto de descrição de 1 a 255 caracteres</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="255"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDesc1a60">
+    <xs:annotation>
+      <xs:documentation>Texto de descrição de 1 a 60 caracteres</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="60"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDesc1a2000">
+    <xs:annotation>
+      <xs:documentation>Texto de descrição de serviço de 1 a 2000 caracteres</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="2000"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSCodigoTributacaoNacional">
+    <xs:annotation>
+      <xs:documentation>Código de Tributação Nacional da NFS-e (7 dígitos)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="[0-9]{7}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDec_1502">
+    <xs:annotation>
+      <xs:documentation>Número decimal com até 15 dígitos inteiros e 2 decimais (0.00 a 999999999999999.99)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="0|0\.[0-9]{2}|[1-9]{1}[0-9]{0,14}\.[0-9]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSDec_0202v">
+    <xs:annotation>
+      <xs:documentation>Alíquota decimal com 2 casas decimais (ex: 2.00, 5.00)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:pattern value="0|0\.[0-9]{2}|[1-9]{1}[0-9]{0,1}\.[0-9]{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSTribMun">
+    <xs:annotation>
+      <xs:documentation>Tributação Municipal do ISSQN: 1-Tributável, 2-Exportação, 3-Imunidade, etc.</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+      <xs:enumeration value="4"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSTpRetISSQN">
+    <xs:annotation>
+      <xs:documentation>Retenção do ISSQN: 1-Não Retido, 2-Retido pelo Tomador, 3-Retido pelo Intermediário</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:integer">
+      <xs:enumeration value="1"/>
+      <xs:enumeration value="2"/>
+      <xs:enumeration value="3"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="TSVerAplic">
+    <xs:annotation>
+      <xs:documentation>Versão do aplicativo emissor (1 a 20 caracteres)</xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:whiteSpace value="preserve"/>
+      <xs:minLength value="1"/>
+      <xs:maxLength value="20"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
