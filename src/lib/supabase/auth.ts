@@ -298,7 +298,7 @@ class SupabaseAuthManager {
                   data.user.user_metadata?.name ||
                   existingUser?.name ||
                   data.user.email?.split('@')[0],
-                role: data.user.user_metadata?.role || existingUser?.role || 'admin',
+                role: data.user.user_metadata?.role || existingUser?.role || 'member',
                 avatar_url: data.user.user_metadata?.avatar_url || existingUser?.avatar_url,
                 created_at: data.user.created_at || existingUser?.created_at,
               }
@@ -386,7 +386,7 @@ class SupabaseAuthManager {
         id: data.user.id,
         email: data.user.email,
         name: data.user.user_metadata?.name || data.user.email?.split('@')[0],
-        role: data.user.user_metadata?.role || 'admin',
+        role: data.user.user_metadata?.role || 'member',
         avatar_url: data.user.user_metadata?.avatar_url,
         created_at: data.user.created_at,
       },
@@ -409,7 +409,7 @@ class SupabaseAuthManager {
       body: JSON.stringify({
         email,
         password,
-        data: { name: name || email.split('@')[0], role: 'admin' },
+        data: { name: name || email.split('@')[0] },
       }),
     })
 
@@ -432,7 +432,7 @@ class SupabaseAuthManager {
           id: data.user.id,
           email: data.user.email,
           name: data.user.user_metadata?.name || name,
-          role: data.user.user_metadata?.role || 'admin',
+          role: data.user.user_metadata?.role || 'member',
           avatar_url: data.user.user_metadata?.avatar_url,
           created_at: data.user.created_at,
         },

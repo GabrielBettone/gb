@@ -354,7 +354,140 @@ CREATE TABLE IF NOT EXISTS public.nfse_eventos (
 CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON public.nfse_eventos(nota);
 
 -- ----------------------------------------------------------------------------
--- Storage Bucket: nfse_certificados (privado, restrito a administradores / service_role)
+-- 7. Funções de Suporte à Segurança e Perfis Administrativos
+-- - is_admin(): verificação SECURITY DEFINER centralizada contra a tabela profiles.
+--   Evita recursão de RLS e padroniza a checagem de privilégio administrativo.
+-- - handle_new_user(): trigger seguro para auth.users. Atribui papel padrão 'cliente'
+--   (NUNCA admin) e ignora metadados do cliente para evitar autopromoção.
+-- - Proteção de profiles: usuário comum pode atualizar apenas seu próprio nome/avatar,
+--   mas NUNCA o campo 'role'. Promoção a admin é estritamente manual ou via admin.
+-- ----------------------------------------------------------------------------
+
+-- Garante existência da tabela profiles com role restrito
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  name text,
+  role text NOT NULL DEFAULT 'cliente',
+  avatar_url text,
+  created_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- Migrações idempotentes de colunas para profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role text DEFAULT 'cliente';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT timezone('utc'::text, now());
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT timezone('utc'::text, now());
+
+CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
+
+-- Função SECURITY DEFINER estável para checagem de admin sem recursão de RLS
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND LOWER(COALESCE(p.role, '')) IN ('admin', 'administrador')
+  );
+$$;
+
+-- Trigger seguro para cadastro de novos usuários
+-- Regra de segurança: role SEMPRE inicia como 'cliente' (ou 'user'); NUNCA lê raw_user_meta_data->>'role'.
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, name, role)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(COALESCE(NEW.email, ''), '@', 1)),
+    'cliente'
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        name = COALESCE(EXCLUDED.name, public.profiles.name),
+        updated_at = timezone('utc'::text, now());
+  RETURN NEW;
+END;
+$$;
+
+-- Compatibilização: se a função chamava handle_new_auth_user no schema legado
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN public.handle_new_user();
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Trigger que impede qualquer usuário não-admin de alterar o próprio role na tabela profiles
+CREATE OR REPLACE FUNCTION public.protect_profiles_role_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Se o campo role está sendo modificado e o usuário da sessão NÃO é admin, bloqueia
+  IF (NEW.role IS DISTINCT FROM OLD.role) THEN
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'Acesso negado: apenas administradores podem alterar o papel (role) de usuários.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profiles_role ON public.profiles;
+CREATE TRIGGER trg_protect_profiles_role
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.protect_profiles_role_update();
+
+-- RLS para tabela profiles:
+-- Usuário lê seu próprio registro ou qualquer registro se for admin
+-- Usuário só atualiza seu próprio registro (e o trigger acima bloqueia modificação de role)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "profiles_select_auth" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_read_self_or_admin" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_owner" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_admin_manage" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_service" ON public.profiles;
+
+CREATE POLICY "profiles_select_auth" ON public.profiles
+  FOR SELECT TO authenticated
+  USING (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "profiles_update_owner" ON public.profiles
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = id OR public.is_admin())
+  WITH CHECK (auth.uid() = id OR public.is_admin());
+
+-- ----------------------------------------------------------------------------
+-- 8. Storage Bucket: nfse_certificados (PRIVADO — RESTRIÇÃO RIGOROSA)
+-- - Apenas acessível pelo service_role (a Edge Function nfse-emissao baixa o .pfx
+--   e processa a criptografia/mTLS com service role no servidor).
+-- - Nenhum acesso concedido a usuários 'authenticated' nem 'anon' no browser.
 -- ----------------------------------------------------------------------------
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
@@ -369,28 +502,24 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = 5242880,
   allowed_mime_types = ARRAY['application/x-pkcs12', 'application/octet-stream', 'application/pkcs12'];
 
--- Policies para o bucket storage.objects (somente autenticados / service_role; NUNCA anon)
+-- Limpeza total de políticas no storage.objects para o bucket nfse_certificados
+-- Bloqueia expressamente qualquer leitura, escrita ou deleção direta por clientes/navegador
 DO $$ BEGIN
-  -- Remove políticas antigas permissivas se existirem
   DROP POLICY IF EXISTS "nfse_certificados_anon_read" ON storage.objects;
   DROP POLICY IF EXISTS "nfse_certificados_anon_insert" ON storage.objects;
   DROP POLICY IF EXISTS "nfse_certificados_all" ON storage.objects;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'nfse_certificados_auth_access') THEN
-    CREATE POLICY nfse_certificados_auth_access ON storage.objects
-      FOR ALL
-      TO authenticated
-      USING (bucket_id = 'nfse_certificados')
-      WITH CHECK (bucket_id = 'nfse_certificados');
-  END IF;
+  DROP POLICY IF EXISTS "nfse_certificados_auth_access" ON storage.objects;
+  DROP POLICY IF EXISTS "nfse_certificados_auth_read" ON storage.objects;
+  DROP POLICY IF EXISTS "nfse_certificados_auth_write" ON storage.objects;
 END $$;
 
 -- ----------------------------------------------------------------------------
--- RLS (Row Level Security) e Permissões Seguras
--- Regra de ouro: NENHUM acesso anon às tabelas fiscais.
--- Apenas usuários autenticados (e service_role) têm acesso às operações do painel.
--- A tabela nfse_certificado guarda senhas cifradas e dados do A1 — apenas autenticados
--- e service_role têm acesso (e anon é terminantemente revogado).
+-- 9. RLS (Row Level Security) e Permissões das 6 Tabelas Fiscais
+-- - nfse_config, nfse_emitente, nfse_servicos, nfse_notas, nfse_eventos, nfse_certificado
+-- - Acesso exclusivo para administradores (public.is_admin() = true) ou service_role.
+-- - Usuários autenticados comuns (não-admin) NÃO conseguem ler nem gravar dados fiscais.
+-- - Anon terminantemente revogado.
+-- - Script 100% idempotente (DROP POLICY IF EXISTS antes de cada CREATE POLICY).
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.nfse_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_emitente ENABLE ROW LEVEL SECURITY;
@@ -399,21 +528,61 @@ ALTER TABLE public.nfse_notas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_certificado ENABLE ROW LEVEL SECURITY;
 
--- Limpeza de políticas legadas abertas
+-- Limpeza de todas as políticas legadas para garantir idempotência em reexecuções
 DROP POLICY IF EXISTS nfse_config_all ON public.nfse_config;
-DROP POLICY IF EXISTS nfse_emitente_all ON public.nfse_emitente;
-DROP POLICY IF EXISTS nfse_servicos_all ON public.nfse_servicos;
-DROP POLICY IF EXISTS nfse_notas_all ON public.nfse_notas;
-DROP POLICY IF EXISTS nfse_eventos_all ON public.nfse_eventos;
-DROP POLICY IF EXISTS nfse_certificado_all ON public.nfse_certificado;
+DROP POLICY IF EXISTS nfse_config_auth ON public.nfse_config;
+DROP POLICY IF EXISTS nfse_config_admin ON public.nfse_config;
 
--- Políticas seguras: restritas a 'authenticated'
-CREATE POLICY nfse_config_auth ON public.nfse_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY nfse_emitente_auth ON public.nfse_emitente FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY nfse_servicos_auth ON public.nfse_servicos FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY nfse_notas_auth ON public.nfse_notas FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY nfse_eventos_auth ON public.nfse_eventos FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY nfse_certificado_auth ON public.nfse_certificado FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS nfse_emitente_all ON public.nfse_emitente;
+DROP POLICY IF EXISTS nfse_emitente_auth ON public.nfse_emitente;
+DROP POLICY IF EXISTS nfse_emitente_admin ON public.nfse_emitente;
+
+DROP POLICY IF EXISTS nfse_servicos_all ON public.nfse_servicos;
+DROP POLICY IF EXISTS nfse_servicos_auth ON public.nfse_servicos;
+DROP POLICY IF EXISTS nfse_servicos_admin ON public.nfse_servicos;
+
+DROP POLICY IF EXISTS nfse_notas_all ON public.nfse_notas;
+DROP POLICY IF EXISTS nfse_notas_auth ON public.nfse_notas;
+DROP POLICY IF EXISTS nfse_notas_admin ON public.nfse_notas;
+
+DROP POLICY IF EXISTS nfse_eventos_all ON public.nfse_eventos;
+DROP POLICY IF EXISTS nfse_eventos_auth ON public.nfse_eventos;
+DROP POLICY IF EXISTS nfse_eventos_admin ON public.nfse_eventos;
+
+DROP POLICY IF EXISTS nfse_certificado_all ON public.nfse_certificado;
+DROP POLICY IF EXISTS nfse_certificado_auth ON public.nfse_certificado;
+DROP POLICY IF EXISTS nfse_certificado_admin ON public.nfse_certificado;
+
+-- Novas políticas endurecidas: somente administradores da empresa têm acesso
+CREATE POLICY nfse_config_admin ON public.nfse_config
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY nfse_emitente_admin ON public.nfse_emitente
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY nfse_servicos_admin ON public.nfse_servicos
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY nfse_notas_admin ON public.nfse_notas
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY nfse_eventos_admin ON public.nfse_eventos
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY nfse_certificado_admin ON public.nfse_certificado
+  FOR ALL TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
 -- Revoga explicitamente permissões do papel anon (público sem login)
 REVOKE ALL ON public.nfse_config FROM anon;
@@ -423,7 +592,7 @@ REVOKE ALL ON public.nfse_notas FROM anon;
 REVOKE ALL ON public.nfse_eventos FROM anon;
 REVOKE ALL ON public.nfse_certificado FROM anon;
 
--- Concede acesso total apenas aos usuários autenticados do painel e service_role
+-- Concede privilégios aos papéis autenticados (a RLS acima filtra por admin) e service_role
 GRANT ALL ON public.nfse_config TO authenticated, service_role;
 GRANT ALL ON public.nfse_emitente TO authenticated, service_role;
 GRANT ALL ON public.nfse_servicos TO authenticated, service_role;

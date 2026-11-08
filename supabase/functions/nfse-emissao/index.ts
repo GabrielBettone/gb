@@ -95,22 +95,28 @@ async function validarUsuarioAdmin(
       }
     }
 
-    // Validação de perfil administrativo
-    // Verifica user_metadata, app_metadata ou tabela de profiles/users caso exista
-    const userMeta = user.user_metadata || {}
-    const appMeta = user.app_metadata || {}
-    const role = (appMeta.role || userMeta.role || '').toString().toLowerCase()
-    const isAdmin =
-      role === 'admin' ||
-      role === 'administrador' ||
-      Boolean(appMeta.is_admin) ||
-      Boolean(userMeta.is_admin) ||
-      user.email === 'contato@gessobettone.com.br' || // conta principal do proprietário
-      user.email?.endsWith('@gessobettone.com.br')
+    // Validação rigorosa de perfil administrativo consultando a tabela profiles com service role
+    // e verificando app_metadata / email mestre. NUNCA confia em raw_user_meta_data enviado pelo cliente.
+    const { data: profile } = await supaClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    // Se o usuário tem conta autenticada no painel da empresa, permitimos se for admin
-    // ou se for usuário interno autenticado. Se role for explicitamente não-admin (ex: 'cliente'), bloqueia.
-    if (role === 'cliente' || role === 'guest') {
+    const appMeta = user.app_metadata || {}
+    const roleProfile = (profile?.role || '').toString().toLowerCase()
+    const roleAppMeta = (appMeta.role || '').toString().toLowerCase()
+
+    const isAdmin =
+      roleProfile === 'admin' ||
+      roleProfile === 'administrador' ||
+      roleAppMeta === 'admin' ||
+      roleAppMeta === 'administrador' ||
+      Boolean(appMeta.is_admin) ||
+      user.email === 'contato@gessobettone.com.br' ||
+      user.email === 'admin@gessobettone.com.br'
+
+    if (!isAdmin) {
       return {
         ok: false,
         erro: 'Acesso negado: o módulo fiscal exige privilégios de administrador da empresa.',

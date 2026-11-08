@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   name TEXT,
-  role TEXT DEFAULT 'admin',
+  role TEXT DEFAULT 'cliente',
   avatar_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
@@ -25,16 +25,32 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);
 
+-- Função SECURITY DEFINER para checagem segura de administrador
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND LOWER(COALESCE(p.role, '')) IN ('admin', 'administrador')
+  );
+$$;
+
 -- Trigger para criar perfil automaticamente quando um usuário é criado no auth do Supabase
+-- Seguro: role sempre inicia como 'cliente' e ignora metadados do cliente
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (id, email, name, role)
   VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'admin')
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'name', split_part(COALESCE(NEW.email, ''), '@', 1)),
+    'cliente'
   )
   ON CONFLICT (id) DO UPDATE
     SET email = EXCLUDED.email,
@@ -42,12 +58,34 @@ BEGIN
         updated_at = timezone('utc'::text, now());
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- Trigger que impede usuário não-admin de alterar o próprio role
+CREATE OR REPLACE FUNCTION public.protect_profiles_role_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF (NEW.role IS DISTINCT FROM OLD.role) THEN
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'Acesso negado: apenas administradores podem alterar o papel (role) de usuários.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profiles_role ON public.profiles;
+CREATE TRIGGER trg_protect_profiles_role
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.protect_profiles_role_update();
 
 -- Trigger padrão para updated_at
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
@@ -775,15 +813,18 @@ ALTER TABLE public.simulador_clientes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.simulador_historico ENABLE ROW LEVEL SECURITY;
 
 -- ----------------------------------------------------------------------------
--- PROFILES: Usuário lê e atualiza seu próprio perfil; leitura para usuários autenticados
+-- PROFILES: Usuário lê seu próprio registro ou qualquer registro se for admin;
+-- Atualização restrita ao próprio usuário ou admin (com trigger protegendo 'role').
 -- ----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "profiles_select_auth" ON public.profiles;
 CREATE POLICY "profiles_select_auth" ON public.profiles
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO authenticated USING (auth.uid() = id OR public.is_admin());
 
 DROP POLICY IF EXISTS "profiles_update_owner" ON public.profiles;
 CREATE POLICY "profiles_update_owner" ON public.profiles
-  FOR UPDATE TO authenticated USING (auth.uid() = id);
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = id OR public.is_admin())
+  WITH CHECK (auth.uid() = id OR public.is_admin());
 
 -- ----------------------------------------------------------------------------
 -- ÁREA ADMINISTRATIVA: Acesso completo para usuários autenticados
