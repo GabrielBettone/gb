@@ -438,12 +438,22 @@ describe('Módulo NFS-e Nacional - Testes Técnicos Isolados', () => {
     expect(resIbge.erros.some((e) => e.code === 'INVALID_IBGE_CODE')).toBe(true)
 
     // Caso Negativo E: Signature colocada antes de infDPS (violação da sequência do TCDPS)
-    const xmlSigAntes = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"></Signature><infDPS Id="${dps.idDps}"><tpAmb>2</tpAmb></infDPS></DPS>`
+    const xmlSigAntes = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo></SignedInfo></Signature><infDPS Id="${dps.idDps}"><tpAmb>2</tpAmb></infDPS></DPS>`
     const resSigAntes = validateDpsXmlAgainstXsd(xmlSigAntes)
     expect(resSigAntes.valido).toBe(false)
     expect(
       resSigAntes.erros.some(
         (e) => e.code === 'SEQUENCE_ORDER_VIOLATION' || e.code === 'SIGNATURE_BEFORE_INFDPS',
+      ),
+    ).toBe(true)
+
+    // Caso Negativo F: Estrutura da assinatura XMLDSig inválida (SignedInfo ausente em Signature)
+    const xmlSigSemSignedInfo = `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infDPS Id="${dps.idDps}"><tpAmb>2</tpAmb></infDPS><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignatureValue>ABCD</SignatureValue></Signature></DPS>`
+    const resSigInvalida = validateDpsXmlAgainstXsd(xmlSigSemSignedInfo)
+    expect(resSigInvalida.valido).toBe(false)
+    expect(
+      resSigInvalida.erros.some(
+        (e) => e.code === 'MISSING_MANDATORY_ELEMENT' && e.path.includes('SignedInfo'),
       ),
     ).toBe(true)
   })

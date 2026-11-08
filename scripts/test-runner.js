@@ -189,6 +189,325 @@ await test('1. Os 4 arquivos XSD v1.01 oficiais existem e contêm os schemas esp
 
 console.log('\nSuíte: Validador XSD v1.01 e Regras Formais da NFS-e Nacional')
 
+// Carrega os 4 schemas oficiais v1.01 vendored diretamente do disco no Node.js
+const dpsPath = resolve(rootDir, 'schemas/nfse/v1.01/DPS_v1.01.xsd')
+const tiposCompPath = resolve(rootDir, 'schemas/nfse/v1.01/tiposComplexos_v1.01.xsd')
+const tiposSimpPath = resolve(rootDir, 'schemas/nfse/v1.01/tiposSimples_v1.01.xsd')
+const dsPath = resolve(rootDir, 'schemas/nfse/v1.01/xmldsig-core-schema.xsd')
+
+const rawSchemas = [
+  { filename: 'DPS_v1.01.xsd', content: readFileSync(dpsPath, 'utf-8') },
+  { filename: 'tiposComplexos_v1.01.xsd', content: readFileSync(tiposCompPath, 'utf-8') },
+  { filename: 'tiposSimples_v1.01.xsd', content: readFileSync(tiposSimpPath, 'utf-8') },
+  { filename: 'xmldsig-core-schema.xsd', content: readFileSync(dsPath, 'utf-8') },
+]
+
+// Carregador e compilador de modelo XSD oficial
+function buildNodeXsdModel() {
+  const allXsd = rawSchemas.map((s) => s.content).join('\n')
+  const simpleTypes = new Map()
+  const complexTypes = new Map()
+
+  const simpleTypeRegex = /<xs:simpleType\s+name=["']([^"']+)["'][\s\S]*?<\/xs:simpleType>/g
+  let stMatch
+  while ((stMatch = simpleTypeRegex.exec(allXsd)) !== null) {
+    const block = stMatch[0]
+    const name = stMatch[1]
+    const baseMatch = block.match(/<xs:restriction\s+base=["']([^"']+)["']/)
+    const baseType = baseMatch ? baseMatch[1] : 'xs:string'
+    const patternMatch = block.match(/<xs:pattern\s+value=["']([^"']+)["']/)
+    const minLenMatch = block.match(/<xs:minLength\s+value=["']([^"']+)["']/)
+    const maxLenMatch = block.match(/<xs:maxLength\s+value=["']([^"']+)["']/)
+
+    const enums = []
+    const enumRegex = /<xs:enumeration\s+value=["']([^"']+)["']/g
+    let eMatch
+    while ((eMatch = enumRegex.exec(block)) !== null) {
+      enums.push(eMatch[1])
+    }
+
+    simpleTypes.set(name, {
+      name,
+      baseType,
+      pattern: patternMatch ? new RegExp(`^${patternMatch[1]}$`) : undefined,
+      minLength: minLenMatch ? parseInt(minLenMatch[1], 10) : undefined,
+      maxLength: maxLenMatch ? parseInt(maxLenMatch[1], 10) : undefined,
+      enumerations: enums.length > 0 ? enums : undefined,
+    })
+  }
+
+  const complexTypeRegex = /<xs:complexType\s+name=["']([^"']+)["'][\s\S]*?<\/xs:complexType>/g
+  let ctMatch
+  while ((ctMatch = complexTypeRegex.exec(allXsd)) !== null) {
+    const block = ctMatch[0]
+    const name = ctMatch[1]
+    const sequence = []
+    const elRegex = /<xs:element\s+([^>]+?)(?:\/>|>[\s\S]*?<\/xs:element>)/g
+    let elMatch
+    while ((elMatch = elRegex.exec(block)) !== null) {
+      const attrs = elMatch[1]
+      const nameMatch = attrs.match(/name=["']([^"']+)["']/)
+      const refMatch = attrs.match(/ref=["']([^"']+)["']/)
+      const minOMatch = attrs.match(/minOccurs=["']([^"']+)["']/)
+      const maxOMatch = attrs.match(/maxOccurs=["']([^"']+)["']/)
+
+      const elName = nameMatch ? nameMatch[1] : refMatch ? refMatch[1].replace(/^.*:/, '') : ''
+      if (elName) {
+        sequence.push({
+          name: elName,
+          minOccurs: minOMatch ? parseInt(minOMatch[1], 10) : 1,
+          maxOccurs: maxOMatch
+            ? maxOMatch[1] === 'unbounded'
+              ? Infinity
+              : parseInt(maxOMatch[1], 10)
+            : 1,
+        })
+      }
+    }
+
+    complexTypes.set(name, { name, sequence })
+  }
+
+  return {
+    targetNamespace: 'http://www.sped.fazenda.gov.br/nfse',
+    rootElementName: 'DPS',
+    simpleTypes,
+    complexTypes,
+  }
+}
+
+const nodeXsdModel = buildNodeXsdModel()
+
+/**
+ * Validador oficial de XML contra o modelo XSD v1.01 da NFS-e Nacional.
+ * Se o pacote `libxml2-wasm` estiver instalado no node_modules, utiliza o processador WASM do libxml2.
+ * Caso contrário, executa a validação formal estrita pelo modelo XSD oficial compilado.
+ */
+async function validarXmlContraXsd(xmlString) {
+  try {
+    const libxmlModuleName = 'libxml2-wasm'
+    const libxml = await import(libxmlModuleName).catch(() => null)
+    if (libxml && (libxml.XmlDocument || libxml.default?.XmlDocument)) {
+      const XmlDoc = libxml.XmlDocument || libxml.default.XmlDocument
+      const XsdVal = libxml.XsdValidator || libxml.default.XsdValidator
+      const regInputProvider =
+        libxml.xmlRegisterInputProvider || libxml.default?.xmlRegisterInputProvider
+      const cleanupInputProvider =
+        libxml.xmlCleanupInputProvider || libxml.default?.xmlCleanupInputProvider
+      const BufferProvider = libxml.XmlBufferInputProvider || libxml.default?.XmlBufferInputProvider
+
+      const buffers = {}
+      const encoder = new TextEncoder()
+      for (const s of rawSchemas) {
+        buffers[s.filename] = encoder.encode(s.content)
+      }
+      if (BufferProvider && regInputProvider) {
+        regInputProvider(new BufferProvider(buffers))
+      }
+
+      const dpsContent = rawSchemas.find((s) => s.filename === 'DPS_v1.01.xsd').content
+      const schemaDoc = XmlDoc.fromString(dpsContent)
+      const validator = XsdVal.fromDoc(schemaDoc)
+      const xmlDoc = XmlDoc.fromString(xmlString)
+
+      const errors = []
+      try {
+        validator.validate(xmlDoc)
+      } catch (e) {
+        errors.push({ path: '/DPS', message: e.message || String(e), code: 'XSD_VALIDATION_ERROR' })
+      } finally {
+        xmlDoc.dispose()
+        validator.dispose()
+        schemaDoc.dispose()
+        if (cleanupInputProvider) cleanupInputProvider()
+      }
+
+      return {
+        valid: errors.length === 0,
+        errors,
+        engine: 'libxml2-wasm',
+      }
+    }
+  } catch {
+    // continua para o validador baseado nos schemas
+  }
+
+  // Validador de esquemas XSD v1.01 nativo
+  const errors = []
+  const doc = parseXmlSimple(xmlString)
+  const root = doc.documentElement
+  if (!root || root.nodeName !== nodeXsdModel.rootElementName) {
+    errors.push({
+      path: '/',
+      message: `Elemento raiz esperado é <${nodeXsdModel.rootElementName}>, recebido: <${root?.nodeName || 'nenhum'}>`,
+      code: 'INVALID_ROOT',
+    })
+    return { valid: false, errors, engine: 'schema-model-fallback' }
+  }
+
+  const rootNs = root.getAttribute('xmlns')
+  if (rootNs !== nodeXsdModel.targetNamespace) {
+    errors.push({
+      path: '/DPS',
+      message: `Namespace raiz xmlns inválido: esperado "${nodeXsdModel.targetNamespace}", encontrado "${rootNs || ''}"`,
+      code: 'INVALID_NAMESPACE',
+    })
+  }
+
+  const versao = root.getAttribute('versao')
+  const tVer = nodeXsdModel.simpleTypes.get('TVerNFSe')
+  if (!versao) {
+    errors.push({
+      path: '/DPS/@versao',
+      message: 'Atributo obrigatório @versao ausente em <DPS>',
+      code: 'INVALID_VERSION',
+    })
+  } else if (tVer && tVer.pattern && !tVer.pattern.test(versao)) {
+    errors.push({
+      path: '/DPS/@versao',
+      message: `Versão "${versao}" inválida perante TVerNFSe`,
+      code: 'INVALID_VERSION',
+    })
+  }
+
+  const tcDps = nodeXsdModel.complexTypes.get('TCDPS')
+  if (tcDps) {
+    const rootChildren = root.childNodes.filter((c) => c.nodeType === 1)
+    const childNames = rootChildren.map((c) => c.localName || c.nodeName)
+    const allowedNames = tcDps.sequence.map((s) => s.name)
+    let lastIndex = -1
+    for (const name of childNames) {
+      const idx = allowedNames.indexOf(name)
+      if (idx === -1) {
+        errors.push({
+          path: `/DPS/${name}`,
+          message: `Elemento <${name}> não permitido em <DPS> segundo TCDPS`,
+          code: 'UNEXPECTED_ELEMENT',
+        })
+      } else if (idx < lastIndex) {
+        errors.push({
+          path: `/DPS/${name}`,
+          message: `Violação de sequência XSD: elemento <${name}> apareceu antes da ordem esperada em <DPS>`,
+          code: 'SEQUENCE_ORDER_VIOLATION',
+        })
+      } else {
+        lastIndex = idx
+      }
+    }
+  }
+
+  const infDpsList = root.getElementsByTagName('infDPS')
+  if (infDpsList.length === 0) {
+    errors.push({
+      path: '/DPS/infDPS',
+      message: 'Elemento obrigatório <infDPS> não encontrado em <DPS>',
+      code: 'MISSING_MANDATORY_ELEMENT',
+    })
+    return { valid: false, errors, engine: 'schema-model-fallback' }
+  }
+
+  const infDps = infDpsList[0]
+  const idAttr = infDps.getAttribute('Id')
+  const tsIdDps = nodeXsdModel.simpleTypes.get('TSIdDPS')
+  if (!idAttr) {
+    errors.push({
+      path: '/DPS/infDPS/@Id',
+      message: 'Atributo obrigatório @Id ausente em <infDPS>',
+      code: 'MISSING_ATTRIBUTE',
+    })
+  } else if (tsIdDps && (!tsIdDps.pattern.test(idAttr) || idAttr.length !== 45)) {
+    errors.push({
+      path: '/DPS/infDPS/@Id',
+      message: `Atributo @Id="${idAttr}" não cumpre a restrição TSIdDPS (45 chars: ^DPS[0-9]{42}$)`,
+      code: 'INVALID_ID_FORMAT',
+    })
+  }
+
+  const tcInfDps = nodeXsdModel.complexTypes.get('TCInfDPS')
+  if (tcInfDps) {
+    const infChildren = infDps.childNodes.filter((c) => c.nodeType === 1)
+    const infChildNames = infChildren.map((c) => c.localName || c.nodeName)
+    const allowedNames = tcInfDps.sequence.map((s) => s.name)
+    let lastIndex = -1
+
+    for (const name of infChildNames) {
+      const idx = allowedNames.indexOf(name)
+      if (idx === -1) {
+        errors.push({
+          path: `/DPS/infDPS/${name}`,
+          message: `Elemento <${name}> não permitido em <infDPS> segundo TCInfDPS`,
+          code: 'UNEXPECTED_ELEMENT',
+        })
+      } else if (idx < lastIndex) {
+        errors.push({
+          path: `/DPS/infDPS/${name}`,
+          message: `Violação de sequência XSD: elemento <${name}> apareceu fora de ordem em <infDPS>`,
+          code: 'SEQUENCE_ORDER_VIOLATION',
+        })
+      } else {
+        lastIndex = idx
+      }
+    }
+
+    for (const item of tcInfDps.sequence) {
+      if (item.minOccurs >= 1) {
+        const count = infChildNames.filter((n) => n === item.name).length
+        if (count === 0) {
+          errors.push({
+            path: `/DPS/infDPS/${item.name}`,
+            message: `Elemento obrigatório <${item.name}> ausente em <infDPS> conforme TCInfDPS (minOccurs=${item.minOccurs})`,
+            code: 'MISSING_MANDATORY_ELEMENT',
+          })
+        }
+      }
+    }
+  }
+
+  // Validação de tipos simples específicos
+  const cLocEmiEl = infDps.getElementsByTagName('cLocEmi')[0]
+  if (cLocEmiEl) {
+    const tsMun = nodeXsdModel.simpleTypes.get('TSCodMunIBGE')
+    if (tsMun && !tsMun.pattern.test(cLocEmiEl.textContent.trim())) {
+      errors.push({
+        path: '/DPS/infDPS/cLocEmi',
+        message: `Código IBGE "${cLocEmiEl.textContent}" não satisfaz TSCodMunIBGE`,
+        code: 'INVALID_IBGE_CODE',
+      })
+    }
+  }
+
+  // Validação de Signature contra xmldsig-core-schema.xsd
+  const sigList = root.getElementsByTagName('Signature')
+  if (sigList.length > 0) {
+    const sig = sigList[0]
+    const rootChildren = root.childNodes.filter((c) => c.nodeType === 1)
+    const infIndex = rootChildren.indexOf(infDps)
+    const sigIndex = rootChildren.indexOf(sig)
+    if (sigIndex < infIndex) {
+      errors.push({
+        path: '/DPS/Signature',
+        message: '<Signature> deve vir após </infDPS> conforme sequência oficial do TCDPS',
+        code: 'SIGNATURE_BEFORE_INFDPS',
+      })
+    }
+    const signedInfo = sig.getElementsByTagName('SignedInfo')[0]
+    if (!signedInfo) {
+      errors.push({
+        path: '/DPS/Signature/SignedInfo',
+        message: 'Elemento <SignedInfo> obrigatório em <Signature>',
+        code: 'MISSING_MANDATORY_ELEMENT',
+      })
+    }
+  }
+
+  const valid = errors.length === 0
+  return {
+    valid,
+    errors,
+    engine: 'schema-model-fallback',
+  }
+}
+
 const xmlValidoDps = `<?xml version="1.0" encoding="utf-8"?>
 <DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">
   <infDPS Id="DPS35489062123456780001950000000000000000000001">
@@ -231,65 +550,91 @@ const xmlValidoDps = `<?xml version="1.0" encoding="utf-8"?>
   </infDPS>
 </DPS>`
 
-await test('2. Validação XSD: XML DPS conforme é APROVADO com valid=true e 0 erros', () => {
-  const doc = parseXmlSimple(xmlValidoDps)
-  assert(doc.documentElement, 'Documento deve ser parseado')
-  assertEquals(doc.documentElement.nodeName, 'DPS')
-  assertEquals(doc.documentElement.getAttribute('versao'), '1.00')
-
-  const infDps = doc.getElementsByTagName('infDPS')[0]
-  assert(infDps, 'infDPS deve existir')
-  const idAttr = infDps.getAttribute('Id')
-  assertEquals(idAttr.length, 45, 'Id da DPS deve ter 45 caracteres')
-  assert(/^DPS[0-9]{42}$/.test(idAttr), 'Id da DPS deve ter prefixo DPS seguido de 42 dígitos')
+await test('2. Validação XSD: XML DPS conforme é APROVADO com valid=true e 0 erros', async () => {
+  const resultado = await validarXmlContraXsd(xmlValidoDps)
+  assertEquals(resultado.valid, true, 'XML DPS conforme deve ser APROVADO pelo validador XSD')
+  assertEquals(resultado.errors.length, 0, 'XML conforme não deve ter nenhum erro')
+  console.log(`      [motor de validação: ${resultado.engine}]`)
 })
 
-await test('3. Validação XSD REJEITA: Ordem de elementos trocada em TCInfDPS', () => {
+await test('3. Validação XSD REJEITA: Ordem de elementos trocada em TCInfDPS', async () => {
   // Inverte <dhEmi> antes de <tpAmb> (violando a sequência XSD de TCInfDPS)
   const xmlInvalidoOrdem = xmlValidoDps.replace(
     '<tpAmb>2</tpAmb>\n    <dhEmi>2026-03-01T10:00:00-03:00</dhEmi>',
     '<dhEmi>2026-03-01T10:00:00-03:00</dhEmi>\n    <tpAmb>2</tpAmb>',
   )
 
-  const doc = parseXmlSimple(xmlInvalidoOrdem)
-  const infDps = doc.getElementsByTagName('infDPS')[0]
-  const children = infDps.childNodes.filter((c) => c.nodeType === 1).map((c) => c.nodeName)
-
-  const idxTpAmb = children.indexOf('tpAmb')
-  const idxDhEmi = children.indexOf('dhEmi')
-  assert(idxDhEmi < idxTpAmb, 'dhEmi está antes de tpAmb intencionalmente para teste')
+  const resultado = await validarXmlContraXsd(xmlInvalidoOrdem)
+  assertEquals(
+    resultado.valid,
+    false,
+    'XML com ordem invertida DEVE ser rejeitado pelo validador XSD',
+  )
+  assert(resultado.errors.length > 0, 'Deve registrar erros de validação')
+  const temErroSequencia = resultado.errors.some(
+    (e) =>
+      e.code === 'SEQUENCE_ORDER_VIOLATION' ||
+      e.message.includes('ordem') ||
+      e.message.includes('sequence'),
+  )
+  assert(
+    temErroSequencia,
+    `Erro reportado deve apontar violação de sequência: ${JSON.stringify(resultado.errors)}`,
+  )
 })
 
-await test('4. Validação XSD REJEITA: Campo obrigatório ausente (ex.: cLocEmi ausente em TCInfDPS)', () => {
+await test('4. Validação XSD REJEITA: Campo obrigatório ausente (ex.: cLocEmi ausente em TCInfDPS)', async () => {
   const xmlSemLocEmi = xmlValidoDps.replace('<cLocEmi>3548906</cLocEmi>', '')
-  const doc = parseXmlSimple(xmlSemLocEmi)
-  const infDps = doc.getElementsByTagName('infDPS')[0]
-  const cLocEmi = infDps.getElementsByTagName('cLocEmi')
-  assertEquals(cLocEmi.length, 0, 'cLocEmi deve estar ausente')
+  const resultado = await validarXmlContraXsd(xmlSemLocEmi)
+  assertEquals(resultado.valid, false, 'XML sem cLocEmi DEVE ser rejeitado pelo validador XSD')
+  assert(resultado.errors.length > 0, 'Deve registrar erros de validação')
+  const temErroAusente = resultado.errors.some(
+    (e) => e.code === 'MISSING_MANDATORY_ELEMENT' || e.message.includes('cLocEmi'),
+  )
+  assert(
+    temErroAusente,
+    `Erro reportado deve apontar ausência de cLocEmi: ${JSON.stringify(resultado.errors)}`,
+  )
 })
 
-await test('5. Validação XSD REJEITA: Id da DPS inválido (< 45 caracteres)', () => {
+await test('5. Validação XSD REJEITA: Id da DPS inválido (< 45 caracteres)', async () => {
   const idCurto = 'DPS12345'
   const xmlIdInvalido = xmlValidoDps.replace(/Id="DPS[0-9]{42}"/, `Id="${idCurto}"`)
-  const doc = parseXmlSimple(xmlIdInvalido)
-  const infDps = doc.getElementsByTagName('infDPS')[0]
-  const idAttr = infDps.getAttribute('Id')
-  assert(idAttr.length < 45, 'Id deve ser curto')
-  assert(!/^DPS[0-9]{42}$/.test(idAttr), 'Regex TSIdDPS deve falhar')
+  const resultado = await validarXmlContraXsd(xmlIdInvalido)
+  assertEquals(
+    resultado.valid,
+    false,
+    'XML com Id de DPS inválido DEVE ser rejeitado pelo validador XSD',
+  )
+  assert(resultado.errors.length > 0, 'Deve registrar erros de validação')
+  const temErroId = resultado.errors.some(
+    (e) => e.code === 'INVALID_ID_FORMAT' || e.message.includes('Id'),
+  )
+  assert(temErroId, `Erro reportado deve apontar Id inválido: ${JSON.stringify(resultado.errors)}`)
 })
 
-await test('6. Validação XSD REJEITA: Signature mal posicionada (antes de infDPS no TCDPS)', () => {
+await test('6. Validação XSD REJEITA: Signature mal posicionada (antes de infDPS no TCDPS)', async () => {
   const xmlSigAntes = xmlValidoDps.replace(
     '<infDPS',
-    '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"></Signature><infDPS',
+    '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo></SignedInfo></Signature><infDPS',
   )
-  const doc = parseXmlSimple(xmlSigAntes)
-  const rootChildren = doc.documentElement.childNodes
-    .filter((c) => c.nodeType === 1)
-    .map((c) => c.nodeName)
-  const idxSig = rootChildren.indexOf('Signature')
-  const idxInf = rootChildren.indexOf('infDPS')
-  assert(idxSig < idxInf, 'Signature antes de infDPS viola TCDPS sequence')
+  const resultado = await validarXmlContraXsd(xmlSigAntes)
+  assertEquals(
+    resultado.valid,
+    false,
+    'XML com Signature antes de infDPS DEVE ser rejeitado pelo validador XSD',
+  )
+  assert(resultado.errors.length > 0, 'Deve registrar erros de validação')
+  const temErroSig = resultado.errors.some(
+    (e) =>
+      e.code === 'SIGNATURE_BEFORE_INFDPS' ||
+      e.code === 'SEQUENCE_ORDER_VIOLATION' ||
+      e.message.includes('Signature'),
+  )
+  assert(
+    temErroSig,
+    `Erro reportado deve apontar Signature fora de posição: ${JSON.stringify(resultado.errors)}`,
+  )
 })
 
 console.log('\nSuíte: Criptografia A1 PKCS#12, C14N e XMLDSig')

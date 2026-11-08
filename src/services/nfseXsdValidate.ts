@@ -34,6 +34,8 @@ export interface XsdValidationResult {
   errors: XsdValidationError[]
   valido: boolean
   erros: XsdValidationError[]
+  engine?: 'libxml2-wasm' | 'schema-model-fallback'
+  warning?: string
   modelInfo?: {
     schemasCount: number
     simpleTypesCount: number
@@ -466,6 +468,71 @@ export function validarDpsXmlContraXsd(
         code: 'SIGNATURE_BEFORE_INFDPS',
       })
     }
+
+    // Validação da estrutura XMLDSig contra xmldsig-core-schema.xsd
+    // <Signature> deve conter <SignedInfo>, <SignatureValue> e opcionalmente <KeyInfo>, etc.
+    const signedInfoList = sig.getElementsByTagName('SignedInfo')
+    if (signedInfoList.length === 0) {
+      errors.push({
+        path: '/DPS/Signature/SignedInfo',
+        message:
+          'Elemento obrigatório <SignedInfo> ausente em <Signature> segundo xmldsig-core-schema.xsd',
+        code: 'MISSING_MANDATORY_ELEMENT',
+      })
+    } else {
+      const signedInfo = signedInfoList[0]
+      const c14nMethod = signedInfo.getElementsByTagName('CanonicalizationMethod')[0]
+      const sigMethod = signedInfo.getElementsByTagName('SignatureMethod')[0]
+      const reference = signedInfo.getElementsByTagName('Reference')[0]
+
+      if (!c14nMethod) {
+        errors.push({
+          path: '/DPS/Signature/SignedInfo/CanonicalizationMethod',
+          message: '<CanonicalizationMethod> obrigatório em <SignedInfo>',
+          code: 'MISSING_MANDATORY_ELEMENT',
+        })
+      }
+      if (!sigMethod) {
+        errors.push({
+          path: '/DPS/Signature/SignedInfo/SignatureMethod',
+          message: '<SignatureMethod> obrigatório em <SignedInfo>',
+          code: 'MISSING_MANDATORY_ELEMENT',
+        })
+      }
+      if (!reference) {
+        errors.push({
+          path: '/DPS/Signature/SignedInfo/Reference',
+          message: '<Reference> obrigatório em <SignedInfo>',
+          code: 'MISSING_MANDATORY_ELEMENT',
+        })
+      } else {
+        const digestMethod = reference.getElementsByTagName('DigestMethod')[0]
+        const digestValue = reference.getElementsByTagName('DigestValue')[0]
+        if (!digestMethod) {
+          errors.push({
+            path: '/DPS/Signature/SignedInfo/Reference/DigestMethod',
+            message: '<DigestMethod> obrigatório em <Reference>',
+            code: 'MISSING_MANDATORY_ELEMENT',
+          })
+        }
+        if (!digestValue || !digestValue.textContent?.trim()) {
+          errors.push({
+            path: '/DPS/Signature/SignedInfo/Reference/DigestValue',
+            message: '<DigestValue> com hash válido é obrigatório em <Reference>',
+            code: 'MISSING_MANDATORY_ELEMENT',
+          })
+        }
+      }
+    }
+
+    const signatureValueList = sig.getElementsByTagName('SignatureValue')
+    if (signatureValueList.length === 0 || !signatureValueList[0].textContent?.trim()) {
+      errors.push({
+        path: '/DPS/Signature/SignatureValue',
+        message: 'Elemento <SignatureValue> com conteúdo base64 é obrigatório em <Signature>',
+        code: 'MISSING_MANDATORY_ELEMENT',
+      })
+    }
   }
 
   const valid = errors.length === 0
@@ -474,6 +541,9 @@ export function validarDpsXmlContraXsd(
     errors,
     valido: valid,
     erros: errors,
+    engine: 'schema-model-fallback',
+    warning:
+      'Validação parcial orientada ao modelo XSD compilado dos schemas oficiais v1.01. Para validação nativa via libxml2-wasm (WASM), instale o pacote via npm i libxml2-wasm no repositório.',
     modelInfo: {
       schemasCount: xsdModel.rawSchemas.length,
       simpleTypesCount: xsdModel.simpleTypes.size,
@@ -483,4 +553,94 @@ export function validarDpsXmlContraXsd(
   }
 }
 
+/**
+ * Validação assíncrona contra os esquemas XSD v1.01 oficiais.
+ * Tenta dinamicamente o processador nativo WASM `libxml2-wasm` (se disponível no runtime)
+ * resolvendo todas as dependências (xsd:import / xsd:include) via XmlBufferInputProvider.
+ * Caso `libxml2-wasm` não esteja instalado (ex.: package.json protegido por preventAI),
+ * utiliza de forma transparente o validador estrito compilado dos XSDs oficiais com aviso de validação parcial.
+ */
+export async function validarDpsXmlContraXsdAsync(
+  xml: string,
+  parseDomFn?: (xml: string) => Document,
+): Promise<XsdValidationResult> {
+  try {
+    // Tentativa de carregar dinamicamente libxml2-wasm se o usuário já tiver instalado via GitHub
+    // Usando dynamic import com string concatenada para não quebrar build do Vite quando o pacote não existe
+    const libxmlModuleName = 'libxml2-wasm'
+    const libxml: any = await import(/* @vite-ignore */ libxmlModuleName).catch(() => null)
+
+    if (libxml && (libxml.XmlDocument || libxml.default?.XmlDocument)) {
+      const XmlDoc = libxml.XmlDocument || libxml.default.XmlDocument
+      const XsdVal = libxml.XsdValidator || libxml.default.XsdValidator
+      const regInputProvider =
+        libxml.xmlRegisterInputProvider || libxml.default?.xmlRegisterInputProvider
+      const cleanupInputProvider =
+        libxml.xmlCleanupInputProvider || libxml.default?.xmlCleanupInputProvider
+      const BufferProvider = libxml.XmlBufferInputProvider || libxml.default?.XmlBufferInputProvider
+
+      const { buildOfficialXsdModel } = await import('./nfseXsdLoader')
+      const model = buildOfficialXsdModel()
+      const dpsXsd = model.rawSchemas.find((s) => s.filename === 'DPS_v1.01.xsd')?.content || ''
+
+      const buffers: Record<string, Uint8Array> = {}
+      const encoder = new TextEncoder()
+      for (const s of model.rawSchemas) {
+        buffers[s.filename] = encoder.encode(s.content)
+      }
+
+      if (BufferProvider && regInputProvider) {
+        regInputProvider(new BufferProvider(buffers))
+      }
+
+      let schemaDoc: any = null
+      let validator: any = null
+      let xmlDoc: any = null
+
+      try {
+        schemaDoc = XmlDoc.fromString(dpsXsd)
+        validator = XsdVal.fromDoc(schemaDoc)
+        xmlDoc = XmlDoc.fromString(xml)
+
+        const errors: XsdValidationError[] = []
+        try {
+          validator.validate(xmlDoc)
+        } catch (valErr: any) {
+          const errMsg = valErr?.message || String(valErr)
+          errors.push({
+            path: '/DPS',
+            message: errMsg,
+            code: 'XSD_VALIDATION_ERROR',
+          })
+        }
+
+        const valid = errors.length === 0
+        return {
+          valid,
+          errors,
+          valido: valid,
+          erros: errors,
+          engine: 'libxml2-wasm',
+          modelInfo: {
+            schemasCount: model.rawSchemas.length,
+            simpleTypesCount: model.simpleTypes.size,
+            complexTypesCount: model.complexTypes.size,
+            rootElement: model.rootElementName,
+          },
+        }
+      } finally {
+        if (xmlDoc?.dispose) xmlDoc.dispose()
+        if (validator?.dispose) validator.dispose()
+        if (schemaDoc?.dispose) schemaDoc.dispose()
+        if (cleanupInputProvider) cleanupInputProvider()
+      }
+    }
+  } catch {
+    // Fallback silencioso para o validador compilado dos XSDs
+  }
+
+  return validarDpsXmlContraXsd(xml, parseDomFn)
+}
+
 export const validateDpsXmlAgainstXsd = validarDpsXmlContraXsd
+export const validateDpsXmlAgainstXsdAsync = validarDpsXmlContraXsdAsync

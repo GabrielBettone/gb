@@ -131,12 +131,44 @@ Os testes são executáveis de verdade e retornam falha (código de saída `exit
 # 1. Executar suíte de testes do Módulo NFS-e (Node.js)
 node scripts/test-runner.js
 
-# 2. Executar suíte de testes com Vitest (se configurado no ambiente)
+# 2. Executar suíte de testes com Vitest
 npx vitest run
 
 # 3. Executar testes unitários da Edge Function Deno (Supabase)
 deno test --allow-read supabase/functions/nfse-emissao/index_test.ts
 ```
+
+#### ⚠️ Nota Importante sobre o script `npm test` e o arquivo `package.json`
+
+O arquivo `package.json` deste projeto no ambiente de desenvolvimento é **protegido contra escrita pela IA (preventAI)** para preservar a integridade das dependências e builds. Por este motivo, a IA não possui permissão para editar diretamente o `package.json` na plataforma Skip.
+
+Atualmente, o `package.json` padrão possui:
+```json
+"scripts": {
+  "test": "echo \"there are no tests for this project\" && exit 0"
+}
+```
+
+**Como corrigir no GitHub externo (uma única vez):**
+Como a sincronização de código do Skip para o GitHub é de sentido único (sem pull de volta), edite o arquivo `package.json` diretamente no seu repositório GitHub e altere o script `"test"` para invocar o test-runner:
+```json
+"scripts": {
+  "test": "node scripts/test-runner.js"
+}
+```
+Dessa forma, tanto `npm test` quanto `node scripts/test-runner.js` executarão a suíte oficial com validação real e sem falsos positivos.
+
+#### 📦 Processador XML Schema Real (`libxml2-wasm`)
+
+Para validação estrita baseada em C/WASM contra os esquemas XSD oficiais v1.01 (com resolução de `xsd:import` e `xsd:include` em memória), adicione a dependência `libxml2-wasm` ao seu projeto via GitHub externo:
+
+```bash
+npm install libxml2-wasm
+```
+
+Enquanto a dependência é adicionada externamente, o módulo `nfseXsdValidate.ts` dispõe de:
+1. **Detecção Dinâmica do `libxml2-wasm`** (`validarDpsXmlContraXsdAsync`): Se o pacote estiver presente no `node_modules`, o processador WASM é instanciado automaticamente com os 4 XSDs oficiais em buffers virtuais (`XmlBufferInputProvider`).
+2. **Fallback Baseado no Modelo Oficial XSD v1.01**: Caso o pacote WASM ainda não esteja instalado, o motor compilado a partir dos 4 esquemas oficiais executa a verificação estrita de namespace, raiz, versão, ordenação de sequências (`xs:sequence`), cardinalidades (`minOccurs`/`maxOccurs`), padrões regex (`TSIdDPS`, `TSDateTimeUTC`, `TSCodMunIBGE`, etc.) e estrutura da assinatura digital (`xmldsig-core-schema.xsd`), emitindo sinalização explícita de `engine: "schema-model-fallback"`.
 
 #### Cobertura dos Testes:
 - **XSD v1.01 Vendored**: Verifica integridade e presença offline de `DPS_v1.01.xsd`, `tiposComplexos_v1.01.xsd`, `tiposSimples_v1.01.xsd` e `xmldsig-core-schema.xsd` nas pastas `schemas/nfse/v1.01/` e `src/schemas/nfse/v1.01/`.
