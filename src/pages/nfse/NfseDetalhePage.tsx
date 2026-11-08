@@ -154,6 +154,11 @@ export const NfseDetalhePage: React.FC = () => {
             <p className="text-xs text-[#616F7D] mt-0.5">
               Ambiente: {nota.ambiente === 'producao' ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO'} •{' '}
               {nota.data_competencia?.split('-').reverse().join('/')}
+              {(nota.orcamento_numero || nota.orcamento) && (
+                <span className="ml-2 font-medium text-[#2C3E50]">
+                  • Orçamento vinculado: {nota.orcamento_numero || nota.orcamento}
+                </span>
+              )}
             </p>
           </div>
         </div>

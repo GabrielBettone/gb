@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   status text NOT NULL DEFAULT 'rps' CHECK (status IN ('rps', 'transmitida', 'autorizada', 'rejeitada', 'cancelada')),
   ambiente text NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('producao', 'homologacao')),
-  orcamento uuid REFERENCES public.orcamentos(id) ON DELETE SET NULL,
-  orcamento_numero integer,
+  orcamento uuid,
+  orcamento_numero text,
   numero_rps integer NOT NULL,
   serie_rps text NOT NULL DEFAULT '1',
   tipo_rps text NOT NULL DEFAULT '1',
@@ -147,6 +147,98 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Migrações de coluna e compatibilização dinâmica da Foreign Key com orcamentos(id)
+-- Trata execuções prévias onde a coluna 'orcamento' pode ter sido criada como text ou uuid
+-- e onde 'orcamentos.id' no banco do usuário é uuid ou text.
+DO $$
+DECLARE
+  v_orcamento_data_type text;
+  v_orcamentos_pk_type text;
+  v_orcamento_num_type text;
+BEGIN
+  -- 5.1 Garante coluna orcamento_numero como text (para aceitar números como '001', 'ORC-2026-01' etc.)
+  SELECT data_type INTO v_orcamento_num_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'nfse_notas' AND column_name = 'orcamento_numero';
+
+  IF v_orcamento_num_type IS NOT NULL AND v_orcamento_num_type <> 'text' THEN
+    ALTER TABLE public.nfse_notas ALTER COLUMN orcamento_numero TYPE text USING orcamento_numero::text;
+  END IF;
+
+  -- 5.2 Descobre o tipo de dados da PK da tabela public.orcamentos (se existir)
+  SELECT c.data_type INTO v_orcamentos_pk_type
+  FROM information_schema.table_constraints tc
+  JOIN information_schema.key_column_usage kcu
+    ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+  JOIN information_schema.columns c
+    ON kcu.table_schema = c.table_schema AND kcu.table_name = c.table_name AND kcu.column_name = c.column_name
+  WHERE tc.constraint_type = 'PRIMARY KEY'
+    AND tc.table_schema = 'public'
+    AND tc.table_name = 'orcamentos'
+  LIMIT 1;
+
+  -- Fallback se a constraint PK não for encontrada mas a coluna id existir
+  IF v_orcamentos_pk_type IS NULL THEN
+    SELECT data_type INTO v_orcamentos_pk_type
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'orcamentos' AND column_name = 'id';
+  END IF;
+
+  -- 5.3 Descobre o tipo de dados da coluna 'orcamento' em nfse_notas
+  SELECT data_type INTO v_orcamento_data_type
+  FROM information_schema.columns
+  WHERE table_schema = 'public' AND table_name = 'nfse_notas' AND column_name = 'orcamento';
+
+  -- Remove qualquer constraint FK prévia com tipo incompatível para poder migrar
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+      AND table_name = 'nfse_notas'
+      AND constraint_name = 'nfse_notas_orcamento_fkey'
+  ) THEN
+    ALTER TABLE public.nfse_notas DROP CONSTRAINT nfse_notas_orcamento_fkey;
+  END IF;
+
+  -- Se orcamentos.id for uuid (caso do Supabase real do usuário) e a coluna em nfse_notas for text/outro tipo:
+  IF v_orcamentos_pk_type = 'uuid' THEN
+    IF v_orcamento_data_type IS NOT NULL AND v_orcamento_data_type <> 'uuid' THEN
+      -- Converte para uuid se compatível; se valor inválido em texto antigo, define como null para não quebrar
+      ALTER TABLE public.nfse_notas
+        ALTER COLUMN orcamento TYPE uuid
+        USING (
+          CASE
+            WHEN orcamento ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+            THEN orcamento::uuid
+            ELSE NULL
+          END
+        );
+    END IF;
+
+    -- Cria a foreign key compatível (uuid -> uuid)
+    ALTER TABLE public.nfse_notas
+      ADD CONSTRAINT nfse_notas_orcamento_fkey
+      FOREIGN KEY (orcamento) REFERENCES public.orcamentos(id) ON DELETE SET NULL;
+
+  -- Se orcamentos.id for text (caso de bases customizadas com IDs textuais orc_...)
+  ELSIF v_orcamentos_pk_type = 'text' OR v_orcamentos_pk_type LIKE 'character%' THEN
+    IF v_orcamento_data_type IS NOT NULL AND v_orcamento_data_type <> 'text' THEN
+      ALTER TABLE public.nfse_notas
+        ALTER COLUMN orcamento TYPE text
+        USING orcamento::text;
+    END IF;
+
+    -- Cria a foreign key compatível (text -> text)
+    ALTER TABLE public.nfse_notas
+      ADD CONSTRAINT nfse_notas_orcamento_fkey
+      FOREIGN KEY (orcamento) REFERENCES public.orcamentos(id) ON DELETE SET NULL;
+
+  -- Se a tabela orcamentos não existir no momento da execução, garante coluna uuid por padrão
+  ELSIF v_orcamento_data_type IS NULL THEN
+    ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS orcamento uuid;
+  END IF;
+
+END $$;
 
 -- Índices úteis
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_orcamento ON public.nfse_notas(orcamento);
