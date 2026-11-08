@@ -122,7 +122,22 @@ async function edgeFetch(rota: string, init: RequestInit = {}): Promise<Response
   const { publicKey } = getSupabaseConfig()
   const headers = new Headers(init.headers || {})
   headers.set('apikey', publicKey)
-  if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${publicKey}`)
+
+  // Injeta token JWT do usuário autenticado no Supabase (obrigatório para Edge Functions protegidas)
+  try {
+    const { supabaseAuth } = await import('../lib/supabase/auth')
+    const userToken = (await supabaseAuth.getValidToken()) || supabaseAuth.getToken()
+    if (userToken) {
+      headers.set('Authorization', `Bearer ${userToken}`)
+    } else if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${publicKey}`)
+    }
+  } catch (_) {
+    if (!headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${publicKey}`)
+    }
+  }
+
   return fetch(edgeUrl(rota), { ...init, headers })
 }
 
@@ -339,7 +354,7 @@ export const nfseApi = {
       )
 
     const impostos = calcularImpostos(orcamento.valor_total || 0, {
-      aliquotaIss: servico ? Number(servico.aliquota_iss) : config.aliquota_iss_padrao || 3,
+      aliquotaIss: servico ? Number(servico.aliquota_iss) : config.aliquota_iss_padrao || 2,
       issRetido: false,
       tomadorPessoaJuridica: docDigitos.length === 14,
       reterIrrf: servico ? servico.reter_irrf : true,
@@ -350,6 +365,11 @@ export const nfseApi = {
 
     const agora = new Date()
     const proximoRps = await this.proximoNumeroRps()
+    const desc =
+      servico?.nome ||
+      'Serviços de gesso e acabamentos conforme orçamento ' + (orcamento.numero || orcamento.id)
+    const codLc = servico?.codigo_lc116 || ''
+
     const rows = await supabaseInsert<any>('nfse_notas', {
       status: 'rps',
       ambiente: config.ambiente || 'homologacao',
@@ -358,9 +378,8 @@ export const nfseApi = {
       orcamento_numero: orcamento.numero || '',
       servico: servicoId,
       numero_rps: proximoRps,
-      descricao_servico:
-        servico?.nome ||
-        'Serviços de gesso e acabamentos conforme orçamento ' + (orcamento.numero || orcamento.id),
+      descricao_servico: desc,
+      discriminacao_servicos: desc,
       observacoes: (orcamento as any).observacoes || '',
       valor_servicos: orcamento.valor_total || 0,
       aliquota_iss: impostos.aliquotaIss,
@@ -374,18 +393,18 @@ export const nfseApi = {
       data_emissao_dps: new Date(agora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19),
       tomador_nome: orcamento.cliente || '',
       tomador_documento: docTomador,
-      codigo_lc116: servico?.codigo_lc116 || '',
+      codigo_lc116: codLc,
+      servico_codigo_lc116: codLc,
       exigibilidade_iss: 1,
     })
     return mapearNota(rows[0])
   },
-
   async criarNotaAvulsa(payload: Record<string, unknown>): Promise<NFSeNota> {
     const doc = String(payload.tomador_documento || '').replace(/\D/g, '')
     const config = await this.obterConfig()
     const valor = Number(payload.valor_servicos || 0)
     const impostos = calcularImpostos(valor, {
-      aliquotaIss: Number(payload.aliquota_iss || (config ? config.aliquota_iss_padrao : 3) || 3),
+      aliquotaIss: Number(payload.aliquota_iss || (config ? config.aliquota_iss_padrao : 2) || 2),
       issRetido: Boolean(payload.iss_retido),
       tomadorPessoaJuridica: doc.length === 14,
       reterIrrf: payload.reter_irrf !== false,
@@ -395,6 +414,10 @@ export const nfseApi = {
     })
     const agora = new Date()
     const proximoRps = await this.proximoNumeroRps()
+    const desc =
+      (payload.descricao_servico as string) || (payload.discriminacao_servicos as string) || ''
+    const codLc = (payload.codigo_lc116 as string) || (payload.servico_codigo_lc116 as string) || ''
+
     const rows = await supabaseInsert<any>('nfse_notas', {
       status: 'rps',
       ambiente: config?.ambiente || 'homologacao',
@@ -410,6 +433,10 @@ export const nfseApi = {
       valor_pis: impostos.valorPis,
       exigibilidade_iss: 1,
       ...payload,
+      descricao_servico: desc,
+      discriminacao_servicos: desc,
+      codigo_lc116: codLc,
+      servico_codigo_lc116: codLc,
     })
     return mapearNota(rows[0])
   },

@@ -20,19 +20,26 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injetados automaticamente)
 //   NFSE_CERT_PASSWORD_KEY  -> chave simétrica para cifrar a senha do .pfx
 //
-// ATENÇÃO: a senha do certificado NUNCA é logada nem retornada ao cliente.
-// Em caso de falha (ambiente sem suporte a mTLS, certificado vencido, erro de
-// schema), devolve { error: "..." } com status 4xx/5xx — JAMAIS finge sucesso.
+// SEGURANÇA:
+//   Exige header Authorization com JWT de usuário Supabase válido em todas
+//   as rotas exceto OPTIONS (CORS preflight). Sem token válido de usuário,
+//   a função devolve HTTP 401.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const PASSWORD_KEY = Deno.env.get('NFSE_CERT_PASSWORD_KEY') || ''
 
 const API_BASE: Record<string, string> = {
   homologacao: 'https://api.nfse.gov.br/homologacao',
   producao: 'https://api.nfse.gov.br',
+}
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
 }
 
 // ---------------------------------------------------------------------------
@@ -41,12 +48,49 @@ const API_BASE: Record<string, string> = {
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...CORS_HEADERS,
+    },
   })
 }
 
 function erro(mensagem: string, status = 400): Response {
   return json({ error: mensagem }, status)
+}
+
+// ---------------------------------------------------------------------------
+// Validação de Autenticação JWT (Exige usuário Supabase válido)
+// ---------------------------------------------------------------------------
+async function validarUsuarioAutenticado(
+  req: Request,
+  supaClient: ReturnType<typeof createClient>,
+): Promise<{ ok: boolean; erro?: string; user?: any }> {
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+  if (!authHeader) {
+    return { ok: false, erro: 'Cabeçalho Authorization não fornecido.' }
+  }
+
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+  if (!token) {
+    return { ok: false, erro: 'Token de autorização ausente.' }
+  }
+
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supaClient.auth.getUser(token)
+    if (error || !user) {
+      return {
+        ok: false,
+        erro: 'Token inválido ou expirado: ' + (error?.message || 'usuário não autenticado'),
+      }
+    }
+    return { ok: true, user }
+  } catch (e: any) {
+    return { ok: false, erro: 'Falha ao validar autenticação: ' + (e?.message || String(e)) }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +101,6 @@ async function cifraSenha(senha: string): Promise<{ c: string; iv: string; tag: 
   if (raw.length < 32) throw new Error('NFSE_CERT_PASSWORD_KEY precisa ter 32+ caracteres.')
   const key = await crypto.subtle.importKey('raw', raw.slice(0, 32), 'AES-GCM', false, ['encrypt'])
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  // WebCrypto anexa a tag ao ciphertext; guardamos separado por compatibilidade de schema.
   const enc = new Uint8Array(
     await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(senha)),
   )
@@ -104,26 +147,27 @@ async function extrairPemDoPfx(pfxBase64: string, senha: string) {
       'Não foi possível extrair certificado e/ou chave privada do .pfx (senha incorreta ou arquivo inválido).',
     )
   const certPem = forge.pki.certificateToPem(cert)
-  // Converte a chave para PKCS8 PEM ("-----BEGIN PRIVATE KEY-----"), exigido pelo Deno mTLS.
   const rsaKey = keyItem.key as forge.pki.rsa.PrivateKey
   const pkcs8Der = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(rsaKey))
   const keyPem = forge.pki.privateKeyToPem(pkcs8Der)
   const validade = cert.validity.notAfter
+  const titular = cert.subject.getField('CN')?.value || ''
+  const emissor = cert.issuer.getField('CN')?.value || cert.issuer.getField('O')?.value || ''
   return {
     certPem,
     keyPem,
     validoAte: `${validade.getFullYear()}-${String(validade.getMonth() + 1).padStart(2, '0')}-${String(validade.getDate()).padStart(2, '0')}`,
-    cnpj: (cert.subject.getField('CN')?.value || '').replace(/\D/g, ''),
+    validadeFim: validade.toISOString(),
+    cnpj: titular.replace(/\D/g, ''),
+    titular,
+    emissor,
   }
 }
 
 // ---------------------------------------------------------------------------
-// XMLDSig: assinatura enveloped RSA-SHA256 com C14N exclusiva do elemento <rps>
-// (implementação direta, sem dependências extras além de node-forge p/ RSA)
+// XMLDSig: assinatura enveloped RSA-SHA256 com C14N exclusiva do elemento <infDPS>
 // ---------------------------------------------------------------------------
 function c14nXml(el: Element): string {
-  // O DPS é gerado por nós com atributos simples e sem namespaces redundantes:
-  // serialização canônica reduz-se a ordenar atributos e escapar texto.
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   const attrs = Array.from(el.attributes)
@@ -173,12 +217,11 @@ async function assinarXml(
     ),
   )
 
-  const now = new Date()
   const signedInfo = [
     `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">`,
     `<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>`,
     `<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>`,
-    `<Reference URI="#${alvo.getAttribute('id') || ''}">`,
+    `<Reference URI="#${alvo.getAttribute('Id') || alvo.getAttribute('id') || ''}">`,
     `<Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms>`,
     `<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>`,
     `<DigestValue>${digestB64}</DigestValue>`,
@@ -204,7 +247,7 @@ async function assinarXml(
 }
 
 // ---------------------------------------------------------------------------
-// Geração do XML da DPS (padrão nacional NFS-e / meus pedidos da LC 116)
+// Geração do XML da DPS (padrão nacional NFS-e / LC 116)
 // ---------------------------------------------------------------------------
 interface DpsInput {
   ambiente: string
@@ -257,9 +300,7 @@ function montarDpsXml(i: DpsInput): string {
     `</tomador>`,
   ].join('')
 
-  const locPrest = i.issRetido
-    ? `<municipioIncidencia><CodigoMunicipioIBGE>${xmlEsc(i.enderecoPrestador.codigoMunicipio)}</CodigoMunicipioIBGE></municipioIncidencia>`
-    : `<municipioIncidencia><CodigoMunicipioIBGE>${xmlEsc(i.enderecoPrestador.codigoMunicipio)}</CodigoMunicipioIBGE></municipioIncidencia>`
+  const locPrest = `<municipioIncidencia><CodigoMunicipioIBGE>${xmlEsc(i.enderecoPrestador.codigoMunicipio)}</CodigoMunicipioIBGE></municipioIncidencia>`
 
   const servicoXml = [
     `<servico>`,
@@ -282,9 +323,7 @@ function montarDpsXml(i: DpsInput): string {
     `<trib>`,
     `<tribMun>`,
     `<tribISSQN>1</tribISSQN>`,
-    i.issRetido
-      ? `<pAliq>${i.aliquotaIss.toFixed(2)}</pAliq>`
-      : `<pAliq>${i.aliquotaIss.toFixed(2)}</pAliq>`,
+    `<pAliq>${i.aliquotaIss.toFixed(2)}</pAliq>`,
     `</tribMun>`,
     `</trib>`,
     `</valores>`,
@@ -342,12 +381,19 @@ async function obterCertificado(supaClient: ReturnType<typeof createClient>) {
     .limit(1)
     .maybeSingle()
   if (error) throw new Error('Falha ao ler certificado: ' + error.message)
-  return data as {
+  if (!data) return null
+
+  // Suporte a arquivo_path ou storage_path
+  const arquivoPath = data.arquivo_path || data.storage_path
+  return {
+    ...data,
+    arquivo_path: arquivoPath,
+  } as {
     arquivo_path: string
     senha_cifrada: string
-    senha_iv: string
-    senha_tag: string
-  } | null
+    senha_iv?: string
+    senha_tag?: string
+  }
 }
 
 async function baixarPfx(
@@ -363,15 +409,16 @@ async function baixarPfx(
   return btoa(s)
 }
 
-async function configurarMtls(certPem: string, keyPem: string): Promise<HttpClient> {
-  // Deno moderno aceita createHttpClient; versões antigas sem suporte devolvem erro
-  // claro abaixo (nunca simular envio sem mTLS).
-  const client = Deno.createHttpClient({
+async function configurarMtls(certPem: string, keyPem: string): Promise<any> {
+  if (typeof (Deno as any).createHttpClient !== 'function') {
+    throw new Error('Ambiente Deno sem suporte a createHttpClient para mTLS com a Receita Federal.')
+  }
+  const client = (Deno as any).createHttpClient({
     caCerts: [certPem],
     key: keyPem,
     cert: certPem,
   })
-  return client as HttpClient
+  return client
 }
 
 // ---------------------------------------------------------------------------
@@ -390,24 +437,56 @@ async function enviarDps(
       "Certificado A1 não cadastrado. Envie o .pfx na aba 'Certificado e sistema nacional'.",
     )
 
+  if (!cert.senha_iv || !cert.senha_tag) {
+    throw new Error(
+      'Certificado com formato de cifragem legado. Reinstale o .pfx na aba Certificado.',
+    )
+  }
+
   const senha = await decifraSenha(cert.senha_cifrada, cert.senha_iv, cert.senha_tag)
   const pfxB64 = await baixarPfx(supaClient, cert.arquivo_path)
   const { certPem, keyPem } = await extrairPemDoPfx(pfxB64, senha)
 
+  const agoraIso = new Date().toISOString()
+  const dataEmissaoDps =
+    nota.data_emissao_dps ||
+    nota.data_emissao ||
+    new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 19)
+
+  const dataCompetencia =
+    nota.data_competencia ||
+    (nota.data_emissao ? String(nota.data_emissao).slice(0, 10) : agoraIso.slice(0, 10))
+
+  const codigoMunicipio =
+    config.municipio_incidencia_ibge ||
+    config.codigo_municipio_padrao ||
+    emitente.codigo_municipio_ibge ||
+    '3550407'
+
+  const codigoLc116 =
+    nota.codigo_lc116 || nota.servico_codigo_lc116 || servico?.codigo_lc116 || '14.13'
+
+  const descricaoServico =
+    nota.descricao_servico ||
+    nota.discriminacao_servicos ||
+    servico?.descricao ||
+    servico?.nome ||
+    'Serviços prestados'
+
   const dpsXml = montarDpsXml({
-    ambiente: nota.ambiente,
-    dataEmissao: nota.data_emissao_dps,
+    ambiente: nota.ambiente || 'homologacao',
+    dataEmissao: dataEmissaoDps,
     cnpjPrestador: emitente.cnpj,
-    inscricaoMunicipal: emitente.inscricao_municipal,
+    inscricaoMunicipal: emitente.inscricao_municipal || '',
     razaoSocial: emitente.razao_social,
     enderecoPrestador: {
       logradouro: emitente.logradouro || '',
       numero: emitente.numero || 'S/N',
       bairro: emitente.bairro || '',
-      municipio: emitente.municipio || '',
-      uf: emitente.uf || '',
+      municipio: emitente.municipio || 'São Pedro',
+      uf: emitente.uf || 'SP',
       cep: emitente.cep || '',
-      codigoMunicipio: config.municipio_incidencia_ibge,
+      codigoMunicipio,
       telefone: emitente.telefone || '',
       email: emitente.email || '',
     },
@@ -417,28 +496,33 @@ async function enviarDps(
     municipioTomador: nota.tomador_municipio,
     ufTomador: nota.tomador_uf,
     servico: {
-      lc116: nota.codigo_lc116,
-      codigoTribMunicipio: nota.codigo_tributario_municipio,
-      descricao: nota.descricao_servico,
+      lc116: codigoLc116,
+      codigoTribMunicipio: nota.codigo_tributario_municipio || '',
+      descricao: descricaoServico,
     },
     valorServicos: Number(nota.valor_servicos),
-    aliquotaIss: Number(nota.aliquota_iss),
+    aliquotaIss: Number(nota.aliquota_iss || 2.0),
     issRetido: Boolean(nota.iss_retido),
     exigibilidadeIss: nota.exigibilidade_iss ?? 1,
-    competencia: nota.data_competencia,
+    competencia: dataCompetencia,
     numeroRps: Number(nota.numero_rps),
     serieRps: nota.serie_rps || '1',
-    observacoes: nota.observacoes,
+    observacoes: nota.observacoes || '',
   })
 
   const xmlAssinado = await assinarXml(dpsXml, 'infDPS', certPem, keyPem)
   await supaClient
     .from('nfse_notas')
-    .update({ xml_dps: xmlAssinado, status: 'enviando' })
+    .update({
+      xml_dps: xmlAssinado,
+      xml_distribuicao: xmlAssinado,
+      status: 'enviando',
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', nota.id)
 
   const client = await configurarMtls(certPem, keyPem)
-  const url = `${API_BASE[nota.ambiente]}/dps`
+  const url = `${API_BASE[nota.ambiente || 'homologacao']}/dps`
   try {
     const resp = await fetch(url, {
       method: 'POST',
@@ -447,7 +531,6 @@ async function enviarDps(
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      // O sistema nacional aceita o XML da DPS em JSON empacotado (campo "xml").
       body: JSON.stringify({ xml: xmlAssinado }),
     })
     const txt = await resp.text()
@@ -464,25 +547,41 @@ async function enviarDps(
         parsed.error ||
         parsed.reasonPhrase ||
         `Falha no envio (HTTP ${resp.status})`
+      const protocolo = parsed.numeroProtocolo || parsed.protocolo || ''
       const retorno = {
         status: 'rejeitada' as const,
         mensagem_erro: msg,
-        protocolo: parsed.numeroProtocolo || parsed.protocolo || '',
+        mensagem_retorno: msg,
+        protocolo,
+        codigo_retorno: String(parsed.codigo || resp.status),
+        payload_retorno: parsed,
+        updated_at: new Date().toISOString(),
       }
       await supaClient.from('nfse_notas').update(retorno).eq('id', nota.id)
       return { ok: false, erro: msg }
     }
 
     // Sucesso: autorizada
+    const protocolo = parsed.numeroProtocolo || parsed.protocolo || ''
+    const numeroNfse = String(parsed.numeroAcesso || parsed.numero || '')
+    const chaveAcesso = String(parsed.chaveAcesso || parsed.chave || '')
     const retorno = {
       status: 'autorizada' as const,
-      protocolo: parsed.numeroProtocolo || parsed.protocolo || '',
-      numero_nfse: String(parsed.numeroAcesso || parsed.numero || ''),
+      protocolo,
+      numero_nfse: numeroNfse,
+      chave_acesso: chaveAcesso,
+      codigo_verificacao: parsed.codigoVerificacao || null,
       data_autorizacao: parsed.dataEmissao
         ? new Date(parsed.dataEmissao).toISOString()
         : new Date().toISOString(),
       xml_nfse: parsed.xml || null,
+      xml_distribuicao: parsed.xml || xmlAssinado,
+      link_danfse: parsed.linkDanfse || parsed.linkImpressao || null,
       mensagem_erro: null,
+      mensagem_retorno: parsed.mensagem || 'Autorizada com sucesso',
+      codigo_retorno: '100',
+      payload_retorno: parsed,
+      updated_at: new Date().toISOString(),
     }
     await supaClient.from('nfse_notas').update(retorno).eq('id', nota.id)
     return { ok: true, retorno }
@@ -490,11 +589,20 @@ async function enviarDps(
     const msg = e?.message || String(e)
     await supaClient
       .from('nfse_notas')
-      .update({ status: 'erro', mensagem_erro: msg })
+      .update({
+        status: 'erro',
+        mensagem_erro: msg,
+        mensagem_retorno: msg,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', nota.id)
     return { ok: false, erro: msg }
   } finally {
-    client.close()
+    try {
+      client?.close?.()
+    } catch (_) {
+      // Ignora erro de fechamento
+    }
   }
 }
 
@@ -505,14 +613,18 @@ async function consultarDps(nota: Record<string, any>) {
   const supaClient = supa()
   const cert = await obterCertificado(supaClient)
   if (!cert) throw new Error('Certificado A1 não cadastrado.')
+  if (!cert.senha_iv || !cert.senha_tag) {
+    throw new Error('Certificado com cifragem legada. Reinstale o .pfx.')
+  }
   const senha = await decifraSenha(cert.senha_cifrada, cert.senha_iv, cert.senha_tag)
   const pfxB64 = await baixarPfx(supaClient, cert.arquivo_path)
   const { certPem, keyPem } = await extrairPemDoPfx(pfxB64, senha)
 
   const client = await configurarMtls(certPem, keyPem)
+  const ambiente = nota.ambiente || 'homologacao'
   const url = nota.numero_nfse
-    ? `${API_BASE[nota.ambiente]}/nfse/${encodeURIComponent(nota.numero_nfse)}`
-    : `${API_BASE[nota.ambiente]}/dps/protocolo/${encodeURIComponent(nota.protocolo)}`
+    ? `${API_BASE[ambiente]}/nfse/${encodeURIComponent(nota.numero_nfse)}`
+    : `${API_BASE[ambiente]}/dps/protocolo/${encodeURIComponent(nota.protocolo || '')}`
   try {
     const resp = await fetch(url, { client, headers: { Accept: 'application/json' } })
     const txt = await resp.text()
@@ -526,20 +638,30 @@ async function consultarDps(nota: Record<string, any>) {
       const msg = parsed.message || parsed.error || `Falha na consulta (HTTP ${resp.status})`
       return { ok: false, erro: msg }
     }
+    const novoStatus = parsed.status === 'cancelada' ? 'cancelada' : 'autorizada'
     const update: Record<string, unknown> = {
-      status: parsed.status === 'cancelada' ? 'cancelada' : 'autorizada',
+      status: novoStatus,
       numero_nfse: String(parsed.numeroAcesso || parsed.numero || nota.numero_nfse || ''),
+      chave_acesso: String(parsed.chaveAcesso || parsed.chave || nota.chave_acesso || ''),
       xml_nfse: parsed.xml || nota.xml_nfse || null,
+      xml_distribuicao: parsed.xml || nota.xml_distribuicao || null,
+      link_danfse: parsed.linkDanfse || parsed.linkImpressao || nota.link_danfse || null,
       data_autorizacao: parsed.dataEmissao
         ? new Date(parsed.dataEmissao).toISOString()
         : nota.data_autorizacao,
+      payload_retorno: parsed,
+      updated_at: new Date().toISOString(),
     }
     await supaClient.from('nfse_notas').update(update).eq('id', nota.id)
     return { ok: true, retorno: update }
   } catch (e: any) {
     return { ok: false, erro: e?.message || String(e) }
   } finally {
-    client.close()
+    try {
+      client?.close?.()
+    } catch (_) {
+      // Ignora erro de fechamento
+    }
   }
 }
 
@@ -552,17 +674,17 @@ Deno.serve(async (req) => {
   const idx = path.indexOf('/nfse-emissao')
   const route = idx >= 0 ? path.substring(idx + '/nfse-emissao'.length) : path
 
-  const supaClient = supa()
-
   // ---- CORS básico (chamado pelo painel) ----
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
-      },
-    })
+    return new Response(null, { headers: CORS_HEADERS })
+  }
+
+  const supaClient = supa()
+
+  // ---- Segurança obrigatória: exige JWT de usuário Supabase válido ----
+  const authCheck = await validarUsuarioAutenticado(req, supaClient)
+  if (!authCheck.ok) {
+    return erro(authCheck.erro || 'Não autorizado: token de usuário inválido.', 401)
   }
 
   try {
@@ -576,11 +698,15 @@ Deno.serve(async (req) => {
         return erro('Segredo NFSE_CERT_PASSWORD_KEY não configurado no Supabase.', 500)
 
       // Valida o .pfx ANTES de gravar (senha correta, certificado legível)
-      const { validoAte, cnpj } = await extrairPemDoPfx(pfxBase64, senha)
-      const path = `certificados/${Date.now()}-${(body.nome_arquivo || 'certificado.pfx').replace(/[^a-zA-Z0-9._-]/g, '_')}`
+      const { validoAte, validadeFim, cnpj, titular, emissor } = await extrairPemDoPfx(
+        pfxBase64,
+        senha,
+      )
+      const nomeArquivo = (body.nome_arquivo || 'certificado.pfx').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const storagePath = `certificados/${Date.now()}-${nomeArquivo}`
 
       const { error: upErr } = await supaClient.storage.from('nfse_certificados').upload(
-        path,
+        storagePath,
         Uint8Array.from(atob(pfxBase64), (ch) => ch.charCodeAt(0)),
         {
           contentType: 'application/x-pkcs12',
@@ -592,30 +718,51 @@ Deno.serve(async (req) => {
       const cif = await cifraSenha(senha)
       await supaClient.from('nfse_certificado').update({ ativo: false }).eq('ativo', true)
       const { error: insErr } = await supaClient.from('nfse_certificado').insert({
-        arquivo_path: path,
+        id: 'default',
+        storage_path: storagePath,
+        arquivo_path: storagePath,
         nome_arquivo: body.nome_arquivo || 'certificado.pfx',
         senha_cifrada: cif.c,
         senha_iv: cif.iv,
         senha_tag: cif.tag,
         valido_ate: body.valido_ate || validoAte,
+        validade_fim: validadeFim,
         cnpj_certificado: cnpj || null,
+        titular: titular || null,
+        emissor: emissor || null,
         ativo: true,
+        updated_at: new Date().toISOString(),
       })
       if (insErr) return erro('Falha ao gravar registro do certificado: ' + insErr.message, 500)
 
-      return json({ ok: true, valido_ate: body.valido_ate || validoAte })
+      return json({ ok: true, valido_ate: body.valido_ate || validoAte, titular, emissor })
     }
 
     // GET /certificado/status
     if (route === '/certificado/status' && req.method === 'GET') {
       const { data } = await supaClient
         .from('nfse_certificado')
-        .select('nome_arquivo, valido_ate, created_at, ativo')
+        .select(
+          'nome_arquivo, valido_ate, validade_fim, titular, emissor, cnpj_certificado, created_at, ativo',
+        )
         .eq('ativo', true)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
-      return json({ existe: Boolean(data), ...(data || {}) })
+
+      const validoAte =
+        data?.valido_ate ||
+        (data?.validade_fim ? String(data.validade_fim).slice(0, 10) : undefined)
+      const vencido = data?.validade_fim
+        ? new Date(data.validade_fim).getTime() < Date.now()
+        : false
+      return json({
+        existe: Boolean(data),
+        instalado: Boolean(data),
+        vencido,
+        valido_ate: validoAte,
+        ...(data || {}),
+      })
     }
 
     // POST /enviar
@@ -673,11 +820,14 @@ Deno.serve(async (req) => {
       const notaId = route.split('/')[2]
       const { data: nota } = await supaClient
         .from('nfse_notas')
-        .select('xml_dps, xml_nfse')
+        .select('xml_dps, xml_nfse, xml_distribuicao')
         .eq('id', notaId)
         .maybeSingle()
       if (!nota) return erro('Nota não encontrada.', 404)
-      return json({ xml_dps: nota.xml_dps || '', xml_nfse: nota.xml_nfse || '' })
+      return json({
+        xml_dps: nota.xml_dps || nota.xml_distribuicao || '',
+        xml_nfse: nota.xml_nfse || '',
+      })
     }
 
     return erro('Rota não encontrada: ' + route, 404)

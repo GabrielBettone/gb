@@ -20,9 +20,23 @@ CREATE TABLE IF NOT EXISTS public.nfse_config (
   regime_tributario text NOT NULL DEFAULT 'simples_nacional' CHECK (regime_tributario IN ('simples_nacional', 'lucro_presumido', 'lucro_real', 'mei')),
   aliquota_iss_padrao numeric(5,2) NOT NULL DEFAULT 2.00,
   codigo_municipio_padrao text NOT NULL DEFAULT '3550407', -- São Pedro / SP
+  municipio_incidencia_ibge text NOT NULL DEFAULT '3550407',
+  municipio_incidencia text NOT NULL DEFAULT 'São Pedro',
+  uf_municipio_incidencia text NOT NULL DEFAULT 'SP',
+  municipio_iss text NOT NULL DEFAULT 'São Pedro/SP — IBGE 3550407',
+  reter_federais_padrao boolean NOT NULL DEFAULT true,
   incentivo_fiscal boolean NOT NULL DEFAULT false,
+  observacoes text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Migrações idempotentes de coluna para nfse_config
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS municipio_incidencia_ibge text DEFAULT '3550407';
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS municipio_incidencia text DEFAULT 'São Pedro';
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS uf_municipio_incidencia text DEFAULT 'SP';
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS municipio_iss text DEFAULT 'São Pedro/SP — IBGE 3550407';
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS reter_federais_padrao boolean DEFAULT true;
+ALTER TABLE public.nfse_config ADD COLUMN IF NOT EXISTS observacoes text;
 
 -- 2. Tabela: nfse_emitente (dados cadastrais da empresa prestadora)
 CREATE TABLE IF NOT EXISTS public.nfse_emitente (
@@ -44,7 +58,7 @@ CREATE TABLE IF NOT EXISTS public.nfse_emitente (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Migrações de coluna para compatibilidade com versões prévias do schema
+-- Migrações idempotentes de coluna para compatibilidade com versões prévias do schema
 ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS complemento text;
 ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS logradouro text;
 ALTER TABLE public.nfse_emitente ADD COLUMN IF NOT EXISTS numero text;
@@ -70,46 +84,76 @@ CREATE TABLE IF NOT EXISTS public.nfse_servicos (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Migração de colunas para nfse_servicos
+-- Migrações idempotentes de coluna para nfse_servicos
 ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_irrf boolean NOT NULL DEFAULT true;
 ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_csll boolean NOT NULL DEFAULT true;
 ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_cofins boolean NOT NULL DEFAULT true;
 ALTER TABLE public.nfse_servicos ADD COLUMN IF NOT EXISTS reter_pis boolean NOT NULL DEFAULT true;
 
 -- 4. Tabela: nfse_certificado (armazenamento seguro do certificado digital A1)
+-- Reconciliada com a Edge Function: aceita arquivo_path/storage_path, senha_cifrada,
+-- senha_iv, senha_tag, valido_ate/validade_fim, nome_arquivo, ativo, titular, emissor, cnpj_certificado.
 CREATE TABLE IF NOT EXISTS public.nfse_certificado (
   id text PRIMARY KEY DEFAULT 'default',
-  storage_path text NOT NULL,
+  storage_path text,
+  arquivo_path text,
+  nome_arquivo text NOT NULL DEFAULT 'certificado.pfx',
   senha_cifrada text NOT NULL,
+  senha_iv text,
+  senha_tag text,
   validade_fim timestamptz,
+  valido_ate text,
   emissor text,
   titular text,
   cnpj_certificado text,
+  ativo boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Migrações idempotentes de colunas para nfse_certificado
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS storage_path text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS arquivo_path text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS nome_arquivo text DEFAULT 'certificado.pfx';
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS senha_iv text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS senha_tag text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS validade_fim timestamptz;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS valido_ate text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS emissor text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS titular text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS cnpj_certificado text;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS ativo boolean DEFAULT true;
+ALTER TABLE public.nfse_certificado ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+
 -- 5. Tabela: nfse_notas (RPS e Notas Fiscais emitidas ou em processamento)
+-- Status aceitos reconciliados: rps, enviando, transmitida, autorizada, rejeitada, cancelada, erro
 CREATE TABLE IF NOT EXISTS public.nfse_notas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  status text NOT NULL DEFAULT 'rps' CHECK (status IN ('rps', 'transmitida', 'autorizada', 'rejeitada', 'cancelada')),
+  status text NOT NULL DEFAULT 'rps' CHECK (status IN ('rps', 'enviando', 'transmitida', 'autorizada', 'rejeitada', 'cancelada', 'erro')),
   ambiente text NOT NULL DEFAULT 'homologacao' CHECK (ambiente IN ('producao', 'homologacao')),
   orcamento uuid,
   orcamento_numero text,
   numero_rps integer NOT NULL,
   serie_rps text NOT NULL DEFAULT '1',
   tipo_rps text NOT NULL DEFAULT '1',
+  protocolo text,
   data_emissao timestamptz NOT NULL DEFAULT now(),
+  data_emissao_dps text,
+  data_competencia text,
   numero_nfse text,
   codigo_verificacao text,
   chave_acesso text,
   data_autorizacao timestamptz,
   link_danfse text,
+  xml_dps text,
+  xml_nfse text,
   xml_distribuicao text,
-  tomador_tipo text NOT NULL CHECK (tomador_tipo IN ('PF', 'PJ', 'ESTRANGEIRO')),
+  tomador_tipo text NOT NULL DEFAULT 'PF' CHECK (tomador_tipo IN ('PF', 'PJ', 'ESTRANGEIRO')),
   tomador_documento text NOT NULL,
   tomador_nome text NOT NULL,
   tomador_email text,
   tomador_telefone text,
+  tomador_endereco text,
   tomador_endereco_logradouro text,
   tomador_endereco_numero text,
   tomador_endereco_complemento text,
@@ -119,14 +163,19 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
   tomador_municipio text,
   tomador_uf text,
   servico uuid REFERENCES public.nfse_servicos(id) ON DELETE SET NULL,
-  servico_codigo_lc116 text NOT NULL,
-  discriminacao_servicos text NOT NULL,
+  codigo_lc116 text,
+  servico_codigo_lc116 text,
+  codigo_tributario_municipio text,
+  descricao_servico text,
+  discriminacao_servicos text,
+  observacoes text,
   codigo_municipio_prestacao text NOT NULL DEFAULT '3550407',
+  exigibilidade_iss integer NOT NULL DEFAULT 1,
   valor_servicos numeric(12,2) NOT NULL,
   valor_deducoes numeric(12,2) NOT NULL DEFAULT 0.00,
   valor_desconto_incondicionado numeric(12,2) NOT NULL DEFAULT 0.00,
   valor_desconto_condicionado numeric(12,2) NOT NULL DEFAULT 0.00,
-  base_calculo_iss numeric(12,2) NOT NULL,
+  base_calculo_iss numeric(12,2) NOT NULL DEFAULT 0.00,
   aliquota_iss numeric(5,2) NOT NULL DEFAULT 2.00,
   valor_iss numeric(12,2) NOT NULL DEFAULT 0.00,
   iss_retido boolean NOT NULL DEFAULT false,
@@ -135,11 +184,13 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
   valor_cofins numeric(12,2) NOT NULL DEFAULT 0.00,
   valor_inss numeric(12,2) NOT NULL DEFAULT 0.00,
   valor_ir numeric(12,2) NOT NULL DEFAULT 0.00,
+  valor_irrf numeric(12,2) NOT NULL DEFAULT 0.00,
   valor_csll numeric(12,2) NOT NULL DEFAULT 0.00,
   outras_retencoes numeric(12,2) NOT NULL DEFAULT 0.00,
-  valor_liquido numeric(12,2) NOT NULL,
+  valor_liquido numeric(12,2) NOT NULL DEFAULT 0.00,
   motivo_cancelamento text,
   data_cancelamento timestamptz,
+  mensagem_erro text,
   mensagem_retorno text,
   codigo_retorno text,
   payload_envio jsonb,
@@ -147,6 +198,51 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Migrações idempotentes de coluna para nfse_notas (reconciliação total de campos)
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS protocolo text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS data_emissao_dps text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS data_competencia text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS xml_dps text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS xml_nfse text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS xml_distribuicao text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS tomador_endereco text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS codigo_lc116 text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS servico_codigo_lc116 text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS codigo_tributario_municipio text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS descricao_servico text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS discriminacao_servicos text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS observacoes text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS exigibilidade_iss integer DEFAULT 1;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS valor_irrf numeric(12,2) DEFAULT 0.00;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS mensagem_erro text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS mensagem_retorno text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS codigo_retorno text;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS payload_envio jsonb;
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS payload_retorno jsonb;
+
+-- Atualiza CHECK constraint de status em nfse_notas de forma idempotente
+DO $$
+DECLARE
+  v_con_name text;
+BEGIN
+  -- Localiza a constraint CHECK da coluna status em nfse_notas
+  SELECT con.conname INTO v_con_name
+  FROM pg_constraint con
+  JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+  WHERE con.conrelid = 'public.nfse_notas'::regclass
+    AND con.contype = 'c'
+    AND att.attname = 'status'
+  LIMIT 1;
+
+  IF v_con_name IS NOT NULL THEN
+    EXECUTE 'ALTER TABLE public.nfse_notas DROP CONSTRAINT ' || quote_ident(v_con_name);
+  END IF;
+
+  ALTER TABLE public.nfse_notas
+    ADD CONSTRAINT nfse_notas_status_check
+    CHECK (status IN ('rps', 'enviando', 'transmitida', 'autorizada', 'rejeitada', 'cancelada', 'erro'));
+END $$;
 
 -- Migrações de coluna e compatibilização dinâmica da Foreign Key com orcamentos(id)
 -- Trata execuções prévias onde a coluna 'orcamento' pode ter sido criada como text ou uuid
@@ -203,7 +299,6 @@ BEGIN
   -- Se orcamentos.id for uuid (caso do Supabase real do usuário) e a coluna em nfse_notas for text/outro tipo:
   IF v_orcamentos_pk_type = 'uuid' THEN
     IF v_orcamento_data_type IS NOT NULL AND v_orcamento_data_type <> 'uuid' THEN
-      -- Converte para uuid se compatível; se valor inválido em texto antigo, define como null para não quebrar
       ALTER TABLE public.nfse_notas
         ALTER COLUMN orcamento TYPE uuid
         USING (
@@ -285,7 +380,7 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_eventos' AND policyname = 'nfse_eventos_all') THEN
     CREATE POLICY nfse_eventos_all ON public.nfse_eventos FOR ALL USING (true) WITH CHECK (true);
   END IF;
-  -- nfse_certificado: apenas leitura de metadados se necessário; gravação direta pelo painel
+  -- nfse_certificado: apenas leitura de metadados se necessário; gravação direta pelo painel/Edge Function
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_certificado' AND policyname = 'nfse_certificado_all') THEN
     CREATE POLICY nfse_certificado_all ON public.nfse_certificado FOR ALL USING (true) WITH CHECK (true);
   END IF;
@@ -304,13 +399,21 @@ GRANT ALL ON public.nfse_certificado TO anon, authenticated, service_role;
 
 -- A. Configuração padrão
 INSERT INTO public.nfse_config (
-  id, ambiente, serie_rps, proximo_numero_rps, regime_tributario, aliquota_iss_padrao, codigo_municipio_padrao
+  id, ambiente, serie_rps, proximo_numero_rps, regime_tributario, aliquota_iss_padrao,
+  codigo_municipio_padrao, municipio_incidencia_ibge, municipio_incidencia, uf_municipio_incidencia,
+  municipio_iss, reter_federais_padrao
 ) VALUES (
-  'default', 'homologacao', '1', 1, 'simples_nacional', 2.00, '3550407'
+  'default', 'homologacao', '1', 1, 'simples_nacional', 2.00,
+  '3550407', '3550407', 'São Pedro', 'SP',
+  'São Pedro/SP — IBGE 3550407', true
 )
 ON CONFLICT (id) DO UPDATE SET
   aliquota_iss_padrao = EXCLUDED.aliquota_iss_padrao,
-  codigo_municipio_padrao = EXCLUDED.codigo_municipio_padrao;
+  codigo_municipio_padrao = EXCLUDED.codigo_municipio_padrao,
+  municipio_incidencia_ibge = EXCLUDED.municipio_incidencia_ibge,
+  municipio_incidencia = EXCLUDED.municipio_incidencia,
+  uf_municipio_incidencia = EXCLUDED.uf_municipio_incidencia,
+  municipio_iss = EXCLUDED.municipio_iss;
 
 -- B. Emitente real: GB SOLUCOES LTDA (Cartão CNPJ oficial)
 INSERT INTO public.nfse_emitente (
