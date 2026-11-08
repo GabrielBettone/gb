@@ -29,7 +29,12 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { nfseApi, type NFSeConfig, type NFSeNota, type NFSeServico } from '@/services/nfseApi'
-import { calcularImpostos, formatMoedaNFSe, validarDocumento } from '@/services/nfse'
+import {
+  calcularImpostos,
+  formatMoedaNFSe,
+  validarDocumento,
+  determinarTomadorTipo,
+} from '@/services/nfse'
 import type { Orcamento, Cliente } from '@/types'
 import { dataAdapter } from '@/lib/dataAdapter'
 import { consultarCnpj, type CnpjConsultaResult } from '@/services/cnpj'
@@ -307,7 +312,9 @@ export const NfseNovaPage: React.FC = () => {
     tomadorNome && docDigitos && validarDocumento(tomadorDoc) && servicoId && valorNumero > 0
 
   const salvarRascunho = async (): Promise<NFSeNota> => {
+    const tomadorTipo = determinarTomadorTipo(tomadorDoc)
     const payloadTomador = {
+      tomador_tipo: tomadorTipo,
       tomador_nome: tomadorNome,
       tomador_documento: tomadorDoc,
       tomador_email: tomadorEmail,

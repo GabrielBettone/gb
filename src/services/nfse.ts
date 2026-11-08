@@ -273,3 +273,16 @@ export function formatarDocumento(doc: string): string {
   if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
   return doc || ''
 }
+
+export type TomadorTipo = 'PF' | 'PJ' | 'ESTRANGEIRO'
+
+/**
+ * Determina o tipo do tomador ('PF' | 'PJ' | 'ESTRANGEIRO') conforme constraint do schema SQL:
+ * CHECK (tomador_tipo IN ('PF', 'PJ', 'ESTRANGEIRO')).
+ * 14 dígitos -> PJ; 11 dígitos ou padrão -> PF.
+ */
+export function determinarTomadorTipo(doc: string): TomadorTipo {
+  const d = (doc || '').replace(/\D/g, '')
+  if (d.length === 14) return 'PJ'
+  return 'PF'
+}

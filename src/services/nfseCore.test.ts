@@ -11,6 +11,7 @@ import {
   gerarIdDpsOficial,
   DpsDadosInput,
 } from './nfseCore'
+import { determinarTomadorTipo } from './nfse'
 import { c14nExclusive, EXC_C14N_ALGORITHM } from './nfseC14n'
 import { validateDpsXmlAgainstXsd } from './nfseXsdValidate'
 import * as fs from 'fs'
@@ -476,5 +477,13 @@ describe('Módulo NFS-e Nacional - Testes Técnicos Isolados', () => {
       cert.publicKey,
     )
     expect(assinaturaValidaAposFraude).toBe(false)
+  })
+
+  it('13. Determina tomador_tipo corretamente para inserção em nfse_notas (NOT NULL)', () => {
+    expect(determinarTomadorTipo('12.345.678/0001-95')).toBe('PJ')
+    expect(determinarTomadorTipo('12345678000195')).toBe('PJ')
+    expect(determinarTomadorTipo('123.456.789-00')).toBe('PF')
+    expect(determinarTomadorTipo('12345678900')).toBe('PF')
+    expect(determinarTomadorTipo('')).toBe('PF')
   })
 })

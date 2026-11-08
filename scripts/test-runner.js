@@ -160,6 +160,22 @@ async function runAll() {
     assert(!/^DPS[0-9]{42}$/.test(idInvalido))
   })
 
+  console.log(`\n📂 Módulo 5: Regras de Negócio e Constraints do Schema (tomador_tipo)`)
+  await test('Determinação de tomador_tipo para CNPJ (14 dígitos) -> PJ e CPF (11 dígitos) -> PF', () => {
+    const determinarTomadorTipo = (doc) => {
+      const d = (doc || '').replace(/\D/g, '')
+      if (d.length === 14) return 'PJ'
+      return 'PF'
+    }
+
+    assertEquals(determinarTomadorTipo('12.345.678/0001-95'), 'PJ')
+    assertEquals(determinarTomadorTipo('12345678000195'), 'PJ')
+    assertEquals(determinarTomadorTipo('123.456.789-00'), 'PF')
+    assertEquals(determinarTomadorTipo('12345678900'), 'PF')
+    assertEquals(determinarTomadorTipo(''), 'PF')
+    assert(['PF', 'PJ', 'ESTRANGEIRO'].includes(determinarTomadorTipo('12.345.678/0001-95')))
+  })
+
   console.log(`\n------------------------------------------------------`)
   console.log(`Total de testes executados: ${passedCount + failedCount}`)
   console.log(`  \x1b[32m✔ Passaram: ${passedCount}\x1b[0m`)

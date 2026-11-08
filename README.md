@@ -102,6 +102,27 @@ npm run preview
 
 Permite visualizar a build de produção localmente antes do deploy.
 
+### 🚀 Deploy da Edge Function NFS-e (`nfse-emissao`)
+
+> **Atenção:** O deploy da Edge Function é executado manualmente pelo administrador via Supabase CLI a partir da branch `main` atualizada do repositório GitHub. Nunca faça o deploy a partir de pastas locais avulsas (como `Downloads`), para evitar publicar código desatualizado.
+
+Sequência correta de deploy:
+
+```bash
+# 1. Garantir que você está na pasta raiz do repositório clonado e na branch main
+git status
+git pull origin main
+
+# 2. Conferir que o arquivo supabase/functions/nfse-emissao/index.ts está atualizado
+# (verifique a versão ou histórico do git)
+git log -1 --stat supabase/functions/nfse-emissao/index.ts
+
+# 3. Executar o deploy no projeto Supabase (phjthpjdbhqhcfnyjjzc)
+supabase functions deploy nfse-emissao --no-verify-jwt
+```
+
+> **Nota:** A flag `--no-verify-jwt` é intencional e necessária porque a função implementa sua própria validação administrativa rigorosa (`is_admin()` / token do usuário autenticado) e suporte a webhooks/comunicação direta.
+
 ### Testes Automatizados (Módulo NFS-e e Edge Function)
 
 Os testes são executáveis de verdade e retornam falha (código de saída `exit 1`) caso qualquer asserção falhe.

@@ -12,7 +12,12 @@ import {
   getSupabaseConfig,
 } from '../lib/supabase/client'
 import type { Orcamento } from '../types'
-import { calcularImpostos } from './nfse'
+import {
+  calcularImpostos,
+  determinarTomadorTipo,
+  type TomadorTipo,
+  CODIGO_IBGE_SAO_PEDRO_SP,
+} from './nfse'
 
 export interface NFSeServico {
   id: string
@@ -54,6 +59,7 @@ export interface NFSeNota {
   valor_csll: number
   valor_cofins: number
   valor_pis: number
+  tomador_tipo: TomadorTipo
   tomador_nome: string
   tomador_documento: string
   tomador_email: string
@@ -193,6 +199,8 @@ function mapearNota(r: any): NFSeNota {
     valor_csll: num(r.valor_csll),
     valor_cofins: num(r.valor_cofins),
     valor_pis: num(r.valor_pis),
+    tomador_tipo:
+      (r.tomador_tipo as TomadorTipo) || determinarTomadorTipo(r.tomador_documento || ''),
     tomador_nome: r.tomador_nome || '',
     tomador_documento: r.tomador_documento || '',
     tomador_email: r.tomador_email || '',
@@ -387,10 +395,13 @@ export const nfseApi = {
       'Serviços de gesso e acabamentos conforme orçamento ' + (orcamento.numero || orcamento.id)
     const codLc = servico?.codigo_lc116 || ''
 
+    const tomadorTipo = determinarTomadorTipo(docTomador)
+
     const rows = await supabaseInsert<any>('nfse_notas', {
       status: 'rps',
       ambiente: config.ambiente || 'homologacao',
       serie_rps: '1',
+      tipo_rps: '1',
       orcamento: orcamento.id,
       orcamento_numero: orcamento.numero || '',
       servico: servicoId,
@@ -399,31 +410,43 @@ export const nfseApi = {
       discriminacao_servicos: desc,
       observacoes: (orcamento as any).observacoes || '',
       valor_servicos: orcamento.valor_total || 0,
+      valor_deducoes: 0,
+      valor_desconto_incondicionado: 0,
+      valor_desconto_condicionado: 0,
+      base_calculo_iss: orcamento.valor_total || 0,
       aliquota_iss: impostos.aliquotaIss,
       valor_iss: impostos.valorIss,
       iss_retido: false,
+      valor_iss_retido: 0,
       valor_irrf: impostos.valorIrrf,
       valor_csll: impostos.valorCsll,
       valor_cofins: impostos.valorCofins,
       valor_pis: impostos.valorPis,
+      valor_inss: 0,
+      valor_ir: 0,
+      outras_retencoes: 0,
+      valor_liquido: impostos.valorLiquido,
       data_competencia: agora.toISOString().slice(0, 10),
       data_emissao_dps: new Date(agora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19),
+      tomador_tipo: tomadorTipo,
       tomador_nome: orcamento.cliente || '',
       tomador_documento: docTomador,
       codigo_lc116: codLc,
       servico_codigo_lc116: codLc,
+      codigo_municipio_prestacao: config.codigo_municipio_padrao || CODIGO_IBGE_SAO_PEDRO_SP,
       exigibilidade_iss: 1,
     })
     return mapearNota(rows[0])
   },
   async criarNotaAvulsa(payload: Record<string, unknown>): Promise<NFSeNota> {
     const doc = String(payload.tomador_documento || '').replace(/\D/g, '')
+    const tomadorTipo = (payload.tomador_tipo as TomadorTipo) || determinarTomadorTipo(doc)
     const config = await this.obterConfig()
     const valor = Number(payload.valor_servicos || 0)
     const impostos = calcularImpostos(valor, {
       aliquotaIss: Number(payload.aliquota_iss || (config ? config.aliquota_iss_padrao : 2) || 2),
       issRetido: Boolean(payload.iss_retido),
-      tomadorPessoaJuridica: doc.length === 14,
+      tomadorPessoaJuridica: tomadorTipo === 'PJ' || doc.length === 14,
       reterIrrf: payload.reter_irrf !== false,
       reterCsll: payload.reter_csll !== false,
       reterCofins: payload.reter_cofins !== false,
@@ -439,17 +462,29 @@ export const nfseApi = {
       status: 'rps',
       ambiente: config?.ambiente || 'homologacao',
       serie_rps: '1',
+      tipo_rps: '1',
       numero_rps: proximoRps,
       data_competencia: agora.toISOString().slice(0, 10),
       data_emissao_dps: new Date(agora.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 19),
+      valor_deducoes: 0,
+      valor_desconto_incondicionado: 0,
+      valor_desconto_condicionado: 0,
+      base_calculo_iss: valor,
       aliquota_iss: impostos.aliquotaIss,
       valor_iss: impostos.valorIss,
+      valor_iss_retido: 0,
       valor_irrf: impostos.valorIrrf,
       valor_csll: impostos.valorCsll,
       valor_cofins: impostos.valorCofins,
       valor_pis: impostos.valorPis,
+      valor_inss: 0,
+      valor_ir: 0,
+      outras_retencoes: 0,
+      valor_liquido: impostos.valorLiquido,
+      codigo_municipio_prestacao: config?.codigo_municipio_padrao || CODIGO_IBGE_SAO_PEDRO_SP,
       exigibilidade_iss: 1,
       ...payload,
+      tomador_tipo: tomadorTipo,
       descricao_servico: desc,
       discriminacao_servicos: desc,
       codigo_lc116: codLc,
