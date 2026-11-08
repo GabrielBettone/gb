@@ -1,24 +1,27 @@
 /**
- * Validador de conformidade estrutural e regras de esquema NFS-e Nacional v1.01 (DPS / TCDPS / TCInfDPS).
+ * Validador de XML da NFS-e Nacional v1.01 orientado a Schemas XSD Oficiais.
  *
- * ATENÇÃO: Este validador aplica programaticamente no ambiente JavaScript/TypeScript (DOMParser)
- * as restrições definidas nos esquemas oficiais XSD da SEFIN Nacional v1.01:
- * - schemas/nfse/v1.01/DPS_v1.01.xsd
- * - schemas/nfse/v1.01/tiposComplexos_v1.01.xsd (TCDPS, TCInfDPS, TCEmitenteDPS, etc.)
- * - schemas/nfse/v1.01/tiposSimples_v1.01.xsd (TSIdDPS, TSData, TSDateTimeUTC, TSSerieDPS, etc.)
- * - schemas/nfse/v1.01/xmldsig-core-schema.xsd
+ * Utiliza o modelo carregado DIRETAMENTE dos arquivos XSD oficiais vendored
+ * (DPS_v1.01.xsd, tiposComplexos_v1.01.xsd, tiposSimples_v1.01.xsd, xmldsig-core-schema.xsd)
+ * via `buildOfficialXsdModel()`.
  *
- * Os arquivos XSD oficiais estão versionados (vendored) no repositório em schemas/nfse/v1.01/
- * e src/schemas/nfse/v1.01/.
- *
- * Valida:
- * 1. Well-formedness XML e namespace padrão da NFS-e Nacional (http://www.sped.fazenda.gov.br/nfse)
- * 2. Elemento raiz DPS e atributo versao="1.00"
- * 3. Ordem exata dos elementos filhos em <DPS> e <infDPS> (xs:sequence)
- * 4. Presença de campos obrigatórios e cardinalidade
- * 5. Tipos simples, padrões de Regex (TSIdDPS, TSDateTimeUTC, TSData, CNPJ, CPF, cMun)
- * 6. Estrutura de assinatura ds:Signature se presente (após infDPS e antes de /DPS)
+ * Executa as restrições formais dos XSDs:
+ * - Validação do namespace oficial targetNamespace="http://www.sped.fazenda.gov.br/nfse"
+ * - Elemento raiz <DPS> do tipo TCDPS com atributo obrigatório versao="1.00" (TVerNFSe)
+ * - Sequência estrita e cardinalidade dos elementos (TCDPS -> TCInfDPS -> TCEmitenteDPS -> etc.)
+ * - Restrições de tipos simples extraídas dos XSDs:
+ *   * TSIdDPS (pattern: DPS[0-9]{42}, total 45 chars)
+ *   * TAmb (enumeration: 1, 2)
+ *   * TSDateTimeUTC (pattern UTC ISO-8601 com fuso)
+ *   * TSData (pattern AAAA-MM-DD)
+ *   * TSSerieDPS (1 a 5 dígitos)
+ *   * TSNDPS (1 a 15 dígitos numéricos)
+ *   * TSCodMunIBGE (pattern 7 dígitos)
+ *   * TSCNPJ (14 dígitos), TSCPF (11 dígitos)
+ *   * Posicionamento estrito de ds:Signature após infDPS (TCDPS sequence)
  */
+
+import { buildOfficialXsdModel, XsdModel } from './nfseXsdLoader'
 
 export interface XsdValidationError {
   path: string
@@ -29,64 +32,40 @@ export interface XsdValidationError {
 export interface XsdValidationResult {
   valid: boolean
   errors: XsdValidationError[]
-  // Aliases em português para compatibilidade de API
   valido: boolean
   erros: XsdValidationError[]
+  modelInfo?: {
+    schemasCount: number
+    simpleTypesCount: number
+    complexTypesCount: number
+    rootElement: string
+  }
 }
 
-const NFSE_NAMESPACE = 'http://www.sped.fazenda.gov.br/nfse'
-
-// Ordem estrita de elementos em <DPS> conforme TCDPS
-const DPS_SEQUENCE = ['infDPS', 'Signature']
-
-// Ordem estrita de elementos em <infDPS> conforme TCInfDPS (v1.01)
-// <xs:sequence>
-//   tpAmb (1)
-//   dhEmi (1)
-//   verAplic (1)
-//   serie (1)
-//   nDPS (1)
-//   dCompet (1)
-//   tpEmit (1)
-//   cLocEmi (1)
-//   prest (1)
-//   toma (0..1)
-//   interm (0..1)
-//   serv (1)
-//   valores (1)
-//   infAdic (0..1)
-// </xs:sequence>
-const INF_DPS_SEQUENCE = [
-  'tpAmb',
-  'dhEmi',
-  'verAplic',
-  'serie',
-  'nDPS',
-  'dCompet',
-  'tpEmit',
-  'cLocEmi',
-  'prest',
-  'toma',
-  'interm',
-  'serv',
-  'valores',
-  'infAdic',
-]
-
-// Ordem em <prest>
-const PREST_SEQUENCE = ['CNPJ', 'CPF', 'inscMun', 'xNome', 'xFant', 'end', 'fone', 'email']
-
-// Ordem em <toma>
-const TOMA_SEQUENCE = ['CNPJ', 'CPF', 'NIF', 'cNaoNIF', 'xNome', 'end', 'fone', 'email']
-
-// Ordem em <serv>
-const SERV_SEQUENCE = ['locPrest', 'cServ']
-
-// Ordem em <cServ>
-const CSERV_SEQUENCE = ['cTribNac', 'cTribMun', 'xDescServ']
-
-// Ordem em <valores>
-const VALORES_SEQUENCE = ['vServPrest', 'trib']
+/**
+ * Parser de XML que funciona no browser (DOMParser) ou com fallback estrutural.
+ */
+function parseXmlDocument(
+  xml: string,
+  parseDomFn?: (xml: string) => Document,
+): { doc?: Document; error?: string } {
+  try {
+    if (parseDomFn) {
+      return { doc: parseDomFn(xml) }
+    }
+    if (typeof DOMParser !== 'undefined') {
+      const doc = new DOMParser().parseFromString(xml, 'application/xml')
+      const parserError = doc.getElementsByTagName('parsererror')
+      if (parserError && parserError.length > 0) {
+        return { error: parserError[0].textContent?.trim() || 'Erro de sintaxe XML' }
+      }
+      return { doc }
+    }
+    return { error: 'DOMParser não disponível no ambiente.' }
+  } catch (e: any) {
+    return { error: e?.message || String(e) }
+  }
+}
 
 function getChildElements(el: Element): Element[] {
   const result: Element[] = []
@@ -99,18 +78,23 @@ function getChildElements(el: Element): Element[] {
   return result
 }
 
-function checkSequenceOrder(
+/**
+ * Valida a sequência de elementos filhos conforme a definição xs:sequence do complexType.
+ */
+function validateSequence(
   parentEl: Element,
-  expectedSequence: string[],
+  expectedSequence: { name: string; minOccurs: number; maxOccurs: number }[],
   path: string,
   errors: XsdValidationError[],
 ) {
   const children = getChildElements(parentEl)
-  let lastIndex = -1
+  const childNames = children.map((c) => c.localName || c.nodeName)
+  const allowedNames = expectedSequence.map((s) => s.name)
 
-  for (const child of children) {
-    const name = child.localName || child.nodeName
-    const seqIndex = expectedSequence.indexOf(name)
+  let lastIndex = -1
+  for (let i = 0; i < children.length; i++) {
+    const name = childNames[i]
+    const seqIndex = allowedNames.indexOf(name)
 
     if (seqIndex === -1) {
       errors.push({
@@ -131,10 +115,75 @@ function checkSequenceOrder(
       lastIndex = seqIndex
     }
   }
+
+  // Verifica elementos obrigatórios (minOccurs >= 1)
+  for (const item of expectedSequence) {
+    if (item.minOccurs >= 1) {
+      const count = childNames.filter((n) => n === item.name).length
+      if (count === 0) {
+        errors.push({
+          path: `${path}/${item.name}`,
+          message: `Elemento obrigatório <${item.name}> ausente em <${parentEl.nodeName}> conforme XSD v1.01 (minOccurs=${item.minOccurs}).`,
+          code: 'MISSING_MANDATORY_ELEMENT',
+        })
+      } else if (count > item.maxOccurs) {
+        errors.push({
+          path: `${path}/${item.name}`,
+          message: `Elemento <${item.name}> excedeu o limite máximo de ocorrências (${count} > ${item.maxOccurs}).`,
+          code: 'MAX_OCCURS_VIOLATION',
+        })
+      }
+    }
+  }
 }
 
 /**
- * Valida o XML da DPS contra as regras do schema XSD NFS-e Nacional v1.01.
+ * Valida o valor de um elemento contra uma definição xs:simpleType do XSD oficial.
+ */
+function validateSimpleType(
+  value: string,
+  typeDef: ReturnType<XsdModel['simpleTypes']['get']>,
+  path: string,
+  errors: XsdValidationError[],
+  errorCode = 'INVALID_TYPE_VALUE',
+) {
+  if (!typeDef) return
+
+  if (typeDef.minLength !== undefined && value.length < typeDef.minLength) {
+    errors.push({
+      path,
+      message: `Tamanho mínimo violado para o tipo ${typeDef.name}: esperado >= ${typeDef.minLength}, obtido ${value.length}.`,
+      code: 'INVALID_LENGTH',
+    })
+  }
+
+  if (typeDef.maxLength !== undefined && value.length > typeDef.maxLength) {
+    errors.push({
+      path,
+      message: `Tamanho máximo violado para o tipo ${typeDef.name}: esperado <= ${typeDef.maxLength}, obtido ${value.length}.`,
+      code: 'INVALID_LENGTH',
+    })
+  }
+
+  if (typeDef.enumerations && !typeDef.enumerations.includes(value)) {
+    errors.push({
+      path,
+      message: `Valor "${value}" não pertence à enumeração permitida do tipo ${typeDef.name} [${typeDef.enumerations.join(', ')}].`,
+      code: 'INVALID_ENUM',
+    })
+  }
+
+  if (typeDef.pattern && !typeDef.pattern.test(value)) {
+    errors.push({
+      path,
+      message: `Valor "${value}" não satisfaz a expressão regular oficial do tipo ${typeDef.name}.`,
+      code: errorCode,
+    })
+  }
+}
+
+/**
+ * Valida o XML da DPS contra os esquemas XSD oficiais v1.01 carregados do repositório.
  */
 export function validarDpsXmlContraXsd(
   xml: string,
@@ -142,22 +191,16 @@ export function validarDpsXmlContraXsd(
 ): XsdValidationResult {
   const errors: XsdValidationError[] = []
 
-  let doc: Document
-  try {
-    if (parseDomFn) {
-      doc = parseDomFn(xml)
-    } else if (typeof DOMParser !== 'undefined') {
-      doc = new DOMParser().parseFromString(xml, 'application/xml')
-    } else {
-      // Fallback Node/JSDOM se aplicável
-      // Em ambiente de teste Vitest/browser o DOMParser global sempre existe
-      throw new Error('DOMParser não disponível no ambiente para validar XML.')
-    }
-  } catch (err: any) {
+  // 1. Carrega e compila o modelo a partir dos XSDs oficiais vendored
+  const xsdModel = buildOfficialXsdModel()
+
+  // 2. Parsing XML
+  const { doc, error: parseErr } = parseXmlDocument(xml, parseDomFn)
+  if (parseErr || !doc) {
     const errList = [
       {
         path: '/',
-        message: `XML malformado: ${err?.message || 'Falha no parsing'}`,
+        message: `XML malformado ou erro de parsing: ${parseErr || 'Desconhecido'}`,
         code: 'MALFORMED_XML',
       },
     ]
@@ -169,57 +212,56 @@ export function validarDpsXmlContraXsd(
     }
   }
 
-  // Verifica se o parser reportou erro de documento XML inválido
-  const parserError = doc.getElementsByTagName('parsererror')
-  if (parserError && parserError.length > 0) {
-    const errList = [
-      {
-        path: '/',
-        message: `Erro de sintaxe XML: ${parserError[0].textContent?.trim() || 'XML inválido'}`,
-        code: 'PARSER_ERROR',
-      },
-    ]
+  const root = doc.documentElement
+  if (!root || root.nodeName !== xsdModel.rootElementName) {
+    errors.push({
+      path: '/',
+      message: `Elemento raiz esperado é <${xsdModel.rootElementName}>, recebido: <${root?.nodeName || 'nenhum'}>`,
+      code: 'INVALID_ROOT',
+    })
     return {
       valid: false,
-      errors: errList,
+      errors,
       valido: false,
-      erros: errList,
+      erros: errors,
     }
   }
 
-  const root = doc.documentElement
-  if (!root || root.nodeName !== 'DPS') {
-    errors.push({
-      path: '/',
-      message: `Elemento raiz esperado é <DPS>, recebido: <${root?.nodeName || 'nenhum'}>`,
-      code: 'INVALID_ROOT',
-    })
-    return { valid: false, errors, valido: false, erros: errors }
-  }
-
-  // Namespace oficial
+  // Namespace oficial verificado contra DPS_v1.01.xsd
   const rootNs = root.getAttribute('xmlns')
-  if (rootNs !== NFSE_NAMESPACE) {
+  if (rootNs !== xsdModel.targetNamespace) {
     errors.push({
       path: '/DPS',
-      message: `Namespace raiz xmlns inválido: esperado "${NFSE_NAMESPACE}", encontrado "${rootNs || ''}"`,
+      message: `Namespace raiz xmlns inválido: esperado "${xsdModel.targetNamespace}", encontrado "${rootNs || ''}"`,
       code: 'INVALID_NAMESPACE',
     })
   }
 
-  // Atributo versao
+  // Atributo versao do TCDPS (TVerNFSe: pattern 1\.00)
   const versao = root.getAttribute('versao')
-  if (!versao || versao !== '1.00') {
+  const tVer = xsdModel.simpleTypes.get('TVerNFSe')
+  if (!versao) {
     errors.push({
       path: '/DPS/@versao',
-      message: `Atributo @versao obrigatório em <DPS> com valor "1.00" (encontrado: "${versao || ''}")`,
+      message: `Atributo obrigatório @versao ausente em <DPS> segundo TCDPS`,
       code: 'INVALID_VERSION',
     })
+  } else if (tVer) {
+    validateSimpleType(versao, tVer, '/DPS/@versao', errors, 'INVALID_VERSION')
   }
 
-  // Sequência e elementos de DPS
-  checkSequenceOrder(root, DPS_SEQUENCE, '/DPS', errors)
+  // Validação da sequência de <DPS> conforme TCDPS (infDPS, ds:Signature)
+  const tcDps = xsdModel.complexTypes.get('TCDPS')
+  if (tcDps) {
+    validateSequence(
+      root,
+      tcDps.sequence.map((s) => ({ name: s.name, minOccurs: s.minOccurs, maxOccurs: s.maxOccurs })),
+      '/DPS',
+      errors,
+    )
+  }
 
+  // Validação de <infDPS> conforme TCInfDPS
   const infDpsList = root.getElementsByTagName('infDPS')
   if (infDpsList.length === 0) {
     errors.push({
@@ -229,26 +271,20 @@ export function validarDpsXmlContraXsd(
     })
     return { valid: false, errors, valido: false, erros: errors }
   }
-  if (infDpsList.length > 1) {
-    errors.push({
-      path: '/DPS/infDPS',
-      message: 'Elemento <infDPS> deve ter cardinalidade 1',
-      code: 'MAX_OCCURS_VIOLATION',
-    })
-  }
 
   const infDps = infDpsList[0]
 
-  // Atributo Id de infDPS (TSIdDPS: "DPS" + cMun(7) + tpInsc(1) + Insc(14) + serie(5) + nDPS(15) = 45 chars)
+  // Atributo Id de infDPS (TSIdDPS: "DPS" + 42 dígitos = 45 chars)
   const idAttr = infDps.getAttribute('Id')
+  const tsIdDps = xsdModel.simpleTypes.get('TSIdDPS')
   if (!idAttr) {
     errors.push({
       path: '/DPS/infDPS/@Id',
       message: 'Atributo obrigatório @Id ausente em <infDPS>',
       code: 'MISSING_ATTRIBUTE',
     })
-  } else {
-    if (!/^DPS[0-9]{42}$/.test(idAttr) || idAttr.length !== 45) {
+  } else if (tsIdDps) {
+    if (!tsIdDps.pattern?.test(idAttr) || idAttr.length !== 45) {
       errors.push({
         path: '/DPS/infDPS/@Id',
         message: `Atributo @Id="${idAttr}" não cumpre a restrição TSIdDPS (45 caracteres: ^DPS[0-9]{42}$)`,
@@ -257,210 +293,176 @@ export function validarDpsXmlContraXsd(
     }
   }
 
-  // Valida ordem dos filhos de infDPS
-  checkSequenceOrder(infDps, INF_DPS_SEQUENCE, '/DPS/infDPS', errors)
-
-  // Valida campos obrigatórios em infDPS
-  const requiredInfDps = [
-    'tpAmb',
-    'dhEmi',
-    'verAplic',
-    'serie',
-    'nDPS',
-    'dCompet',
-    'tpEmit',
-    'cLocEmi',
-    'prest',
-    'serv',
-    'valores',
-  ]
-
-  for (const tag of requiredInfDps) {
-    const el = infDps.getElementsByTagName(tag)
-    if (!el || el.length === 0) {
-      errors.push({
-        path: `/DPS/infDPS/${tag}`,
-        message: `Elemento obrigatório <${tag}> ausente em <infDPS>`,
-        code: 'MISSING_MANDATORY_ELEMENT',
-      })
-    }
+  // Valida sequência de TCInfDPS
+  const tcInfDps = xsdModel.complexTypes.get('TCInfDPS')
+  if (tcInfDps) {
+    validateSequence(
+      infDps,
+      tcInfDps.sequence.map((s) => ({
+        name: s.name,
+        minOccurs: s.minOccurs,
+        maxOccurs: s.maxOccurs,
+      })),
+      '/DPS/infDPS',
+      errors,
+    )
   }
 
-  // Valida tipos e padrões
+  // Valida campos e tipos individuais definidos nos XSDs oficiais
   const tpAmbEl = infDps.getElementsByTagName('tpAmb')[0]
-  if (tpAmbEl && !['1', '2'].includes(tpAmbEl.textContent || '')) {
-    errors.push({
-      path: '/DPS/infDPS/tpAmb',
-      message: `tpAmb deve ser "1" (Produção) ou "2" (Homologação). Valor atual: "${tpAmbEl.textContent}"`,
-      code: 'INVALID_ENUM',
-    })
+  if (tpAmbEl) {
+    validateSimpleType(
+      tpAmbEl.textContent || '',
+      xsdModel.simpleTypes.get('TAmb'),
+      '/DPS/infDPS/tpAmb',
+      errors,
+      'INVALID_ENUM',
+    )
   }
 
   const dhEmiEl = infDps.getElementsByTagName('dhEmi')[0]
   if (dhEmiEl) {
-    const dh = dhEmiEl.textContent || ''
-    // AAAA-MM-DDThh:mm:ss com timezone
-    const rDateTime = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)?$/
-    if (!rDateTime.test(dh)) {
-      errors.push({
-        path: '/DPS/infDPS/dhEmi',
-        message: `dhEmi deve seguir formato UTC ISO-8601 (ex: 2026-03-24T12:00:00-03:00). Valor: "${dh}"`,
-        code: 'INVALID_DATE_TIME',
-      })
-    }
+    validateSimpleType(
+      dhEmiEl.textContent || '',
+      xsdModel.simpleTypes.get('TSDateTimeUTC'),
+      '/DPS/infDPS/dhEmi',
+      errors,
+      'INVALID_DATE_TIME',
+    )
   }
 
   const serieEl = infDps.getElementsByTagName('serie')[0]
   if (serieEl) {
-    const s = serieEl.textContent || ''
-    if (s.length < 1 || s.length > 5) {
-      errors.push({
-        path: '/DPS/infDPS/serie',
-        message: `serie (TSSerieDPS) deve ter entre 1 e 5 caracteres. Encontrado: "${s}"`,
-        code: 'INVALID_LENGTH',
-      })
-    }
+    validateSimpleType(
+      serieEl.textContent || '',
+      xsdModel.simpleTypes.get('TSSerieDPS'),
+      '/DPS/infDPS/serie',
+      errors,
+      'INVALID_LENGTH',
+    )
   }
 
   const nDpsEl = infDps.getElementsByTagName('nDPS')[0]
   if (nDpsEl) {
-    const n = nDpsEl.textContent || ''
-    if (!/^[0-9]{1,15}$/.test(n) || Number(n) <= 0) {
-      errors.push({
-        path: '/DPS/infDPS/nDPS',
-        message: `nDPS deve ser numérico positivo com até 15 dígitos. Encontrado: "${n}"`,
-        code: 'INVALID_PATTERN',
-      })
-    }
+    validateSimpleType(
+      nDpsEl.textContent || '',
+      xsdModel.simpleTypes.get('TSNDPS'),
+      '/DPS/infDPS/nDPS',
+      errors,
+      'INVALID_PATTERN',
+    )
   }
 
   const dCompetEl = infDps.getElementsByTagName('dCompet')[0]
   if (dCompetEl) {
-    const d = dCompetEl.textContent || ''
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-      errors.push({
-        path: '/DPS/infDPS/dCompet',
-        message: `dCompet deve ter formato AAAA-MM-DD. Encontrado: "${d}"`,
-        code: 'INVALID_DATE',
-      })
-    }
+    validateSimpleType(
+      dCompetEl.textContent || '',
+      xsdModel.simpleTypes.get('TSData'),
+      '/DPS/infDPS/dCompet',
+      errors,
+      'INVALID_DATE',
+    )
   }
 
   const cLocEmiEl = infDps.getElementsByTagName('cLocEmi')[0]
   if (cLocEmiEl) {
-    const c = cLocEmiEl.textContent || ''
-    if (!/^[0-9]{7}$/.test(c)) {
-      errors.push({
-        path: '/DPS/infDPS/cLocEmi',
-        message: `cLocEmi (código IBGE) deve ter exatamente 7 dígitos numéricos. Encontrado: "${c}"`,
-        code: 'INVALID_IBGE_CODE',
-      })
-    }
+    validateSimpleType(
+      cLocEmiEl.textContent || '',
+      xsdModel.simpleTypes.get('TSCodMunIBGE'),
+      '/DPS/infDPS/cLocEmi',
+      errors,
+      'INVALID_IBGE_CODE',
+    )
   }
 
-  // Validações do Prestador
+  // Prestador (TCEmitenteDPS)
   const prestEl = infDps.getElementsByTagName('prest')[0]
   if (prestEl) {
-    checkSequenceOrder(prestEl, PREST_SEQUENCE, '/DPS/infDPS/prest', errors)
     const cnpjPrest = prestEl.getElementsByTagName('CNPJ')[0]
     const cpfPrest = prestEl.getElementsByTagName('CPF')[0]
     if (!cnpjPrest && !cpfPrest) {
       errors.push({
         path: '/DPS/infDPS/prest',
-        message: 'Prestador deve ter CNPJ ou CPF informado',
+        message: 'Prestador deve ter CNPJ ou CPF informado conforme TCEmitenteDPS',
         code: 'MISSING_PREST_IDENTIFIER',
       })
     }
-    if (cnpjPrest && !/^[0-9]{14}$/.test(cnpjPrest.textContent || '')) {
-      errors.push({
-        path: '/DPS/infDPS/prest/CNPJ',
-        message: `CNPJ do prestador deve conter 14 dígitos. Encontrado: "${cnpjPrest.textContent}"`,
-        code: 'INVALID_CNPJ',
-      })
+    if (cnpjPrest) {
+      validateSimpleType(
+        cnpjPrest.textContent || '',
+        xsdModel.simpleTypes.get('TSCNPJ'),
+        '/DPS/infDPS/prest/CNPJ',
+        errors,
+        'INVALID_CNPJ',
+      )
+    }
+    if (cpfPrest) {
+      validateSimpleType(
+        cpfPrest.textContent || '',
+        xsdModel.simpleTypes.get('TSCPF'),
+        '/DPS/infDPS/prest/CPF',
+        errors,
+        'INVALID_CPF',
+      )
     }
   }
 
-  // Validações do Tomador se presente
+  // Tomador (TCTomadorDPS)
   const tomaEl = infDps.getElementsByTagName('toma')[0]
   if (tomaEl) {
-    checkSequenceOrder(tomaEl, TOMA_SEQUENCE, '/DPS/infDPS/toma', errors)
     const cnpjToma = tomaEl.getElementsByTagName('CNPJ')[0]
     const cpfToma = tomaEl.getElementsByTagName('CPF')[0]
-    if (cnpjToma && !/^[0-9]{14}$/.test(cnpjToma.textContent || '')) {
-      errors.push({
-        path: '/DPS/infDPS/toma/CNPJ',
-        message: `CNPJ do tomador deve conter 14 dígitos. Encontrado: "${cnpjToma.textContent}"`,
-        code: 'INVALID_CNPJ',
-      })
+    if (cnpjToma) {
+      validateSimpleType(
+        cnpjToma.textContent || '',
+        xsdModel.simpleTypes.get('TSCNPJ'),
+        '/DPS/infDPS/toma/CNPJ',
+        errors,
+        'INVALID_CNPJ',
+      )
     }
-    if (cpfToma && !/^[0-9]{11}$/.test(cpfToma.textContent || '')) {
-      errors.push({
-        path: '/DPS/infDPS/toma/CPF',
-        message: `CPF do tomador deve conter 11 dígitos. Encontrado: "${cpfToma.textContent}"`,
-        code: 'INVALID_CPF',
-      })
+    if (cpfToma) {
+      validateSimpleType(
+        cpfToma.textContent || '',
+        xsdModel.simpleTypes.get('TSCPF'),
+        '/DPS/infDPS/toma/CPF',
+        errors,
+        'INVALID_CPF',
+      )
     }
   }
 
-  // Validações de Serv
+  // Servico (TCServicoDPS -> TCCServ)
   const servEl = infDps.getElementsByTagName('serv')[0]
   if (servEl) {
-    checkSequenceOrder(servEl, SERV_SEQUENCE, '/DPS/infDPS/serv', errors)
-    const cServ = servEl.getElementsByTagName('cServ')[0]
-    if (cServ) {
-      checkSequenceOrder(cServ, CSERV_SEQUENCE, '/DPS/infDPS/serv/cServ', errors)
-      const cTribNac = cServ.getElementsByTagName('cTribNac')[0]
-      if (!cTribNac || !cTribNac.textContent?.trim()) {
-        errors.push({
-          path: '/DPS/infDPS/serv/cServ/cTribNac',
-          message: 'Código de tributação nacional (cTribNac) é obrigatório',
-          code: 'MISSING_TRIB_NAC',
-        })
-      }
-    } else {
+    const cTribNac = servEl.getElementsByTagName('cTribNac')[0]
+    if (!cTribNac || !cTribNac.textContent?.trim()) {
       errors.push({
-        path: '/DPS/infDPS/serv/cServ',
-        message: 'Grupo <cServ> é obrigatório em <serv>',
-        code: 'MISSING_MANDATORY_ELEMENT',
+        path: '/DPS/infDPS/serv/cServ/cTribNac',
+        message: 'Código de tributação nacional (cTribNac) é obrigatório',
+        code: 'MISSING_TRIB_NAC',
       })
     }
   }
 
-  // Validações de Valores
-  const valoresEl = infDps.getElementsByTagName('valores')[0]
-  if (valoresEl) {
-    checkSequenceOrder(valoresEl, VALORES_SEQUENCE, '/DPS/infDPS/valores', errors)
-    const vServ = valoresEl.getElementsByTagName('vServ')[0]
-    if (!vServ) {
-      errors.push({
-        path: '/DPS/infDPS/valores/vServPrest/vServ',
-        message: 'vServ é obrigatório em valores',
-        code: 'MISSING_MANDATORY_ELEMENT',
-      })
-    }
-  }
-
-  // Se houver Signature, valida posição conforme TCDPS
+  // Signature posicionado conforme TCDPS (<infDPS>, <ds:Signature minOccurs="0"/>)
   const sigList = root.getElementsByTagName('Signature')
   if (sigList.length > 0) {
     const sig = sigList[0]
-    // Deve ser filha direta de DPS
     if (sig.parentNode !== root) {
       errors.push({
         path: '/DPS/Signature',
-        message:
-          'Elemento <Signature> deve ser filho direto de <DPS> e não aninhado dentro de <infDPS>',
+        message: 'Elemento <Signature> deve ser filho direto de <DPS> conforme TCDPS',
         code: 'SIGNATURE_WRONG_PARENT',
       })
     }
-    // Deve vir após infDPS
     const rootChildren = getChildElements(root)
     const infIndex = rootChildren.indexOf(infDps)
     const sigIndex = rootChildren.indexOf(sig)
     if (sigIndex < infIndex) {
       errors.push({
         path: '/DPS/Signature',
-        message: '<Signature> deve vir após </infDPS>',
+        message: '<Signature> deve vir após </infDPS> conforme sequência oficial do TCDPS',
         code: 'SIGNATURE_BEFORE_INFDPS',
       })
     }
@@ -472,10 +474,13 @@ export function validarDpsXmlContraXsd(
     errors,
     valido: valid,
     erros: errors,
+    modelInfo: {
+      schemasCount: xsdModel.rawSchemas.length,
+      simpleTypesCount: xsdModel.simpleTypes.size,
+      complexTypesCount: xsdModel.complexTypes.size,
+      rootElement: xsdModel.rootElementName,
+    },
   }
 }
 
-/**
- * Alias com nomenclatura em português compatível com testes e integrações.
- */
 export const validateDpsXmlAgainstXsd = validarDpsXmlContraXsd

@@ -1084,183 +1084,189 @@ async function consultarDps(nota: Record<string, any>) {
 }
 
 // ---------------------------------------------------------------------------
-// Handler principal
+// Handler principal (executado apenas quando index.ts é o script de entrada principal,
+// NUNCA durante 'deno test' ou importações de teste)
 // ---------------------------------------------------------------------------
-Deno.serve(async (req) => {
-  const url = new URL(req.url)
-  const path = url.pathname.replace(/\/+$/, '')
-  const idx = path.indexOf('/nfse-emissao')
-  const route = idx >= 0 ? path.substring(idx + '/nfse-emissao'.length) : path
+if (import.meta.main) {
+  Deno.serve(async (req) => {
+    const url = new URL(req.url)
+    const path = url.pathname.replace(/\/+$/, '')
+    const idx = path.indexOf('/nfse-emissao')
+    const route = idx >= 0 ? path.substring(idx + '/nfse-emissao'.length) : path
 
-  // ---- CORS preflight ----
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: CORS_HEADERS })
-  }
-
-  const supaClient = supa()
-
-  // ---- Segurança obrigatória: exige JWT de usuário Supabase válido + privilégio administrativo ----
-  const authCheck = await validarUsuarioAdmin(req, supaClient)
-  if (!authCheck.ok) {
-    return erro(
-      authCheck.erro || 'Não autorizado: token de usuário inválido.',
-      authCheck.status || 401,
-    )
-  }
-
-  try {
-    // POST /certificado
-    if (route === '/certificado' && req.method === 'POST') {
-      const body = await req.json()
-      const pfxBase64: string = body.pfx_base64 || ''
-      const senha: string = body.senha || ''
-      if (!pfxBase64 || !senha) return erro('Envie o arquivo .pfx e a senha.')
-      if (!PASSWORD_KEY)
-        return erro('Segredo NFSE_CERT_PASSWORD_KEY não configurado no Supabase.', 500)
-
-      // Valida o .pfx ANTES de gravar (senha correta, certificado legível, chave extraível para PKCS#8)
-      const { validoAte, validadeFim, cnpj, titular, emissor } = await extrairPemDoPfx(
-        pfxBase64,
-        senha,
-      )
-      const nomeArquivo = (body.nome_arquivo || 'certificado.pfx').replace(/[^a-zA-Z0-9._-]/g, '_')
-      const storagePath = `certificados/${Date.now()}-${nomeArquivo}`
-
-      // Upload do arquivo para o bucket privado 'nfse_certificados'
-      const { error: upErr } = await supaClient.storage.from('nfse_certificados').upload(
-        storagePath,
-        Uint8Array.from(atob(pfxBase64), (ch) => ch.charCodeAt(0)),
-        {
-          contentType: 'application/x-pkcs12',
-          upsert: true,
-        },
-      )
-      if (upErr) return erro('Falha ao gravar .pfx no Storage: ' + upErr.message, 500)
-
-      const cif = await cifraSenha(senha)
-
-      // Desativa certificados ativos anteriores para manter integridade
-      await supaClient.from('nfse_certificado').update({ ativo: false }).eq('ativo', true)
-
-      // UPSERT atômico no registro 'default': evita conflito de múltiplos certificados
-      const { error: insErr } = await supaClient.from('nfse_certificado').upsert(
-        {
-          id: 'default',
-          storage_path: storagePath,
-          arquivo_path: storagePath,
-          nome_arquivo: body.nome_arquivo || 'certificado.pfx',
-          senha_cifrada: cif.c,
-          senha_iv: cif.iv,
-          senha_tag: cif.tag,
-          valido_ate: body.valido_ate || validoAte,
-          validade_fim: validadeFim,
-          cnpj_certificado: cnpj || null,
-          titular: titular || null,
-          emissor: emissor || null,
-          ativo: true,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' },
-      )
-      if (insErr) return erro('Falha ao gravar registro do certificado: ' + insErr.message, 500)
-
-      return json({ ok: true, valido_ate: body.valido_ate || validoAte, titular, emissor })
+    // ---- CORS preflight ----
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: CORS_HEADERS })
     }
 
-    // GET /certificado/status
-    if (route === '/certificado/status' && req.method === 'GET') {
-      const { data } = await supaClient
-        .from('nfse_certificado')
-        .select(
-          'nome_arquivo, valido_ate, validade_fim, titular, emissor, cnpj_certificado, created_at, ativo',
+    const supaClient = supa()
+
+    // ---- Segurança obrigatória: exige JWT de usuário Supabase válido + privilégio administrativo ----
+    const authCheck = await validarUsuarioAdmin(req, supaClient)
+    if (!authCheck.ok) {
+      return erro(
+        authCheck.erro || 'Não autorizado: token de usuário inválido.',
+        authCheck.status || 401,
+      )
+    }
+
+    try {
+      // POST /certificado
+      if (route === '/certificado' && req.method === 'POST') {
+        const body = await req.json()
+        const pfxBase64: string = body.pfx_base64 || ''
+        const senha: string = body.senha || ''
+        if (!pfxBase64 || !senha) return erro('Envie o arquivo .pfx e a senha.')
+        if (!PASSWORD_KEY)
+          return erro('Segredo NFSE_CERT_PASSWORD_KEY não configurado no Supabase.', 500)
+
+        // Valida o .pfx ANTES de gravar (senha correta, certificado legível, chave extraível para PKCS#8)
+        const { validoAte, validadeFim, cnpj, titular, emissor } = await extrairPemDoPfx(
+          pfxBase64,
+          senha,
         )
-        .eq('ativo', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        const nomeArquivo = (body.nome_arquivo || 'certificado.pfx').replace(
+          /[^a-zA-Z0-9._-]/g,
+          '_',
+        )
+        const storagePath = `certificados/${Date.now()}-${nomeArquivo}`
 
-      const validoAte =
-        data?.valido_ate ||
-        (data?.validade_fim ? String(data.validade_fim).slice(0, 10) : undefined)
-      const vencido = data?.validade_fim
-        ? new Date(data.validade_fim).getTime() < Date.now()
-        : false
-      return json({
-        existe: Boolean(data),
-        instalado: Boolean(data),
-        vencido,
-        valido_ate: validoAte,
-        ...(data || {}),
-      })
+        // Upload do arquivo para o bucket privado 'nfse_certificados'
+        const { error: upErr } = await supaClient.storage.from('nfse_certificados').upload(
+          storagePath,
+          Uint8Array.from(atob(pfxBase64), (ch) => ch.charCodeAt(0)),
+          {
+            contentType: 'application/x-pkcs12',
+            upsert: true,
+          },
+        )
+        if (upErr) return erro('Falha ao gravar .pfx no Storage: ' + upErr.message, 500)
+
+        const cif = await cifraSenha(senha)
+
+        // Desativa certificados ativos anteriores para manter integridade
+        await supaClient.from('nfse_certificado').update({ ativo: false }).eq('ativo', true)
+
+        // UPSERT atômico no registro 'default': evita conflito de múltiplos certificados
+        const { error: insErr } = await supaClient.from('nfse_certificado').upsert(
+          {
+            id: 'default',
+            storage_path: storagePath,
+            arquivo_path: storagePath,
+            nome_arquivo: body.nome_arquivo || 'certificado.pfx',
+            senha_cifrada: cif.c,
+            senha_iv: cif.iv,
+            senha_tag: cif.tag,
+            valido_ate: body.valido_ate || validoAte,
+            validade_fim: validadeFim,
+            cnpj_certificado: cnpj || null,
+            titular: titular || null,
+            emissor: emissor || null,
+            ativo: true,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' },
+        )
+        if (insErr) return erro('Falha ao gravar registro do certificado: ' + insErr.message, 500)
+
+        return json({ ok: true, valido_ate: body.valido_ate || validoAte, titular, emissor })
+      }
+
+      // GET /certificado/status
+      if (route === '/certificado/status' && req.method === 'GET') {
+        const { data } = await supaClient
+          .from('nfse_certificado')
+          .select(
+            'nome_arquivo, valido_ate, validade_fim, titular, emissor, cnpj_certificado, created_at, ativo',
+          )
+          .eq('ativo', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const validoAte =
+          data?.valido_ate ||
+          (data?.validade_fim ? String(data.validade_fim).slice(0, 10) : undefined)
+        const vencido = data?.validade_fim
+          ? new Date(data.validade_fim).getTime() < Date.now()
+          : false
+        return json({
+          existe: Boolean(data),
+          instalado: Boolean(data),
+          vencido,
+          valido_ate: validoAte,
+          ...(data || {}),
+        })
+      }
+
+      // POST /enviar
+      if (route === '/enviar' && req.method === 'POST') {
+        const { nota_id } = await req.json()
+        if (!nota_id) return erro('nota_id obrigatório.')
+
+        const { data: nota, error: nErr } = await supaClient
+          .from('nfse_notas')
+          .select('*')
+          .eq('id', nota_id)
+          .maybeSingle()
+        if (nErr || !nota) return erro('Nota não encontrada.', 404)
+
+        const { data: emitente } = await supaClient
+          .from('nfse_emitente')
+          .select('*')
+          .limit(1)
+          .maybeSingle()
+        if (!emitente) return erro('Emitente não configurado.', 400)
+        const { data: servico } = nota.servico
+          ? await supaClient.from('nfse_servicos').select('*').eq('id', nota.servico).maybeSingle()
+          : { data: null }
+        const { data: config } = await supaClient
+          .from('nfse_config')
+          .select('*')
+          .limit(1)
+          .maybeSingle()
+        if (!config) return erro('Configurações do NFS-e não encontradas.', 400)
+
+        const result = await enviarDps(nota, emitente, servico as any, config)
+        return result.ok
+          ? json({ ok: true, retorno: result.retorno })
+          : erro(result.erro || 'Falha no envio.', 422, result.detalhes)
+      }
+
+      // POST /consultar
+      if (route === '/consultar' && req.method === 'POST') {
+        const { nota_id } = await req.json()
+        if (!nota_id) return erro('nota_id obrigatório.')
+        const { data: nota } = await supaClient
+          .from('nfse_notas')
+          .select('*')
+          .eq('id', nota_id)
+          .maybeSingle()
+        if (!nota) return erro('Nota não encontrada.', 404)
+        const result = await consultarDps(nota)
+        return result.ok
+          ? json({ ok: true, retorno: result.retorno })
+          : erro(result.erro || 'Falha na consulta.', 422)
+      }
+
+      // GET /xml/:id
+      if (route.startsWith('/xml/') && req.method === 'GET') {
+        const notaId = route.split('/')[2]
+        const { data: nota } = await supaClient
+          .from('nfse_notas')
+          .select('xml_dps, xml_nfse, xml_distribuicao')
+          .eq('id', notaId)
+          .maybeSingle()
+        if (!nota) return erro('Nota não encontrada.', 404)
+        return json({
+          xml_dps: nota.xml_dps || nota.xml_distribuicao || '',
+          xml_nfse: nota.xml_nfse || '',
+        })
+      }
+
+      return erro('Rota não encontrada: ' + route, 404)
+    } catch (e: any) {
+      return erro(e?.message || String(e), 500)
     }
-
-    // POST /enviar
-    if (route === '/enviar' && req.method === 'POST') {
-      const { nota_id } = await req.json()
-      if (!nota_id) return erro('nota_id obrigatório.')
-
-      const { data: nota, error: nErr } = await supaClient
-        .from('nfse_notas')
-        .select('*')
-        .eq('id', nota_id)
-        .maybeSingle()
-      if (nErr || !nota) return erro('Nota não encontrada.', 404)
-
-      const { data: emitente } = await supaClient
-        .from('nfse_emitente')
-        .select('*')
-        .limit(1)
-        .maybeSingle()
-      if (!emitente) return erro('Emitente não configurado.', 400)
-      const { data: servico } = nota.servico
-        ? await supaClient.from('nfse_servicos').select('*').eq('id', nota.servico).maybeSingle()
-        : { data: null }
-      const { data: config } = await supaClient
-        .from('nfse_config')
-        .select('*')
-        .limit(1)
-        .maybeSingle()
-      if (!config) return erro('Configurações do NFS-e não encontradas.', 400)
-
-      const result = await enviarDps(nota, emitente, servico as any, config)
-      return result.ok
-        ? json({ ok: true, retorno: result.retorno })
-        : erro(result.erro || 'Falha no envio.', 422, result.detalhes)
-    }
-
-    // POST /consultar
-    if (route === '/consultar' && req.method === 'POST') {
-      const { nota_id } = await req.json()
-      if (!nota_id) return erro('nota_id obrigatório.')
-      const { data: nota } = await supaClient
-        .from('nfse_notas')
-        .select('*')
-        .eq('id', nota_id)
-        .maybeSingle()
-      if (!nota) return erro('Nota não encontrada.', 404)
-      const result = await consultarDps(nota)
-      return result.ok
-        ? json({ ok: true, retorno: result.retorno })
-        : erro(result.erro || 'Falha na consulta.', 422)
-    }
-
-    // GET /xml/:id
-    if (route.startsWith('/xml/') && req.method === 'GET') {
-      const notaId = route.split('/')[2]
-      const { data: nota } = await supaClient
-        .from('nfse_notas')
-        .select('xml_dps, xml_nfse, xml_distribuicao')
-        .eq('id', notaId)
-        .maybeSingle()
-      if (!nota) return erro('Nota não encontrada.', 404)
-      return json({
-        xml_dps: nota.xml_dps || nota.xml_distribuicao || '',
-        xml_nfse: nota.xml_nfse || '',
-      })
-    }
-
-    return erro('Rota não encontrada: ' + route, 404)
-  } catch (e: any) {
-    return erro(e?.message || String(e), 500)
-  }
-})
+  })
+}

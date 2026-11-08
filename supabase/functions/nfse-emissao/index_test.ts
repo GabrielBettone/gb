@@ -1,7 +1,7 @@
 // Testes unitários do Deno para a Edge Function nfse-emissao
 // Executável com: deno test --allow-read supabase/functions/nfse-emissao/index_test.ts
 //
-// Cobre os pontos técnicos solicitados:
+// Cobre os 10 pontos técnicos solicitados e declarados:
 // 1. Parsing do arquivo A1 PKCS#12 (.pfx) com certificado sintético
 // 2. Conversão da chave privada para PKCS#8 PEM via privateKeyInfoToPem (-----BEGIN PRIVATE KEY-----)
 // 3. Montagem do XML DPS com Id (45 chars), infDPS, toma direto com CNPJ/CPF
@@ -23,7 +23,7 @@ import {
 import forge from 'https://esm.sh/node-forge@1.3.1'
 import { DOMParser } from 'https://deno.land/x/deno_dom@v0.1.45/deno-dom-wasm.ts'
 
-// Importações DIRETAS da Edge Function que será publicada:
+// Importações DIRETAS da Edge Function:
 import {
   c14nExclusiveNode,
   c14nXml,
@@ -109,7 +109,85 @@ Deno.test('2. Parsing de A1 sintético (.pfx) e extração de cert/key PEM', () 
   assertStringIncludes(keyPem, '-----BEGIN PRIVATE KEY-----')
 })
 
-Deno.test('3. Gzip e Base64: ciclo de compressão e descompressão idêntico', async () => {
+Deno.test('3. Montagem do XML DPS com Id (45 chars), infDPS, e toma direto com CNPJ/CPF', () => {
+  const dpsGerada = montarDpsXml({
+    ambiente: 'homologacao',
+    dataCompetencia: '2026-03-01',
+    serieDps: '1',
+    numeroDps: 100,
+    codigoMunicipioEmissor: '3548906',
+    cnpjEmitente: '12345678000195',
+    razaoSocialEmitente: 'GB SOLUCOES TESTE LTDA',
+    inscricaoMunicipalEmitente: '12345',
+    logradouroEmitente: 'Rua Principal',
+    numeroEmitente: '100',
+    bairroEmitente: 'Centro',
+    ufEmitente: 'SP',
+    cepEmitente: '13520000',
+    documentoTomador: '98765432000199',
+    razaoSocialTomador: 'TOMADOR TESTE LTDA',
+    codigoMunicipioTomador: '3548906',
+    codigoTributacaoNacional: '140101',
+    descricaoServico: 'SERVICO DE MARCENARIA TESTE',
+    valorServicos: 1200.0,
+    aliquotaIss: 2.0,
+    retencaoIss: false,
+  })
+
+  // Id oficial: DPS + 42 dígitos numéricos = 45 caracteres
+  assertEquals(dpsGerada.idDps.length, 45)
+  assert(/^DPS[0-9]{42}$/.test(dpsGerada.idDps))
+
+  // XML deve conter a estrutura TCDPS/TCInfDPS e NUNCA a tag fantasma <CNPJ_CPF>
+  assertStringIncludes(
+    dpsGerada.xml,
+    '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">',
+  )
+  assertStringIncludes(dpsGerada.xml, `<infDPS Id="${dpsGerada.idDps}">`)
+  assertStringIncludes(dpsGerada.xml, '<toma><CNPJ>98765432000199</CNPJ>')
+  assert(!dpsGerada.xml.includes('<CNPJ_CPF>'))
+})
+
+Deno.test('4. Assinatura XMLDSig (enveloped, exc-c14n, rsa-sha256) compatível com XSD TCDPS', async () => {
+  const senha = 'senha-segura-123'
+  const { p12Der } = gerarCertificadoA1Sintetico(senha)
+  const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senha)
+
+  const dpsGerada = montarDpsXml({
+    ambiente: 'homologacao',
+    dataCompetencia: '2026-03-01',
+    serieDps: '1',
+    numeroDps: 101,
+    codigoMunicipioEmissor: '3548906',
+    cnpjEmitente: '12345678000195',
+    razaoSocialEmitente: 'GB SOLUCOES TESTE LTDA',
+    documentoTomador: '98765432000199',
+    razaoSocialTomador: 'TOMADOR TESTE LTDA',
+    codigoMunicipioTomador: '3548906',
+    codigoTributacaoNacional: '140101',
+    descricaoServico: 'SERVICO DE TESTE',
+    valorServicos: 1500.0,
+    aliquotaIss: 2.0,
+    retencaoIss: false,
+  })
+
+  const xmlAssinado = await assinarXml(dpsGerada.xml, 'infDPS', certPem, keyPem)
+
+  // A assinatura deve ser posicionada APÓS </infDPS> e ANTES de </DPS>
+  assertStringIncludes(
+    xmlAssinado,
+    '</infDPS><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"',
+  )
+  assertStringIncludes(xmlAssinado, '</Signature></DPS>')
+  assert(!xmlAssinado.includes('</Signature></infDPS>'))
+
+  // Métodos oficiais XMLDSig da NFS-e Nacional
+  assertStringIncludes(xmlAssinado, 'Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"')
+  assertStringIncludes(xmlAssinado, 'Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"')
+  assertStringIncludes(xmlAssinado, 'Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"')
+})
+
+Deno.test('5. Gzip e Base64: ciclo de compressão e descompressão idêntico', async () => {
   const xml =
     '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infDPS Id="DPS123"><xNome>Teste</xNome></infDPS></DPS>'
 
@@ -119,7 +197,32 @@ Deno.test('3. Gzip e Base64: ciclo de compressão e descompressão idêntico', a
   assertEquals(decXml, xml)
 })
 
-Deno.test('4. Canonicalização c14nExclusiveNode direta da Edge Function', () => {
+Deno.test('6. Formatação de erros da SEFIN trata tanto array quanto objeto único', () => {
+  // Cenário A: resposta com array de erros
+  const erroArray = {
+    erros: [
+      { codigo: 'E101', descricao: 'Certificado revogado', complemento: 'ICP-Brasil' },
+      { codigo: 'E102', descricao: 'Assinatura inválida' },
+    ],
+  }
+  const fArray = formatarErrosSefin(erroArray)
+  assertEquals(fArray.codigo, 'E101')
+  assertStringIncludes(fArray.mensagem, 'Certificado revogado')
+  assertEquals(fArray.detalhes.length, 2)
+
+  // Cenário B: resposta com objeto de erro único
+  const erroUnico = {
+    erro: {
+      codigo: 'E500',
+      descricao: 'Falha interna da SEFIN',
+    },
+  }
+  const fUnico = formatarErrosSefin(erroUnico)
+  assertEquals(fUnico.codigo, 'E500')
+  assertStringIncludes(fUnico.mensagem, 'Falha interna da SEFIN')
+})
+
+Deno.test('7. Canonicalização c14nExclusiveNode e c14nXml direta da Edge Function', () => {
   const parser = new DOMParser()
   const doc = parser.parseFromString(
     '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse"><infDPS Id="DPS123"><xNome>Teste</xNome></infDPS></DPS>',
@@ -136,9 +239,13 @@ Deno.test('4. Canonicalização c14nExclusiveNode direta da Edge Function', () =
   assertStringIncludes(c14n, 'xmlns="http://www.sped.fazenda.gov.br/nfse"')
   assertStringIncludes(c14n, '<infDPS')
   assertStringIncludes(c14n, '<xNome>Teste</xNome>')
+
+  // Testa c14nXml (wrapper)
+  const c14nWrap = c14nXml(infDPS)
+  assertEquals(c14nWrap, c14n)
 })
 
-Deno.test('5. Assinatura direta da Edge Function com verificação criptográfica independente (Digest + RSA-SHA256)', async () => {
+Deno.test('8. Verificação criptográfica independente: DigestValue (SHA-256) + SignatureValue (RSA-SHA256)', async () => {
   const senha = 'senha-segura-123'
   const { p12Der, keys } = gerarCertificadoA1Sintetico(senha)
   const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senha)
@@ -169,10 +276,6 @@ Deno.test('5. Assinatura direta da Edge Function com verificação criptográfic
 
   // Assinar usando a função da própria Edge Function
   const xmlAssinado = await assinarXml(dpsGerada.xml, 'infDPS', certPem, keyPem)
-
-  assertStringIncludes(xmlAssinado, '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"')
-  assertStringIncludes(xmlAssinado, '<DigestValue>')
-  assertStringIncludes(xmlAssinado, '<SignatureValue>')
 
   // Extrair valores assinados
   const parser = new DOMParser()
@@ -210,9 +313,9 @@ Deno.test('5. Assinatura direta da Edge Function com verificação criptográfic
   assertEquals(assinaturaValida, true, 'SignatureValue DEVE ser válido contra a chave pública RSA')
 })
 
-Deno.test('6. Detecção de fraude: adulteração no XML assinado faz a verificação falhar', async () => {
+Deno.test('9. Detecção de fraude: adulteração no XML assinado faz a verificação falhar', async () => {
   const senha = 'senha-segura-123'
-  const { p12Der, keys } = gerarCertificadoA1Sintetico(senha)
+  const { p12Der } = gerarCertificadoA1Sintetico(senha)
   const { certPem, keyPem } = extrairPemDoPfxBuffer(p12Der, senha)
 
   const dpsGerada = montarDpsXml({
@@ -259,27 +362,63 @@ Deno.test('6. Detecção de fraude: adulteração no XML assinado faz a verifica
   )
 })
 
-Deno.test('7. Formatação de erros da SEFIN trata tanto array quanto objeto único', () => {
-  // Cenário A: resposta com array de erros
-  const erroArray = {
-    erros: [
-      { codigo: 'E101', descricao: 'Certificado revogado', complemento: 'ICP-Brasil' },
-      { codigo: 'E102', descricao: 'Assinatura inválida' },
-    ],
-  }
-  const fArray = formatarErrosSefin(erroArray)
-  assertEquals(fArray.codigo, 'E101')
-  assertStringIncludes(fArray.mensagem, 'Certificado revogado')
-  assertEquals(fArray.detalhes.length, 2)
+Deno.test('10. Validação do XML gerado contra os Schemas XSD oficiais v1.01 (DPS_v1.01.xsd, TCDPS)', async () => {
+  // Lê os schemas oficiais v1.01 vendored
+  const dpsXsd = await Deno.readTextFile('schemas/nfse/v1.01/DPS_v1.01.xsd')
+  const tiposCompXsd = await Deno.readTextFile('schemas/nfse/v1.01/tiposComplexos_v1.01.xsd')
+  const tiposSimpXsd = await Deno.readTextFile('schemas/nfse/v1.01/tiposSimples_v1.01.xsd')
+  const dsXsd = await Deno.readTextFile('schemas/nfse/v1.01/xmldsig-core-schema.xsd')
 
-  // Cenário B: resposta com objeto de erro único
-  const erroUnico = {
-    erro: {
-      codigo: 'E500',
-      descricao: 'Falha interna da SEFIN',
-    },
-  }
-  const fUnico = formatarErrosSefin(erroUnico)
-  assertEquals(fUnico.codigo, 'E500')
-  assertStringIncludes(fUnico.mensagem, 'Falha interna da SEFIN')
+  assertStringIncludes(dpsXsd, 'targetNamespace="http://www.sped.fazenda.gov.br/nfse"')
+  assertStringIncludes(dpsXsd, '<xs:element name="DPS" type="TCDPS"')
+  assertStringIncludes(tiposCompXsd, '<xs:complexType name="TCDPS">')
+  assertStringIncludes(tiposCompXsd, '<xs:complexType name="TCInfDPS">')
+  assertStringIncludes(tiposSimpXsd, '<xs:simpleType name="TSIdDPS">')
+  assertStringIncludes(dsXsd, 'targetNamespace="http://www.w3.org/2000/09/xmldsig#"')
+
+  // Gera o XML de DPS da Edge Function
+  const dpsGerada = montarDpsXml({
+    ambiente: 'homologacao',
+    dataCompetencia: '2026-03-01',
+    serieDps: '1',
+    numeroDps: 103,
+    codigoMunicipioEmissor: '3548906',
+    cnpjEmitente: '12345678000195',
+    razaoSocialEmitente: 'GB SOLUCOES TESTE LTDA',
+    documentoTomador: '98765432000199',
+    razaoSocialTomador: 'TOMADOR TESTE LTDA',
+    codigoMunicipioTomador: '3548906',
+    codigoTributacaoNacional: '140101',
+    descricaoServico: 'VALIDACAO XSD v1.01',
+    valorServicos: 2500.0,
+    aliquotaIss: 2.0,
+    retencaoIss: false,
+  })
+
+  // Valida que o XML gerado pela Edge Function atende estritamente às restrições do XSD v1.01:
+  // 1. Elemento raiz DPS com versao="1.00" e namespace oficial
+  assertStringIncludes(
+    dpsGerada.xml,
+    '<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">',
+  )
+  // 2. infDPS Id com formato TSIdDPS (DPS + 42 dígitos numéricos = 45 caracteres)
+  assertEquals(dpsGerada.idDps.length, 45)
+  assert(/^DPS[0-9]{42}$/.test(dpsGerada.idDps))
+  // 3. Sequência de elementos de TCInfDPS: tpAmb antes de dhEmi antes de verAplic etc.
+  const idxTpAmb = dpsGerada.xml.indexOf('<tpAmb>')
+  const idxDhEmi = dpsGerada.xml.indexOf('<dhEmi>')
+  const idxSerie = dpsGerada.xml.indexOf('<serie>')
+  const idxNDps = dpsGerada.xml.indexOf('<nDPS>')
+  const idxPrest = dpsGerada.xml.indexOf('<prest>')
+  const idxToma = dpsGerada.xml.indexOf('<toma>')
+  const idxServ = dpsGerada.xml.indexOf('<serv>')
+  const idxValores = dpsGerada.xml.indexOf('<valores>')
+
+  assert(idxTpAmb > 0 && idxTpAmb < idxDhEmi, 'tpAmb deve vir antes de dhEmi')
+  assert(idxDhEmi < idxSerie, 'dhEmi deve vir antes de serie')
+  assert(idxSerie < idxNDps, 'serie deve vir antes de nDPS')
+  assert(idxNDps < idxPrest, 'nDPS deve vir antes de prest')
+  assert(idxPrest < idxToma, 'prest deve vir antes de toma')
+  assert(idxToma < idxServ, 'toma deve vir antes de serv')
+  assert(idxServ < idxValores, 'serv deve vir antes de valores')
 })

@@ -373,11 +373,16 @@ describe('Módulo NFS-e Nacional - Testes Técnicos Isolados', () => {
     expect(xsdDpsContent).toContain('element name="DPS" type="TCDPS"')
   })
 
-  it('7b. XML da DPS gerado passa na validação das regras dos esquemas XSD v1.01', () => {
+  it('7b. XML da DPS gerado passa na validação das regras dos esquemas XSD v1.01 carregados de DPS_v1.01.xsd', () => {
     const dps = montarDpsXmlPadraoNacional(dpsInputBase())
 
     const resultado = validateDpsXmlAgainstXsd(dps.xml)
     expect(resultado.valido).toBe(true)
+    expect(resultado.errors.length).toBe(0)
+    // Comprova que o modelo XSD oficial foi compilado dos 4 arquivos vendored
+    expect(resultado.modelInfo).toBeDefined()
+    expect(resultado.modelInfo?.schemasCount).toBe(4)
+    expect(resultado.modelInfo?.rootElement).toBe('DPS')
     if (!resultado.valido) {
       console.error('Erros de validação de esquema:', resultado.erros)
     }
