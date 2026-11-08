@@ -1,5 +1,6 @@
 // @ts-nocheck
 import forge from 'node-forge'
+import { c14nExclusive, EXC_C14N_ALGORITHM } from './nfseC14n'
 
 export interface PfxExtracaoResult {
   certPem: string
@@ -203,43 +204,8 @@ export function formatarErrosSefin(parsed: any): {
   }
 }
 
-export function c14nXmlNode(node: any): string {
-  if (node.nodeType === 3) {
-    // TEXT_NODE
-    return (node.nodeValue || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/\r/g, '&#xD;')
-  }
-  if (node.nodeType === 1) {
-    // ELEMENT_NODE
-    let out = '<' + node.nodeName
-    const attrs: any[] = []
-    if (node.attributes) {
-      for (let i = 0; i < node.attributes.length; i++) {
-        attrs.push(node.attributes[i])
-      }
-    }
-    attrs.sort((a, b) => a.name.localeCompare(b.name))
-    for (const attr of attrs) {
-      out += ` ${attr.name}="${(attr.value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/"/g, '&quot;')
-        .replace(/\t/g, '&#x9;')
-        .replace(/\n/g, '&#xA;')
-        .replace(/\r/g, '&#xD;')}"`
-    }
-    out += '>'
-    for (let i = 0; i < node.childNodes.length; i++) {
-      out += c14nXmlNode(node.childNodes[i])
-    }
-    out += `</${node.nodeName}>`
-    return out
-  }
-  return ''
-}
+export { c14nExclusive as c14nXmlNode } from './nfseC14n'
+export { EXC_C14N_ALGORITHM } from './nfseC14n'
 
 export interface DpsDadosInput {
   ambiente: 'producao' | 'homologacao' | string
@@ -293,6 +259,12 @@ function onlyDigits(s: string | undefined): string {
   return (s || '').replace(/\D/g, '')
 }
 
+/**
+ * ID da DPS (layout oficial NFS-e Nacional v1.01): 45 posições
+ * DPS(3) + cLocEmi/cMun(7) + tpInsc(1) + CNPJ/CPF(14) + serie(5) + nDPS(15)
+ * A série ocupa CINCO posições fixas com zeros à ESQUERDA (padStart) para
+ * manter o Id coerente com a tag <serie> do XML (série 1 => "00001").
+ */
 export function gerarIdDpsOficial(
   cMunEmi: string,
   cnpjPrestador: string,
@@ -301,9 +273,8 @@ export function gerarIdDpsOficial(
 ): string {
   const cMunPadded = onlyDigits(cMunEmi).padStart(7, '0')
   const cnpjPadded = onlyDigits(cnpjPrestador).padStart(14, '0')
-  const seriePadded = (serie || '1').padEnd(5, '0')
+  const seriePadded = (serie || '1').padStart(5, '0')
   const nDpsPadded = String(numero).padStart(15, '0')
-  // ID com 42 posições (literal DPS + 7 + 1 + 14 + 5 + 15)
   return `DPS${cMunPadded}2${cnpjPadded}${seriePadded}${nDpsPadded}`
 }
 
@@ -407,7 +378,8 @@ export function assinarXmlString(
   const alvo = doc.getElementsByTagName(tagAssinar)[0]
   if (!alvo) throw new Error(`Tag ${tagAssinar} não encontrada no XML da DPS.`)
 
-  const c14nAlvo = c14nXmlNode(alvo)
+  // Digest calculado com Exclusive C14N real (inclui namespaces herdados do <DPS>)
+  const c14nAlvo = c14nExclusive(alvo)
   const md = forge.md.sha256.create()
   md.update(c14nAlvo, 'utf8')
   const digestB64 = forge.util.encode64(md.digest().getBytes())
@@ -415,7 +387,7 @@ export function assinarXmlString(
   const idAlvo = alvo.getAttribute('Id') || alvo.getAttribute('id') || ''
   const signedInfo = [
     `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">`,
-    `<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>`,
+    `<CanonicalizationMethod Algorithm="${EXC_C14N_ALGORITHM}"/>`,
     `<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>`,
     `<Reference URI="#${idAlvo}">`,
     `<Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></Transforms>`,
@@ -426,7 +398,7 @@ export function assinarXmlString(
   ].join('')
 
   const siDoc = parseDomFn(signedInfo)
-  const siC14n = c14nXmlNode(siDoc.documentElement)
+  const siC14n = c14nExclusive(siDoc.documentElement)
   const signatureValueB64 = forge.util.encode64(
     privateKey.sign(forge.md.sha256.create().update(siC14n, 'utf8')),
   )
