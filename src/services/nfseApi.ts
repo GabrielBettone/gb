@@ -130,11 +130,12 @@ async function edgeFetch(rota: string, init: RequestInit = {}): Promise<Response
     if (userToken) {
       headers.set('Authorization', `Bearer ${userToken}`)
     } else if (!headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${publicKey}`)
+      // Se não houver token de usuário, não envia apikey anônima como Bearer para evitar falso positivo
+      headers.set('Authorization', '')
     }
   } catch (_) {
     if (!headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${publicKey}`)
+      headers.set('Authorization', '')
     }
   }
 

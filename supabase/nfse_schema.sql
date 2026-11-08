@@ -354,7 +354,43 @@ CREATE TABLE IF NOT EXISTS public.nfse_eventos (
 CREATE INDEX IF NOT EXISTS idx_nfse_eventos_nota ON public.nfse_eventos(nota);
 
 -- ----------------------------------------------------------------------------
--- RLS (Row Level Security) e Permissões
+-- Storage Bucket: nfse_certificados (privado, restrito a administradores / service_role)
+-- ----------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'nfse_certificados',
+  'nfse_certificados',
+  false,
+  5242880, -- 5 MB
+  ARRAY['application/x-pkcs12', 'application/octet-stream', 'application/pkcs12']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = false,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['application/x-pkcs12', 'application/octet-stream', 'application/pkcs12'];
+
+-- Policies para o bucket storage.objects (somente autenticados / service_role; NUNCA anon)
+DO $$ BEGIN
+  -- Remove políticas antigas permissivas se existirem
+  DROP POLICY IF EXISTS "nfse_certificados_anon_read" ON storage.objects;
+  DROP POLICY IF EXISTS "nfse_certificados_anon_insert" ON storage.objects;
+  DROP POLICY IF EXISTS "nfse_certificados_all" ON storage.objects;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND schemaname = 'storage' AND policyname = 'nfse_certificados_auth_access') THEN
+    CREATE POLICY nfse_certificados_auth_access ON storage.objects
+      FOR ALL
+      TO authenticated
+      USING (bucket_id = 'nfse_certificados')
+      WITH CHECK (bucket_id = 'nfse_certificados');
+  END IF;
+END $$;
+
+-- ----------------------------------------------------------------------------
+-- RLS (Row Level Security) e Permissões Seguras
+-- Regra de ouro: NENHUM acesso anon às tabelas fiscais.
+-- Apenas usuários autenticados (e service_role) têm acesso às operações do painel.
+-- A tabela nfse_certificado guarda senhas cifradas e dados do A1 — apenas autenticados
+-- e service_role têm acesso (e anon é terminantemente revogado).
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.nfse_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_emitente ENABLE ROW LEVEL SECURITY;
@@ -363,35 +399,37 @@ ALTER TABLE public.nfse_notas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_eventos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.nfse_certificado ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  -- Leitura e escrita públicas para o painel autenticado / chave anônima da Hostinger
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_config' AND policyname = 'nfse_config_all') THEN
-    CREATE POLICY nfse_config_all ON public.nfse_config FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_emitente' AND policyname = 'nfse_emitente_all') THEN
-    CREATE POLICY nfse_emitente_all ON public.nfse_emitente FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_servicos' AND policyname = 'nfse_servicos_all') THEN
-    CREATE POLICY nfse_servicos_all ON public.nfse_servicos FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_notas' AND policyname = 'nfse_notas_all') THEN
-    CREATE POLICY nfse_notas_all ON public.nfse_notas FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_eventos' AND policyname = 'nfse_eventos_all') THEN
-    CREATE POLICY nfse_eventos_all ON public.nfse_eventos FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  -- nfse_certificado: apenas leitura de metadados se necessário; gravação direta pelo painel/Edge Function
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'nfse_certificado' AND policyname = 'nfse_certificado_all') THEN
-    CREATE POLICY nfse_certificado_all ON public.nfse_certificado FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
+-- Limpeza de políticas legadas abertas
+DROP POLICY IF EXISTS nfse_config_all ON public.nfse_config;
+DROP POLICY IF EXISTS nfse_emitente_all ON public.nfse_emitente;
+DROP POLICY IF EXISTS nfse_servicos_all ON public.nfse_servicos;
+DROP POLICY IF EXISTS nfse_notas_all ON public.nfse_notas;
+DROP POLICY IF EXISTS nfse_eventos_all ON public.nfse_eventos;
+DROP POLICY IF EXISTS nfse_certificado_all ON public.nfse_certificado;
 
-GRANT ALL ON public.nfse_config TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_emitente TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_servicos TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_notas TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_eventos TO anon, authenticated, service_role;
-GRANT ALL ON public.nfse_certificado TO anon, authenticated, service_role;
+-- Políticas seguras: restritas a 'authenticated'
+CREATE POLICY nfse_config_auth ON public.nfse_config FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY nfse_emitente_auth ON public.nfse_emitente FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY nfse_servicos_auth ON public.nfse_servicos FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY nfse_notas_auth ON public.nfse_notas FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY nfse_eventos_auth ON public.nfse_eventos FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY nfse_certificado_auth ON public.nfse_certificado FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Revoga explicitamente permissões do papel anon (público sem login)
+REVOKE ALL ON public.nfse_config FROM anon;
+REVOKE ALL ON public.nfse_emitente FROM anon;
+REVOKE ALL ON public.nfse_servicos FROM anon;
+REVOKE ALL ON public.nfse_notas FROM anon;
+REVOKE ALL ON public.nfse_eventos FROM anon;
+REVOKE ALL ON public.nfse_certificado FROM anon;
+
+-- Concede acesso total apenas aos usuários autenticados do painel e service_role
+GRANT ALL ON public.nfse_config TO authenticated, service_role;
+GRANT ALL ON public.nfse_emitente TO authenticated, service_role;
+GRANT ALL ON public.nfse_servicos TO authenticated, service_role;
+GRANT ALL ON public.nfse_notas TO authenticated, service_role;
+GRANT ALL ON public.nfse_eventos TO authenticated, service_role;
+GRANT ALL ON public.nfse_certificado TO authenticated, service_role;
 
 -- ----------------------------------------------------------------------------
 -- SEEDS IDEMPOTENTES (Dados reais da empresa do usuário)
