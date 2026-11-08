@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS public.nfse_notas (
 );
 
 -- Migrações idempotentes de coluna para nfse_notas (reconciliação total de campos)
+ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS id_dps text;
 ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS protocolo text;
 ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS data_emissao_dps text;
 ALTER TABLE public.nfse_notas ADD COLUMN IF NOT EXISTS data_competencia text;
@@ -340,6 +341,8 @@ CREATE INDEX IF NOT EXISTS idx_nfse_notas_orcamento ON public.nfse_notas(orcamen
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_status ON public.nfse_notas(status);
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_numero_rps ON public.nfse_notas(numero_rps);
 CREATE INDEX IF NOT EXISTS idx_nfse_notas_numero_nfse ON public.nfse_notas(numero_nfse);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_id_dps ON public.nfse_notas(id_dps);
+CREATE INDEX IF NOT EXISTS idx_nfse_notas_chave_acesso ON public.nfse_notas(chave_acesso);
 
 -- 6. Tabela: nfse_eventos (auditoria e rastreamento de tentativas de envio)
 CREATE TABLE IF NOT EXISTS public.nfse_eventos (

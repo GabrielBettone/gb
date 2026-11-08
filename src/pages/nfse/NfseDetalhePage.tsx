@@ -238,8 +238,10 @@ export const NfseDetalhePage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs space-y-1.5 text-[#2C3E50]">
-            <Linha rotulo="Protocolo" valor={nota.protocolo || '—'} />
             <Linha rotulo="Nº NFS-e" valor={nota.numero_nfse || '—'} />
+            <Linha rotulo="Chave de Acesso" valor={nota.chave_acesso || '—'} />
+            <Linha rotulo="ID DPS (Oficial)" valor={nota.id_dps || '—'} />
+            {nota.protocolo && <Linha rotulo="Protocolo" valor={nota.protocolo} />}
             <Linha
               rotulo="Autorizada em"
               valor={

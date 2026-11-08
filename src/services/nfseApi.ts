@@ -36,6 +36,8 @@ export interface NFSeNota {
   servico: string | null
   numero_rps: number
   serie_rps: string
+  id_dps?: string | null
+  chave_acesso?: string | null
   protocolo: string
   numero_nfse: string
   data_autorizacao: string | null

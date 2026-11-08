@@ -1,68 +1,54 @@
-// Supabase Edge Function: nfse-emissao
+// @ts-nocheck
+// Edge Function Supabase: nfse-emissao
+// Integração DIRETA com a API SEFIN Nacional (sem gateway intermediário)
+// Padrão NFS-e Nacional / DPS / XMLDSig / mTLS / LC 116 / AES-GCM
 //
-// Integração DIRETA com a API SEFIN Nacional do Sistema NFS-e (Receita Federal / Serpro)
-// - Homologação: https://sefin.producaorestrita.nfse.gov.br/WsNFe/Nfse.asmx ou https://sefin.producaorestrita.nfse.gov.br/dfe/v1 (ou endpoint REST /nfse)
-// - Produção: https://sefin.nfse.gov.br/dfe/v1
-// - Autenticação mTLS obrigatória com certificado A1 e-CNPJ
-// - Assinatura digital XMLDSig enveloped com C14N exclusiva e RSA-SHA256 no elemento <infDPS>
-// - Payload POST /nfse: JSON { "dpsXmlGZipB64": "<xml compactado em gzip e codificado em base64>" }
-//   (com fallback compatível para { "xml": "<xml>" } caso a rota direta aceite)
-//
-// Toda a criptografia (PKCS12 -> PKCS8, assinatura RSA-SHA256, mTLS, gzip/base64)
-// acontece AQUI no servidor — nunca no cliente e nunca no PocketBase.
-//
-// Rotas (path após /nfse-emissao):
-//   POST /enviar    body: { nota_id }          -> assina DPS, envia, grava retorno
-//   POST /consultar body: { nota_id }          -> consulta pela chave/protocolo
-//   GET  /xml/:id                              -> devolve XML da DPS/NFS-e
-//   POST /certificado  body: { pfx_base64, nome_arquivo, senha, valido_ate }
-//                                             -> valida .pfx, cifra a senha,
-//                                                grava em Storage + nfse_certificado
-//   GET  /certificado/status                   -> existe? validade? (sem dados sensíveis)
-//
-// Segredos (supabase secrets set):
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injetados automaticamente)
-//   NFSE_CERT_PASSWORD_KEY  -> chave simétrica para cifrar a senha do .pfx (mínimo 32 chars)
-//
-// SEGURANÇA:
-//   Exige header Authorization com JWT de usuário Supabase válido em todas
-//   as rotas exceto OPTIONS (CORS preflight). Além da autenticação, verifica
-//   permissão administrativa (role 'admin' ou metadata is_admin) e bloqueia
-//   acessos não autorizados com HTTP 401/403.
+// REGRAS OBRIGATÓRIAS:
+// - Ambiente em HOMOLOGAÇÃO
+// - Secret NFSE_CERT_PASSWORD_KEY preservada (NÃO alterar/regenerar)
+// - Validação interna de autenticação/admin (validarUsuarioAdmin) obrigatória em todos os endpoints
+// - Compatível com deploy --no-verify-jwt
+// - Conversão PKCS#12 -> PKCS#8 via privateKeyInfoToPem (Deno mTLS / OpenSSL)
+// - Tratamento SEFIN: idDps, chaveAcesso, descompactação gzip de nfseXmlGZipB64
+// - Consultas oficiais apenas: GET /dps/{id} e GET /nfse/{chaveAcesso}
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// Node-forge bundle ESM
+let _forge: any = null
+async function getForge() {
+  if (!_forge) {
+    const mod = await import('https://esm.sh/node-forge@1.3.1')
+    _forge = mod.default || mod
+  }
+  return _forge
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
 const PASSWORD_KEY = Deno.env.get('NFSE_CERT_PASSWORD_KEY') || ''
 
-// Endpoints oficiais da API REST SEFIN Nacional NFS-e (gov.br/nfse)
+// Endpoints oficiais da API SEFIN Nacional (Emissor Público / ADN)
 const API_BASE: Record<string, string> = {
-  homologacao: 'https://sefin.producaorestrita.nfse.gov.br/dfe/v1',
-  producao: 'https://sefin.nfse.gov.br/dfe/v1',
+  homologacao: 'https://hom-sefin.nfse.gov.br/SefinNacional',
+  producao: 'https://sefin.nfse.gov.br/SefinNacional',
 }
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, content-type, apikey',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
-// ---------------------------------------------------------------------------
-// Utilidades de resposta
-// ---------------------------------------------------------------------------
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...CORS_HEADERS,
-    },
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   })
 }
 
-function erro(mensagem: string, status = 400): Response {
-  return json({ error: mensagem }, status)
+function erro(mensagem: string, status = 400, detalhes?: unknown) {
+  return json({ ok: false, error: mensagem, detalhes }, status)
 }
 
 // ---------------------------------------------------------------------------
@@ -71,185 +57,243 @@ function erro(mensagem: string, status = 400): Response {
 async function validarUsuarioAdmin(
   req: Request,
   supaClient: ReturnType<typeof createClient>,
-): Promise<{ ok: boolean; erro?: string; status?: number; user?: any }> {
-  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
-  if (!authHeader) {
-    return { ok: false, erro: 'Cabeçalho Authorization não fornecido.', status: 401 }
+): Promise<{ ok: boolean; status?: number; erro?: string; user?: any }> {
+  const authHeader = req.headers.get('Authorization') || req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return {
+      ok: false,
+      status: 401,
+      erro: 'Cabeçalho Authorization não fornecido. Faça login para acessar o módulo NFS-e.',
+    }
   }
 
   const token = authHeader.replace(/^Bearer\s+/i, '').trim()
   if (!token) {
-    return { ok: false, erro: 'Token de autorização ausente.', status: 401 }
+    return { ok: false, status: 401, erro: 'Token JWT ausente.' }
   }
 
-  try {
-    const {
-      data: { user },
-      error,
-    } = await supaClient.auth.getUser(token)
-    if (error || !user) {
-      return {
-        ok: false,
-        erro: 'Token inválido ou expirado: ' + (error?.message || 'usuário não autenticado'),
-        status: 401,
-      }
-    }
-
-    // Validação rigorosa de perfil administrativo consultando a tabela profiles com service role
-    // e verificando app_metadata / email mestre. NUNCA confia em raw_user_meta_data enviado pelo cliente.
-    const { data: profile } = await supaClient
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
-
-    const appMeta = user.app_metadata || {}
-    const roleProfile = (profile?.role || '').toString().toLowerCase()
-    const roleAppMeta = (appMeta.role || '').toString().toLowerCase()
-
-    const isAdmin =
-      roleProfile === 'admin' ||
-      roleProfile === 'administrador' ||
-      roleAppMeta === 'admin' ||
-      roleAppMeta === 'administrador' ||
-      Boolean(appMeta.is_admin) ||
-      user.email === 'contato@gessobettone.com.br' ||
-      user.email === 'admin@gessobettone.com.br'
-
-    if (!isAdmin) {
-      return {
-        ok: false,
-        erro: 'Acesso negado: o módulo fiscal exige privilégios de administrador da empresa.',
-        status: 403,
-      }
-    }
-
-    return { ok: true, user }
-  } catch (e: any) {
+  const { data: userData, error: authError } = await supaClient.auth.getUser(token)
+  if (authError || !userData?.user) {
     return {
       ok: false,
-      erro: 'Falha ao validar autenticação: ' + (e?.message || String(e)),
       status: 401,
+      erro: 'Sessão inválida ou expirada. Faça login novamente.',
     }
+  }
+
+  const user = userData.user
+  const { data: profile, error: profError } = await supaClient
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profError) {
+    return {
+      ok: false,
+      status: 500,
+      erro: 'Erro ao verificar permissões de acesso: ' + profError.message,
+    }
+  }
+
+  const role = (profile?.role || '').toLowerCase()
+  if (role !== 'admin' && role !== 'administrador') {
+    return {
+      ok: false,
+      status: 403,
+      erro: 'Acesso negado: apenas administradores podem emitir ou gerenciar NFS-e.',
+    }
+  }
+
+  return { ok: true, user }
+}
+
+// ---------------------------------------------------------------------------
+// Criptografia AES-GCM da senha do certificado A1
+// ---------------------------------------------------------------------------
+async function derivaChave(): Promise<CryptoKey> {
+  const enc = new TextEncoder()
+  const rawKey = enc.encode(PASSWORD_KEY.padEnd(32, '0').slice(0, 32))
+  return await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, [
+    'encrypt',
+    'decrypt',
+  ])
+}
+
+async function cifraSenha(senha: string): Promise<{ c: string; iv: string; tag: string }> {
+  const key = await derivaChave()
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const enc = new TextEncoder()
+  const cipherBuffer = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, tagLength: 128 },
+    key,
+    enc.encode(senha),
+  )
+  const cipherBytes = new Uint8Array(cipherBuffer)
+  const tagLength = 16
+  const dataLength = cipherBytes.length - tagLength
+  const ciphertext = cipherBytes.slice(0, dataLength)
+  const tag = cipherBytes.slice(dataLength)
+
+  return {
+    c: btoa(String.fromCharCode(...ciphertext)),
+    iv: btoa(String.fromCharCode(...iv)),
+    tag: btoa(String.fromCharCode(...tag)),
   }
 }
 
-// ---------------------------------------------------------------------------
-// Criptografia da senha do certificado (AES-256-GCM via WebCrypto)
-// ---------------------------------------------------------------------------
-async function cifraSenha(senha: string): Promise<{ c: string; iv: string; tag: string }> {
-  const raw = new TextEncoder().encode(PASSWORD_KEY)
-  if (raw.length < 32) throw new Error('NFSE_CERT_PASSWORD_KEY precisa ter 32+ caracteres.')
-  const key = await crypto.subtle.importKey('raw', raw.slice(0, 32), 'AES-GCM', false, ['encrypt'])
-  const iv = crypto.getRandomValues(new Uint8Array(12))
-  const enc = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(senha)),
+async function decifraSenha(cB64: string, ivB64: string, tagB64: string): Promise<string> {
+  const key = await derivaChave()
+  const cBytes = Uint8Array.from(atob(cB64), (ch) => ch.charCodeAt(0))
+  const ivBytes = Uint8Array.from(atob(ivB64), (ch) => ch.charCodeAt(0))
+  const tagBytes = Uint8Array.from(atob(tagB64), (ch) => ch.charCodeAt(0))
+  const combined = new Uint8Array(cBytes.length + tagBytes.length)
+  combined.set(cBytes, 0)
+  combined.set(tagBytes, cBytes.length)
+
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBytes, tagLength: 128 },
+    key,
+    combined,
   )
-  const tag = enc.slice(enc.length - 16)
-  const ct = enc.slice(0, enc.length - 16)
-  const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u))
-  return { c: b64(ct), iv: b64(iv), tag: b64(tag) }
-}
-
-async function decifraSenha(c: string, iv: string, tag: string): Promise<string> {
-  const raw = new TextEncoder().encode(PASSWORD_KEY)
-  const key = await crypto.subtle.importKey('raw', raw.slice(0, 32), 'AES-GCM', false, ['decrypt'])
-  const ct = Uint8Array.from(atob(c), (ch) => ch.charCodeAt(0))
-  const ivU = Uint8Array.from(atob(iv), (ch) => ch.charCodeAt(0))
-  const tagU = Uint8Array.from(atob(tag), (ch) => ch.charCodeAt(0))
-  const joined = new Uint8Array(ct.length + tagU.length)
-  joined.set(ct)
-  joined.set(tagU, ct.length)
-  const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivU }, key, joined)
-  return new TextDecoder().decode(dec)
+  return new TextDecoder().decode(plain)
 }
 
 // ---------------------------------------------------------------------------
-// PKCS12 -> PEM (certificado X.509 + chave privada PKCS8), via node-forge
-// Robusto para chaves RSA em shroudedKeyBag ou keyBag, e exportação PKCS#8
+// Conversão de Chave Privada PKCS#12 para PKCS#8 PEM
+// Regra técnica: wrapRsaPrivateKey() retorna ASN.1 PrivateKeyInfo (PKCS#8).
+// Deve-se chamar privateKeyInfoToPem() e NÃO privateKeyToPem().
+// O PEM resultante inicia com '-----BEGIN PRIVATE KEY-----' (padrão OpenSSL / Deno mTLS).
 // ---------------------------------------------------------------------------
-let forgeCache: typeof import('npm:node-forge@1.3.1') | null = null
-async function getForge() {
-  if (!forgeCache) forgeCache = await import('npm:node-forge@1.3.1')
-  return forgeCache
+function converterChavePrivadaParaPkcs8Pem(forge: any, privateKey: any): string {
+  // 1. Converter chave privada Forge para RSAPrivateKey ASN.1 (PKCS#1)
+  const rsaPrivateKeyAsn1 = forge.pki.privateKeyToAsn1(privateKey)
+  // 2. Envelopar o RSAPrivateKey ASN.1 em PrivateKeyInfo ASN.1 (PKCS#8)
+  const privateKeyInfoAsn1 = forge.pki.wrapRsaPrivateKey(rsaPrivateKeyAsn1)
+  // 3. Converter a estrutura PrivateKeyInfo ASN.1 para PEM
+  return forge.pki.privateKeyInfoToPem(privateKeyInfoAsn1)
 }
 
+// ---------------------------------------------------------------------------
+// Extração de PEM e metadados do PFX (PKCS#12)
+// ---------------------------------------------------------------------------
 async function extrairPemDoPfx(pfxBase64: string, senha: string) {
   const forge = await getForge()
-  const der = forge.util.decode64(pfxBase64)
-  const asn1 = forge.asn1.fromDer(der)
-  const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, senha)
+  const p12Der = forge.util.decode64(pfxBase64)
+  const p12Asn1 = forge.asn1.fromDer(p12Der, false)
+  const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, false, senha)
 
-  const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })
-  const cert = certBags[forge.pki.oids.certBag]?.[0]?.cert
+  let certPem = ''
+  let keyPem = ''
+  let certObj: any = null
 
-  // Extração de chave privada resiliente (testa pkcs8ShroudedKeyBag e keyBag)
-  const keyBagsShrouded = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })
-  const keyBagsPlain = p12.getBags({ bagType: forge.pki.oids.keyBag })
-  const keyItem =
-    keyBagsShrouded[forge.pki.oids.pkcs8ShroudedKeyBag]?.[0] ||
-    keyBagsPlain[forge.pki.oids.keyBag]?.[0]
+  // Itera safeContents procurando certs e private key
+  for (const safeContent of p12.safeContents) {
+    for (const safeBag of safeContent.safeBags) {
+      if (safeBag.key) {
+        keyPem = converterChavePrivadaParaPkcs8Pem(forge, safeBag.key)
+      }
+      if (safeBag.cert && !certObj) {
+        certObj = safeBag.cert
+        certPem = forge.pki.certificateToPem(safeBag.cert)
+      }
+    }
+  }
 
-  if (!cert || !keyItem || !keyItem.key) {
+  // Fallback para getBags
+  if (!certObj) {
+    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })
+    const bag = certBags?.[forge.pki.oids.certBag]?.[0]
+    if (bag?.cert) {
+      certObj = bag.cert
+      certPem = forge.pki.certificateToPem(bag.cert)
+    }
+  }
+
+  if (!certPem || !keyPem) {
     throw new Error(
-      'Não foi possível extrair certificado e/ou chave privada do arquivo .pfx. Verifique se o arquivo é um A1 e-CNPJ válido e se a senha está correta.',
+      'Certificado (.pfx) inválido ou senha incorreta: chave privada ou certificado não encontrados.',
     )
   }
 
-  const certPem = forge.pki.certificateToPem(cert)
-  const rsaKey = keyItem.key as forge.pki.rsa.PrivateKey
+  const validadeFim = certObj.validity?.notAfter ? certObj.validity.notAfter.toISOString() : ''
+  const validoAte = validadeFim ? validadeFim.slice(0, 10) : ''
 
-  // Converte a chave RSA de forma segura para PKCS#8 PEM
-  let keyPem: string
+  let cnpj: string | undefined
+  let titular: string | undefined
+  let emissor: string | undefined
+
   try {
-    const pkcs8Asn1 = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(rsaKey))
-    keyPem = forge.pki.privateKeyToPem(pkcs8Asn1)
+    const cnAttr = certObj.subject?.attributes?.find(
+      (a: any) => a.name === 'commonName' || a.shortName === 'CN',
+    )
+    titular = cnAttr?.value
+    if (titular) {
+      const match = titular.match(/:(\d{14})$/) || titular.match(/\b(\d{14})\b/)
+      if (match) cnpj = match[1]
+    }
+    const issuerAttr = certObj.issuer?.attributes?.find(
+      (a: any) => a.name === 'commonName' || a.shortName === 'CN',
+    )
+    emissor = issuerAttr?.value
   } catch (_) {
-    // Fallback para privateKeyToPem direto
-    keyPem = forge.pki.privateKeyToPem(rsaKey)
+    // Ignora erro de parsing de subject
   }
 
-  const validade = cert.validity.notAfter
-  const titular = cert.subject.getField('CN')?.value || ''
-  const emissor = cert.issuer.getField('CN')?.value || cert.issuer.getField('O')?.value || ''
-
-  return {
-    certPem,
-    keyPem,
-    validoAte: `${validade.getFullYear()}-${String(validade.getMonth() + 1).padStart(2, '0')}-${String(validade.getDate()).padStart(2, '0')}`,
-    validadeFim: validade.toISOString(),
-    cnpj: titular.replace(/\D/g, ''),
-    titular,
-    emissor,
-  }
+  return { certPem, keyPem, validoAte, validadeFim, cnpj, titular, emissor }
 }
 
 // ---------------------------------------------------------------------------
-// XMLDSig: assinatura enveloped RSA-SHA256 com C14N exclusiva do elemento <infDPS>
+// C14N e Assinatura Digital XMLDSig (enveloped, C14N, RSA-SHA256)
+// Regra do schema XSD oficial TCDPS:
+// <xs:complexType name="TCDPS">
+//   <xs:sequence>
+//     <xs:element name="infDPS" type="TCInfDPS"/>
+//     <xs:element ref="ds:Signature" minOccurs="0"/>
+//   </xs:sequence>
+//   <xs:attribute name="versao" type="TVerNFSe" use="required"/>
+// </xs:complexType>
+// O elemento <Signature> deve vir IMEDIATAMENTE APÓS </infDPS> e ANTES de </DPS>.
 // ---------------------------------------------------------------------------
-function c14nXml(el: Element): string {
-  const esc = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const attrs = Array.from(el.attributes)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((a) => ` ${a.name}="${esc(a.value)}"`)
-    .join('')
-  const childXml = Array.from(el.childNodes)
-    .map((n) => {
-      if (n.nodeType === Node.TEXT_NODE) return esc(n.nodeValue || '')
-      if (n.nodeType === Node.ELEMENT_NODE) return c14nXml(n as Element)
-      return ''
-    })
-    .join('')
-  return `<${el.tagName}${attrs}>${childXml}</${el.tagName}>`
+function c14nXml(node: Node): string {
+  if (node.nodeType === 3) {
+    return (node.nodeValue || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\r/g, '&#xD;')
+  }
+  if (node.nodeType === 1) {
+    const el = node as Element
+    let out = '<' + el.nodeName
+    const attrs = Array.from(el.attributes).sort((a, b) => a.name.localeCompare(b.name))
+    for (const attr of attrs) {
+      out += ` ${attr.name}="${attr.value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')
+        .replace(/\t/g, '&#x9;')
+        .replace(/\n/g, '&#xA;')
+        .replace(/\r/g, '&#xD;')}"`
+    }
+    out += '>'
+    for (const child of Array.from(el.childNodes)) {
+      out += c14nXml(child)
+    }
+    out += `</${el.nodeName}>`
+    return out
+  }
+  return ''
 }
 
-function xmlEsc(s: string): string {
-  return (s || '')
+function xmlEsc(s: string | undefined): string {
+  if (!s) return ''
+  return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 async function assinarXml(
@@ -304,11 +348,12 @@ async function assinarXml(
     `</Signature>`,
   ].join('')
 
-  return xml.replace(`</${tagAssinar}>`, signature + `</${tagAssinar}>`)
+  // Em conformidade com o XSD TCDPS: a Signature é filha de DPS e irmã de infDPS, posicionada logo após </infDPS>
+  return xml.replace(`</${tagAssinar}>`, `</${tagAssinar}>` + signature)
 }
 
 // ---------------------------------------------------------------------------
-// Gzip + Base64 para envio na API SEFIN Nacional (dpsXmlGZipB64)
+// Gzip + Base64 (compressão e descompressão de payloads SEFIN)
 // ---------------------------------------------------------------------------
 async function comprimirXmlParaGzipB64(xml: string): Promise<string> {
   const enc = new TextEncoder().encode(xml)
@@ -319,11 +364,100 @@ async function comprimirXmlParaGzipB64(xml: string): Promise<string> {
   const compressedBuf = await new Response(cs.readable).arrayBuffer()
   const bytes = new Uint8Array(compressedBuf)
   let binary = ''
-  const len = bytes.byteLength
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i])
   }
   return btoa(binary)
+}
+
+async function descompactarGzipB64(gzipB64: string): Promise<string> {
+  if (!gzipB64 || typeof gzipB64 !== 'string') return ''
+  try {
+    const binary = atob(gzipB64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const ds = new DecompressionStream('gzip')
+    const writer = ds.writable.getWriter()
+    writer.write(bytes)
+    writer.close()
+    const decompressed = await new Response(ds.readable).arrayBuffer()
+    return new TextDecoder('utf-8').decode(decompressed)
+  } catch (err) {
+    console.error('Falha ao descompactar nfseXmlGZipB64:', err)
+    return ''
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Parser de Erros da SEFIN (NFSePostResponseErro e ResponseErro)
+// ---------------------------------------------------------------------------
+function formatarErrosSefin(parsed: any): {
+  codigo: string
+  mensagem: string
+  detalhes: Array<{ codigo?: string; descricao?: string; complemento?: string }>
+} {
+  const lista: Array<{ codigo?: string; descricao?: string; complemento?: string }> = []
+
+  // NFSePostResponseErro (POST /nfse) => erros: [ { codigo, descricao, complemento } ]
+  const arr = parsed.erros || parsed.Erros
+  if (Array.isArray(arr) && arr.length > 0) {
+    for (const item of arr) {
+      if (typeof item === 'string') {
+        lista.push({ descricao: item })
+      } else if (item && typeof item === 'object') {
+        lista.push({
+          codigo: item.codigo || item.Codigo,
+          descricao: item.descricao || item.Descricao || item.mensagem || item.Mensagem,
+          complemento: item.complemento || item.Complemento,
+        })
+      }
+    }
+  }
+
+  // ResponseErro (consultas e eventos) => erro: { codigo, descricao, complemento }
+  const unico = parsed.erro || parsed.Erro
+  if (unico && typeof unico === 'object') {
+    lista.push({
+      codigo: unico.codigo || unico.Codigo,
+      descricao: unico.descricao || unico.Descricao || unico.mensagem || unico.Mensagem,
+      complemento: unico.complemento || unico.Complemento,
+    })
+  }
+
+  if (lista.length === 0) {
+    const fallbackDesc =
+      parsed.mensagem ||
+      parsed.message ||
+      parsed.error ||
+      parsed.motivo ||
+      parsed.reasonPhrase ||
+      (typeof parsed.raw === 'string' && parsed.raw.slice(0, 300)) ||
+      'Rejeição não especificada pela SEFIN Nacional'
+    lista.push({
+      codigo: parsed.codigo ? String(parsed.codigo) : undefined,
+      descricao: String(fallbackDesc),
+    })
+  }
+
+  const codigos = lista.map((e) => e.codigo).filter(Boolean)
+  const codigoFinal =
+    codigos.length > 0 ? codigos.join(', ') : String(parsed.codigo || 'ERRO_SEFIN')
+
+  const frases = lista.map((e) => {
+    let s = ''
+    if (e.codigo) s += `[${e.codigo}] `
+    s += e.descricao || 'Erro'
+    if (e.complemento) s += ` (${e.complemento})`
+    return s
+  })
+
+  return {
+    codigo: codigoFinal,
+    mensagem: frases.join('; '),
+    detalhes: lista,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -367,9 +501,10 @@ function onlyDigits(s: string | undefined): string {
   return (s || '').replace(/\D/g, '')
 }
 
-function montarDpsXml(i: DpsInput): string {
+function montarDpsXml(i: DpsInput): { xml: string; idDps: string } {
   const docTomador = onlyDigits(i.documentoTomador)
   const isPJ = docTomador.length === 14
+  // XSD TCInfoPessoa: xs:choice de CNPJ ou CPF diretamente sob <toma>, sem tag fantasma <CNPJ_CPF>
   const docTag = isPJ ? `<CNPJ>${docTomador}</CNPJ>` : `<CPF>${docTomador}</CPF>`
 
   const cMunEmi = onlyDigits(i.enderecoPrestador.codigoMunicipio) || '3550407'
@@ -378,12 +513,12 @@ function montarDpsXml(i: DpsInput): string {
   const seriePadded = (i.serieRps || '1').padEnd(5, '0')
   const nDpsPadded = String(i.numeroRps).padStart(15, '0')
 
-  // Identificador da DPS oficial (42 caracteres): DPS + cMun(7) + tpInsc(1=CNPJ) + CNPJ(14) + serie(5) + nDPS(15)
-  const dpsId = `DPS${cMunPadded}2${cnpjPadded}${seriePadded}${nDpsPadded}`
+  // Identificador da DPS oficial (45 caracteres): DPS + cMun(7) + tpInsc(1=CNPJ) + CNPJ(14) + serie(5) + nDPS(15)
+  const idDps = `DPS${cMunPadded}2${cnpjPadded}${seriePadded}${nDpsPadded}`
 
   const tomadorXml = [
     `<toma>`,
-    `<CNPJ_CPF>${docTag}</CNPJ_CPF>`,
+    docTag,
     `<xNome>${xmlEsc(i.nomeTomador)}</xNome>`,
     i.emailTomador ? `<email>${xmlEsc(i.emailTomador)}</email>` : '',
     `</toma>`,
@@ -422,7 +557,7 @@ function montarDpsXml(i: DpsInput): string {
   const dpsXml = [
     `<?xml version="1.0" encoding="UTF-8"?>`,
     `<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">`,
-    `<infDPS Id="${dpsId}">`,
+    `<infDPS Id="${idDps}">`,
     `<tpAmb>${i.ambiente === 'producao' ? '1' : '2'}</tpAmb>`,
     `<dhEmi>${i.dataEmissao}</dhEmi>`,
     `<verAplic>GB001</verAplic>`,
@@ -441,8 +576,8 @@ function montarDpsXml(i: DpsInput): string {
     `<nro>${xmlEsc(i.enderecoPrestador.numero)}</nro>`,
     `<xBairro>${xmlEsc(i.enderecoPrestador.bairro)}</xBairro>`,
     `</end>`,
-    `<fone>${onlyDigits(i.enderecoPrestador.telefone)}</fone>`,
-    `<email>${xmlEsc(i.enderecoPrestador.email)}</email>`,
+    i.enderecoPrestador.telefone ? `<fone>${onlyDigits(i.enderecoPrestador.telefone)}</fone>` : '',
+    i.enderecoPrestador.email ? `<email>${xmlEsc(i.enderecoPrestador.email)}</email>` : '',
     `</prest>`,
     tomadorXml,
     servicoXml,
@@ -452,11 +587,11 @@ function montarDpsXml(i: DpsInput): string {
     `</DPS>`,
   ].join('')
 
-  return dpsXml
+  return { xml: dpsXml, idDps }
 }
 
 // ---------------------------------------------------------------------------
-// Acesso ao Supabase (service role) — leitura/escrita das tabelas NFS-e
+// Acesso ao Supabase (service role)
 // ---------------------------------------------------------------------------
 function supa() {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } })
@@ -510,7 +645,7 @@ async function configurarMtls(certPem: string, keyPem: string): Promise<any> {
 }
 
 // ---------------------------------------------------------------------------
-// Envio da DPS ao sistema nacional
+// Envio da DPS ao sistema nacional (POST /nfse)
 // ---------------------------------------------------------------------------
 async function enviarDps(
   nota: Record<string, any>,
@@ -561,7 +696,7 @@ async function enviarDps(
     servico?.nome ||
     'Serviços prestados'
 
-  const dpsXml = montarDpsXml({
+  const { xml: dpsXml, idDps } = montarDpsXml({
     ambiente: nota.ambiente || 'homologacao',
     dataEmissao: dataEmissaoDps,
     cnpjPrestador: emitente.cnpj,
@@ -600,10 +735,11 @@ async function enviarDps(
 
   const xmlAssinado = await assinarXml(dpsXml, 'infDPS', certPem, keyPem)
 
-  // Grava XML e status 'enviando' de forma estrita — se falhar a gravação, aborta com erro
+  // Grava id_dps e XML assinado com status 'enviando'
   const { error: updErr } = await supaClient
     .from('nfse_notas')
     .update({
+      id_dps: idDps,
       xml_dps: xmlAssinado,
       xml_distribuicao: xmlAssinado,
       status: 'enviando',
@@ -615,7 +751,7 @@ async function enviarDps(
     throw new Error('Falha ao atualizar nota para status enviando: ' + updErr.message)
   }
 
-  // Prepara payload compatível com a API Nacional: compactado gzip + base64 (padrão SEFIN)
+  // Prepara payload oficial SEFIN: dpsXmlGZipB64
   const dpsXmlGZipB64 = await comprimirXmlParaGzipB64(xmlAssinado)
 
   const client = await configurarMtls(certPem, keyPem)
@@ -632,7 +768,6 @@ async function enviarDps(
       },
       body: JSON.stringify({
         dpsXmlGZipB64,
-        xml: xmlAssinado, // compatibilidade com mock/gateways intermediários
       }),
     })
 
@@ -644,20 +779,16 @@ async function enviarDps(
       parsed = { raw: txt }
     }
 
+    // HTTP != 201 ou resposta de erro SEFIN
     if (!resp.ok) {
-      const msg =
-        parsed.message ||
-        parsed.error ||
-        parsed.motivo ||
-        parsed.reasonPhrase ||
-        `Falha no envio à Receita Federal (HTTP ${resp.status})`
+      const { codigo, mensagem, detalhes } = formatarErrosSefin(parsed)
       const protocolo = parsed.numeroProtocolo || parsed.protocolo || ''
       const retorno = {
         status: 'rejeitada' as const,
-        mensagem_erro: msg,
-        mensagem_retorno: msg,
+        mensagem_erro: mensagem,
+        mensagem_retorno: mensagem,
         protocolo,
-        codigo_retorno: String(parsed.codigo || resp.status),
+        codigo_retorno: codigo,
         payload_retorno: parsed,
         updated_at: new Date().toISOString(),
       }
@@ -668,32 +799,52 @@ async function enviarDps(
         .eq('id', nota.id)
       if (errUpdate) {
         throw new Error(
-          `Nota rejeitada pela Receita (${msg}), mas falhou ao gravar retorno no banco: ${errUpdate.message}`,
+          `Nota rejeitada pela Receita (${mensagem}), mas falhou ao gravar retorno no banco: ${errUpdate.message}`,
         )
       }
-      return { ok: false, erro: msg }
+      return { ok: false, erro: mensagem, detalhes }
     }
 
-    // Sucesso: autorizada
+    // Sucesso HTTP 201 (NFSePostResponseSucesso)
+    // Campos oficiais: idDps, chaveAcesso, dataHoraProcessamento, nfseXmlGZipB64
+    const idDpsRetorno = parsed.idDps || parsed.idDPS || idDps
+    const chaveAcesso = String(parsed.chaveAcesso || parsed.chave || '')
+    const dataHoraProcessamento = parsed.dataHoraProcessamento || parsed.dataEmissao
+    const dataAutorizacao = dataHoraProcessamento
+      ? new Date(dataHoraProcessamento).toISOString()
+      : new Date().toISOString()
+
+    // Descompacta XML retornado pela SEFIN (gzip base64)
+    let xmlNfseDescompactado: string | null = null
+    const gzipB64 = parsed.nfseXmlGZipB64 || parsed.xmlGZipB64
+    if (gzipB64) {
+      xmlNfseDescompactado = await descompactarGzipB64(gzipB64)
+    } else if (parsed.xml || parsed.nfseXml) {
+      xmlNfseDescompactado = parsed.xml || parsed.nfseXml
+    }
+
     const protocolo = parsed.numeroProtocolo || parsed.protocolo || ''
-    const numeroNfse = String(
+    // Extrai número da nota a partir da chaveAcesso (posições 32 a 44 conforme layout) ou campo explícito
+    let numeroNfse = String(
       parsed.numeroNfse || parsed.numeroNFSe || parsed.numeroAcesso || parsed.numero || '',
     )
-    const chaveAcesso = String(parsed.chaveAcesso || parsed.chave || '')
+    if (!numeroNfse && chaveAcesso && chaveAcesso.length === 50) {
+      numeroNfse = String(parseInt(chaveAcesso.slice(31, 44), 10) || '')
+    }
+
     const retorno = {
       status: 'autorizada' as const,
+      id_dps: idDpsRetorno,
       protocolo,
       numero_nfse: numeroNfse,
       chave_acesso: chaveAcesso,
       codigo_verificacao: parsed.codigoVerificacao || null,
-      data_autorizacao: parsed.dataEmissao
-        ? new Date(parsed.dataEmissao).toISOString()
-        : new Date().toISOString(),
-      xml_nfse: parsed.xml || parsed.nfseXml || null,
-      xml_distribuicao: parsed.xml || parsed.nfseXml || xmlAssinado,
+      data_autorizacao: dataAutorizacao,
+      xml_nfse: xmlNfseDescompactado,
+      xml_distribuicao: xmlNfseDescompactado || xmlAssinado,
       link_danfse: parsed.linkDanfse || parsed.linkImpressao || null,
       mensagem_erro: null,
-      mensagem_retorno: parsed.mensagem || 'Autorizada com sucesso',
+      mensagem_retorno: 'NFS-e autorizada com sucesso pela SEFIN Nacional',
       codigo_retorno: '100',
       payload_retorno: parsed,
       updated_at: new Date().toISOString(),
@@ -740,6 +891,10 @@ async function enviarDps(
 
 // ---------------------------------------------------------------------------
 // Consulta da nota no sistema nacional
+// Documentação oficial da SEFIN Nacional:
+// - GET /nfse/{chaveAcesso} — Consulta NFS-e pela chave de acesso (50 caracteres)
+// - GET /dps/{id} — Recupera chave de acesso e dados pelo identificador da DPS (45 caracteres)
+// NÃO utilizar /dps/protocolo/ nem consultar por número da nota (não suportados na API nacional)
 // ---------------------------------------------------------------------------
 async function consultarDps(nota: Record<string, any>) {
   const supaClient = supa()
@@ -754,11 +909,23 @@ async function consultarDps(nota: Record<string, any>) {
 
   const client = await configurarMtls(certPem, keyPem)
   const ambiente = nota.ambiente || 'homologacao'
-  const url = nota.chave_acesso
-    ? `${API_BASE[ambiente]}/nfse/${encodeURIComponent(nota.chave_acesso)}`
-    : nota.numero_nfse
-      ? `${API_BASE[ambiente]}/nfse/${encodeURIComponent(nota.numero_nfse)}`
-      : `${API_BASE[ambiente]}/dps/protocolo/${encodeURIComponent(nota.protocolo || '')}`
+
+  // Determina endpoint oficial com base nos identificadores vigentes
+  let url = ''
+  let tipoConsulta: 'chave' | 'dps' = 'chave'
+
+  if (nota.chave_acesso && String(nota.chave_acesso).trim().length === 50) {
+    tipoConsulta = 'chave'
+    url = `${API_BASE[ambiente]}/nfse/${encodeURIComponent(String(nota.chave_acesso).trim())}`
+  } else if (nota.id_dps) {
+    tipoConsulta = 'dps'
+    url = `${API_BASE[ambiente]}/dps/${encodeURIComponent(String(nota.id_dps).trim())}`
+  } else {
+    // Se não tiver chave nem id_dps gravado, tentar reconstruir o id_dps padrão
+    throw new Error(
+      'Não é possível consultar a NFS-e: a nota não possui chave_acesso (50 dígitos) nem id_dps registrado. Envie a DPS para obter os identificadores oficiais.',
+    )
+  }
 
   try {
     const resp = await fetch(url, { client, headers: { Accept: 'application/json' } })
@@ -769,29 +936,50 @@ async function consultarDps(nota: Record<string, any>) {
     } catch {
       parsed = { raw: txt }
     }
+
     if (!resp.ok) {
-      const msg = parsed.message || parsed.error || `Falha na consulta (HTTP ${resp.status})`
-      return { ok: false, erro: msg }
+      const { mensagem } = formatarErrosSefin(parsed)
+      return { ok: false, erro: mensagem }
+    }
+
+    // Em GET /dps/{id}, a resposta pode conter chaveAcesso ou NFSe
+    const chaveAcesso = String(parsed.chaveAcesso || parsed.chave || nota.chave_acesso || '')
+    const idDps = String(parsed.idDps || parsed.idDPS || nota.id_dps || '')
+
+    // Descompacta XML se fornecido em gzip
+    let xmlNfseDescompactado = nota.xml_nfse || null
+    const gzipB64 = parsed.nfseXmlGZipB64 || parsed.xmlGZipB64
+    if (gzipB64) {
+      xmlNfseDescompactado = await descompactarGzipB64(gzipB64)
+    } else if (parsed.xml || parsed.nfseXml) {
+      xmlNfseDescompactado = parsed.xml || parsed.nfseXml
     }
 
     const novoStatus = parsed.status === 'cancelada' ? 'cancelada' : 'autorizada'
+    let numeroNfse = String(
+      parsed.numeroNfse ||
+        parsed.numeroNFSe ||
+        parsed.numeroAcesso ||
+        parsed.numero ||
+        nota.numero_nfse ||
+        '',
+    )
+    if (!numeroNfse && chaveAcesso && chaveAcesso.length === 50) {
+      numeroNfse = String(parseInt(chaveAcesso.slice(31, 44), 10) || '')
+    }
+
     const update: Record<string, unknown> = {
       status: novoStatus,
-      numero_nfse: String(
-        parsed.numeroNfse ||
-          parsed.numeroNFSe ||
-          parsed.numeroAcesso ||
-          parsed.numero ||
-          nota.numero_nfse ||
-          '',
-      ),
-      chave_acesso: String(parsed.chaveAcesso || parsed.chave || nota.chave_acesso || ''),
-      xml_nfse: parsed.xml || parsed.nfseXml || nota.xml_nfse || null,
-      xml_distribuicao: parsed.xml || parsed.nfseXml || nota.xml_distribuicao || null,
+      id_dps: idDps || null,
+      chave_acesso: chaveAcesso || null,
+      numero_nfse: numeroNfse || null,
+      xml_nfse: xmlNfseDescompactado,
+      xml_distribuicao: xmlNfseDescompactado || nota.xml_distribuicao || null,
       link_danfse: parsed.linkDanfse || parsed.linkImpressao || nota.link_danfse || null,
-      data_autorizacao: parsed.dataEmissao
-        ? new Date(parsed.dataEmissao).toISOString()
-        : nota.data_autorizacao,
+      data_autorizacao:
+        parsed.dataHoraProcessamento || parsed.dataEmissao
+          ? new Date(parsed.dataHoraProcessamento || parsed.dataEmissao).toISOString()
+          : nota.data_autorizacao,
       payload_retorno: parsed,
       updated_at: new Date().toISOString(),
     }
@@ -850,7 +1038,7 @@ Deno.serve(async (req) => {
       if (!PASSWORD_KEY)
         return erro('Segredo NFSE_CERT_PASSWORD_KEY não configurado no Supabase.', 500)
 
-      // Valida o .pfx ANTES de gravar (senha correta, certificado legível, chave extraível)
+      // Valida o .pfx ANTES de gravar (senha correta, certificado legível, chave extraível para PKCS#8)
       const { validoAte, validadeFim, cnpj, titular, emissor } = await extrairPemDoPfx(
         pfxBase64,
         senha,
@@ -957,7 +1145,7 @@ Deno.serve(async (req) => {
       const result = await enviarDps(nota, emitente, servico as any, config)
       return result.ok
         ? json({ ok: true, retorno: result.retorno })
-        : erro(result.erro || 'Falha no envio.', 422)
+        : erro(result.erro || 'Falha no envio.', 422, result.detalhes)
     }
 
     // POST /consultar
