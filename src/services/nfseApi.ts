@@ -57,7 +57,14 @@ export interface NFSeNota {
   tomador_nome: string
   tomador_documento: string
   tomador_email: string
+  tomador_telefone?: string
   tomador_endereco: string
+  tomador_endereco_logradouro?: string
+  tomador_endereco_numero?: string
+  tomador_endereco_complemento?: string
+  tomador_endereco_bairro?: string
+  tomador_endereco_cep?: string
+  tomador_codigo_municipio?: string
   tomador_municipio: string
   tomador_uf: string
   descricao_servico: string
@@ -189,7 +196,14 @@ function mapearNota(r: any): NFSeNota {
     tomador_nome: r.tomador_nome || '',
     tomador_documento: r.tomador_documento || '',
     tomador_email: r.tomador_email || '',
+    tomador_telefone: r.tomador_telefone || '',
     tomador_endereco: r.tomador_endereco || '',
+    tomador_endereco_logradouro: r.tomador_endereco_logradouro || '',
+    tomador_endereco_numero: r.tomador_endereco_numero || '',
+    tomador_endereco_complemento: r.tomador_endereco_complemento || '',
+    tomador_endereco_bairro: r.tomador_endereco_bairro || '',
+    tomador_endereco_cep: r.tomador_endereco_cep || '',
+    tomador_codigo_municipio: r.tomador_codigo_municipio || '',
     tomador_municipio: r.tomador_municipio || '',
     tomador_uf: r.tomador_uf || '',
     descricao_servico: r.descricao_servico || '',

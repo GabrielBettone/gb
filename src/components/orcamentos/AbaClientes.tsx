@@ -47,8 +47,11 @@ import {
   FileText,
   RotateCw,
   FolderOpen,
+  Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { consultarCnpj } from '@/services/cnpj'
 
 interface AbaClientesProps {
   grupos: ClienteGrupo[]
@@ -73,6 +76,7 @@ export const AbaClientes: React.FC<AbaClientesProps> = ({
   const [clienteHistorico, setClienteHistorico] = useState<Cliente | null>(null)
   const [clienteParaExcluir, setClienteParaExcluir] = useState<Cliente | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [consultandoCnpj, setConsultandoCnpj] = useState(false)
 
   // Campos do formulário
   const [nome, setNome] = useState('')
@@ -513,12 +517,76 @@ export const AbaClientes: React.FC<AbaClientesProps> = ({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-[#2C3E50]">CPF ou CNPJ</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-[#2C3E50]">CPF ou CNPJ</Label>
+                  {documento.replace(/\D/g, '').length === 14 && (
+                    <button
+                      type="button"
+                      disabled={consultandoCnpj}
+                      onClick={async () => {
+                        const limpo = documento.replace(/\D/g, '')
+                        setConsultandoCnpj(true)
+                        try {
+                          const res = await consultarCnpj(limpo, { forcarRecarregar: true })
+                          if (res) {
+                            if (res.razao_social && !nome) setNome(res.razao_social)
+                            if (res.email && !email) setEmail(res.email)
+                            if (res.telefone && !whatsapp) setWhatsapp(res.telefone)
+                            if (res.municipio) setCidade(res.municipio)
+                            if (res.endereco_completo) setEndereco(res.endereco_completo)
+                            toast({
+                              title: 'Dados preenchidos via CNPJ',
+                              description: `${res.razao_social} • ${res.municipio}/${res.uf}`,
+                            })
+                          } else {
+                            toast({
+                              title: 'CNPJ não localizado',
+                              description: 'Não foi possível encontrar dados na Receita Federal.',
+                            })
+                          }
+                        } finally {
+                          setConsultandoCnpj(false)
+                        }
+                      }}
+                      className="text-[10px] text-[#2C3E50] hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      {consultandoCnpj ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+                      )}
+                      Buscar CNPJ
+                    </button>
+                  )}
+                </div>
                 <Input
                   value={documento}
-                  onChange={(e) => setDocumento(e.target.value)}
-                  placeholder="000.000.000-00 ou CNPJ"
-                  className="h-9 text-xs bg-white"
+                  onChange={async (e) => {
+                    const val = e.target.value
+                    setDocumento(val)
+                    const limpo = val.replace(/\D/g, '')
+                    if (limpo.length === 14 && !nome) {
+                      setConsultandoCnpj(true)
+                      try {
+                        const res = await consultarCnpj(limpo)
+                        if (res) {
+                          setNome(res.razao_social)
+                          if (res.email) setEmail(res.email)
+                          if (res.telefone) setWhatsapp(res.telefone)
+                          if (res.municipio) setCidade(res.municipio)
+                          if (res.endereco_completo) setEndereco(res.endereco_completo)
+                          toast({
+                            title: 'Dados importados da Receita',
+                            description: `${res.razao_social} (${res.municipio}/${res.uf})`,
+                          })
+                        }
+                      } finally {
+                        setConsultandoCnpj(false)
+                      }
+                    }
+                  }}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                  className="h-9 text-xs bg-white font-mono"
                 />
               </div>
 
